@@ -44,7 +44,20 @@
       "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:4000/health\" -UseBasicParsing -TimeoutSec 5; Write-Output \"STATUS: $\\($r.StatusCode\\)\"; Write-Output $r.Content } catch { Write-Output \"ERR: $\\($_.Exception.Message\\)\"; if \\($_.Exception.Response\\) { Write-Output \"HTTP $\\([int]$_.Exception.Response.StatusCode\\)\" } })",
       "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:4000/api/v1/auth/login\" -Method POST -ContentType \"application/json\" -Body '{\"email\":\"bad\"}' -UseBasicParsing -TimeoutSec 5; Write-Output \"STATUS: $\\($r.StatusCode\\)\"; Write-Output $r.Content } catch { $resp = $_.Exception.Response; if \\($resp\\) { $reader = New-Object System.IO.StreamReader\\($resp.GetResponseStream\\(\\)\\); Write-Output \"HTTP $\\([int]$resp.StatusCode\\)\"; Write-Output $reader.ReadToEnd\\(\\) } else { Write-Output \"ERR: $\\($_.Exception.Message\\)\" } })",
       "PowerShell(curl.exe -s -X POST \"http://localhost:4000/api/v1/auth/login\" -H \"Content-Type: application/json\" -d '{\\\\\"email\\\\\":\\\\\"bad\\\\\"}')",
-      "Bash(dir F:blue-node *)"
+      "Bash(dir F:blue-node *)",
+      "Bash(gh run *)",
+      "PowerShell(gh run *)",
+      "PowerShell(npm run *)",
+      "PowerShell(npx prettier --write README.md)",
+      "PowerShell(npx vitest run --passWithNoTests)",
+      "PowerShell(npm pkg *)",
+      "PowerShell(npm ls *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npm ci *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "PowerShell(npm *)"
     ]
   }
 }
