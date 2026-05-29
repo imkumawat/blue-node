@@ -1,0 +1,24 @@
+# Dependencies & build output (reinstalled/recompiled inside the image)
+node_modules
+dist
+build
+
+# Secrets & env — must NOT be baked into the image
+.env
+.env.*
+!.env.example
+
+# Git & editor
+.git
+.gitignore
+.vscode
+.idea
+
+# Claude / local tooling
+.claude
+
+# Logs & misc
+*.log
+npm-debug.log*
+coverage
+*.tsbuildinfo

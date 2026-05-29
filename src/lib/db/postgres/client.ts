@@ -1,0 +1,66 @@
+import { drizzle } from "drizzle-orm/node-postgres";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import pg from "pg";
+import type { Pool as PoolType } from "pg";
+import { getEnvConfig } from "../../../config/env.js";
+import { serviceState } from "../../../utils/serviceState.js";
+import logger from "../../../utils/logger.js";
+
+const { Pool } = pg;
+
+let pool: PoolType | undefined;
+let _pgClient: NodePgDatabase | undefined;
+
+export async function connectPostgres(): Promise<void> {
+  const { host, port, name, user, password } = getEnvConfig().postgres;
+
+  pool = new Pool({
+    host,
+    port,
+    database: name,
+    user,
+    password,
+  });
+
+  pool.on("error", (err: Error) => {
+    serviceState.db = false;
+    logger.error({ err: err.message }, "PostgreSQL pool error");
+  });
+
+  pool.on("connect", () => {
+    serviceState.db = true;
+  });
+
+  try {
+    const client = await pool.connect();
+    client.release();
+  } catch (err) {
+    logger.fatal(
+      { err: err instanceof Error ? err.message : String(err) },
+      "Failed to connect to PostgreSQL",
+    );
+    process.exit(1);
+  }
+
+  serviceState.db = true;
+  _pgClient = drizzle(pool);
+  logger.info("PostgreSQL connected");
+}
+
+export async function disconnectPostgres(): Promise<void> {
+  await pool?.end();
+  _pgClient = undefined;
+  logger.info("PostgreSQL disconnected");
+}
+
+/**
+ * Returns the Drizzle DB client. Throws if `connectPostgres()` hasn't run.
+ * Use this instead of importing a module-level `pgClient` directly — safer
+ * because runtime errors are explicit, and easier to mock in tests.
+ */
+export function getDb(): NodePgDatabase {
+  if (!_pgClient) {
+    throw new Error("Postgres not connected. Call connectPostgres() first.");
+  }
+  return _pgClient;
+}
