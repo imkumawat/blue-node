@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- build stage: compile TS -> dist/ ----
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # install ALL deps (incl. devDeps: typescript, etc.) for the build
@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime stage: slim production image ----
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
