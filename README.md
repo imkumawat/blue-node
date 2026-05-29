@@ -10,16 +10,16 @@ Production-grade Node.js backend in TypeScript. Express + Drizzle + Redis + Grap
 
 ## Scripts
 
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Start dev server (nodemon + tsx, kills port 4000 first) |
-| `npm run build` | Compile TS → `dist/` |
-| `npm start` | Run compiled `dist/server.js` |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint:check` | ESLint |
-| `npm run lint:fix` | ESLint with `--fix` |
-| `npm run format:check` | Prettier check |
-| `npm run format:fix` | Prettier write |
+| Script                 | Purpose                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| `npm run dev`          | Start dev server (nodemon + tsx, kills port 4000 first) |
+| `npm run build`        | Compile TS → `dist/`                                    |
+| `npm start`            | Run compiled `dist/server.js`                           |
+| `npm run typecheck`    | `tsc --noEmit`                                          |
+| `npm run lint:check`   | ESLint                                                  |
+| `npm run lint:fix`     | ESLint with `--fix`                                     |
+| `npm run format:check` | Prettier check                                          |
+| `npm run format:fix`   | Prettier write                                          |
 
 ## CI
 
@@ -50,7 +50,7 @@ CI files alone don't block merges. You must enable branch protection in the repo
 
 1. **Repos** → **Branches** → find `main` → **…** → **Branch policies**.
 2. Under **Build Validation**, click **+**.
-3. Select the pipeline tied to `azure-pipelines.yml` → set **Trigger** to *Automatic* → **Policy requirement**: *Required*.
+3. Select the pipeline tied to `azure-pipelines.yml` → set **Trigger** to _Automatic_ → **Policy requirement**: _Required_.
 4. Save.
 
 Optional (recommended for both): require minimum reviewers, require linked work items, block direct pushes to `main`.
