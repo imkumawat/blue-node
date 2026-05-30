@@ -55,7 +55,14 @@ export async function connectPostgres(): Promise<void> {
 }
 
 export async function disconnectPostgres(): Promise<void> {
-  await pool?.end();
+  try {
+    await pool?.end();
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "PostgreSQL pool.end() failed during shutdown",
+    );
+  }
   _pgClient = undefined;
   logger.info("PostgreSQL disconnected");
 }

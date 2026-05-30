@@ -57,7 +57,14 @@ export async function connectRedis(): Promise<void> {
 }
 
 export async function disconnectRedis(): Promise<void> {
-  await _redis?.quit();
+  try {
+    await _redis?.quit();
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      "Redis quit() failed during shutdown",
+    );
+  }
   _redis = undefined;
   logger.info("Redis disconnected");
 }
