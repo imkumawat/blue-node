@@ -67,6 +67,11 @@ export const ROUTES = {
   webhookPrefix: "/api/webhooks/",
 } as const;
 
+export const AWS_HTTP = {
+  connectionTimeoutMs: 3_000, // TCP connect cap — fail fast on network issue
+  requestTimeoutMs: 10_000, // per-request total cap (raise for S3 uploads if needed)
+} as const;
+
 export const AWS = {
   s3: {
     signedUrlExpiry: 86_400, // 24h — private file access
