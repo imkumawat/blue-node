@@ -4,6 +4,7 @@ import { logoutUser } from "../services/logout.js";
 import { getUserById } from "../services/getUserById.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { signupSchema, loginSchema } from "../schemas.js";
+import { InvalidRefreshTokenError } from "../errors.js";
 import type { GraphQLContext } from "../../../graphql/buildContext.js";
 import type { IssuedToken } from "../lib/tokenService.js";
 
@@ -82,10 +83,13 @@ export const authResolvers = {
     },
 
     logout: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
+      // @authenticated directive guarantees ctx.user (thus accessJti/accessExp
+      // — same JWT). Refresh cookie is independent — validate explicitly.
+      if (!ctx.rawRefreshToken) throw new InvalidRefreshTokenError();
       await logoutUser({
         accessJti: ctx.accessJti!,
         accessExp: ctx.accessExp!,
-        rawRefreshToken: ctx.rawRefreshToken!,
+        rawRefreshToken: ctx.rawRefreshToken,
       });
       return true;
     },
