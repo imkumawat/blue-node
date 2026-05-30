@@ -52,11 +52,8 @@ function detailedAuth(req: Request, res: Response, next: NextFunction): void {
     next();
     return;
   }
-  const { env, swagger } = getEnvConfig();
-  if (env !== "production") {
-    next();
-    return;
-  }
+  const { swagger } = getEnvConfig();
+
   if (!swagger.user || !swagger.password) {
     res.status(503).json({
       success: false,
