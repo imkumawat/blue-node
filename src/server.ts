@@ -30,7 +30,18 @@ httpServer.listen(config.server.port, () => {
   logger.info({ port: config.server.port, env: config.env }, "Server running");
 });
 
+let isShuttingDown = false;
+
 function shutdown(signal: NodeJS.Signals): void {
+  if (isShuttingDown) {
+    logger.warn(
+      { signal },
+      "Shutdown already in progress, ignoring duplicate signal",
+    );
+    return;
+  }
+  isShuttingDown = true;
+
   logger.info({ signal }, "Shutdown signal received, draining");
 
   // 1. Close WS clients (code 1001 — "going away" — so they can reconnect to another instance)
