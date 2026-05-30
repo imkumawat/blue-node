@@ -55,14 +55,11 @@ export default function errorHandler(
     return;
   }
 
-  if (e.status === StatusCodes.BAD_REQUEST) {
-    res.status(StatusCodes.BAD_REQUEST).json({
-      success: false,
-      message: e.message,
-      ...withStack(e),
-    });
-    return;
-  }
+  // No generic err.status === 400 catch-all — arbitrary 3rd-party err.message
+  // can leak internals (tmp paths, internal IPs, library specifics). Our own
+  // code throws HttpError subclasses which the first branch handles. Any
+  // genuinely-unknown 400 falls through to the 500 branch below: client gets
+  // a sanitized envelope, full error is logged for debugging.
 
   logger.error({ requestId: req.requestId, err }, "Unhandled error");
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
