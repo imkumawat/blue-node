@@ -11,6 +11,7 @@ import {
   BODY,
   ROUTES,
   AWS,
+  POSTGRES_POOL,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -25,6 +26,7 @@ export type AppConfig = {
     name: string;
     user: string;
     password: string;
+    pool: typeof POSTGRES_POOL;
   };
   redis: {
     host: string;
@@ -33,6 +35,9 @@ export type AppConfig = {
     retryBaseMs: number;
     retryMaxMs: number;
     permTtl: number;
+    connectTimeoutMs: number;
+    commandTimeoutMs: number;
+    keepAliveMs: number;
     keys: typeof REDIS_KEYS;
   };
   jwt: {
@@ -134,6 +139,7 @@ export default async function loadEnv(
       name: e.POSTGRES_DB,
       user: e.POSTGRES_USER,
       password: e.POSTGRES_PASSWORD,
+      pool: POSTGRES_POOL,
     },
     redis: {
       host: e.REDIS_HOST,

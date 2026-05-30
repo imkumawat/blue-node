@@ -15,6 +15,19 @@ export const REDIS = {
   retryBaseMs: 500,
   retryMaxMs: 5000,
   permTtl: 900, // 15 min
+  connectTimeoutMs: 10_000, // boot-time TCP connect cap
+  commandTimeoutMs: 5_000, // per-command timeout — bounds hang during failover
+  keepAliveMs: 30_000, // TCP keepalive so dead conns surface quickly
+} as const;
+
+export const POSTGRES_POOL = {
+  max: 20, // per-instance pool size; coordinate with Postgres max_connections
+  min: 2, // keep warm connections, avoid cold-start latency
+  idleTimeoutMillis: 30_000, // recycle stale conns; defends against server-side age
+  connectionTimeoutMillis: 5_000, // bound wait for pool slot — fail fast over hang
+  statementTimeoutMs: 30_000, // server-side query kill (Postgres statement_timeout)
+  queryTimeoutMs: 30_000, // client-side query cancel — defense in depth
+  applicationName: "blue-node", // visible in pg_stat_activity for debugging
 } as const;
 
 export const RATE_LIMIT = {

@@ -12,7 +12,7 @@ let pool: PoolType | undefined;
 let _pgClient: NodePgDatabase | undefined;
 
 export async function connectPostgres(): Promise<void> {
-  const { host, port, name, user, password } = getEnvConfig().postgres;
+  const { host, port, name, user, password, pool: p } = getEnvConfig().postgres;
 
   pool = new Pool({
     host,
@@ -20,6 +20,13 @@ export async function connectPostgres(): Promise<void> {
     database: name,
     user,
     password,
+    max: p.max,
+    min: p.min,
+    idleTimeoutMillis: p.idleTimeoutMillis,
+    connectionTimeoutMillis: p.connectionTimeoutMillis,
+    statement_timeout: p.statementTimeoutMs,
+    query_timeout: p.queryTimeoutMs,
+    application_name: p.applicationName,
   });
 
   pool.on("error", (err: Error) => {

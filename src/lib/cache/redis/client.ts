@@ -7,14 +7,25 @@ let _redis: Redis | undefined;
 let initialConnected = false;
 
 export async function connectRedis(): Promise<void> {
-  const { host, port, password, retryBaseMs, retryMaxMs } =
-    getEnvConfig().redis;
+  const {
+    host,
+    port,
+    password,
+    retryBaseMs,
+    retryMaxMs,
+    connectTimeoutMs,
+    commandTimeoutMs,
+    keepAliveMs,
+  } = getEnvConfig().redis;
 
   _redis = new Redis({
     host,
     port,
     password,
     maxRetriesPerRequest: 1,
+    connectTimeout: connectTimeoutMs,
+    commandTimeout: commandTimeoutMs,
+    keepAlive: keepAliveMs,
     retryStrategy: (times: number) => {
       if (!initialConnected) return null;
       return Math.min(times * retryBaseMs, retryMaxMs);
