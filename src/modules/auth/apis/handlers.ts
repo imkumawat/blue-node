@@ -47,6 +47,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   const { user, access, refresh } = await loginWithPassword({
     email,
     password,
+    ipAddress: getClientIp(req),
   });
 
   setAuthCookies(res, access.token, refresh.token);

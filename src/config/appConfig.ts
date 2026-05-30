@@ -7,6 +7,8 @@ export const REDIS_KEYS = {
   rlAuth: "rl:auth:",
   refreshRotated: "refresh:rotated:",
   authFail: "auth:fail:",
+  authFailIp: "auth:failip:",
+  authFailPair: "auth:failpair:",
 } as const;
 
 export const REDIS = {
@@ -35,7 +37,8 @@ export const JWT = {
 export const AUTH = {
   saltRounds: 12,
   apiKeyPrefix: "nf_",
-  maxFailedLogins: 5, // distributed-attack defense — locks account after N failed attempts regardless of source IP
+  maxFailedLogins: 5, // hard lockout threshold for per-IP and per-(email|ip) counters
+  emailSoftWarnThreshold: 20, // per-email — log-only surveillance, does NOT block (prevents account-DoS)
   lockoutWindowSec: 15 * 60, // 15 min — counter TTL; passing this without further failure clears the count
 } as const;
 

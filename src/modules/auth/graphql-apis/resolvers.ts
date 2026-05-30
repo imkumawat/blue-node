@@ -68,9 +68,16 @@ export const authResolvers = {
       return toAuthPayload(result);
     },
 
-    login: async (_parent: unknown, { input }: LoginArgs) => {
+    login: async (
+      _parent: unknown,
+      { input }: LoginArgs,
+      ctx: GraphQLContext,
+    ) => {
       const validated = parseInput(loginSchema, input);
-      const result = await loginWithPassword(validated);
+      const result = await loginWithPassword({
+        ...validated,
+        ipAddress: ctx.ipAddress,
+      });
       return toAuthPayload(result);
     },
 
