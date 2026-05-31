@@ -6,6 +6,7 @@ import {
 } from "./lib/db/postgres/client.js";
 import { connectRedis, disconnectRedis } from "./lib/cache/redis/client.js";
 import { connectMongo, disconnectMongo } from "./lib/db/mongo/client.js";
+import { initJobQueue, closeJobQueue } from "./jobs/queue.js";
 import logger from "./utils/logger.js";
 
 export interface CoreServices {
@@ -32,8 +33,10 @@ export async function initCoreServices(
   await connectPostgres();
   await connectRedis();
   await connectMongo();
+  initJobQueue(); // BullMQ producer — both web and worker can enqueue
 
   const teardown = async (): Promise<void> => {
+    await closeJobQueue(); // close queue before datastores
     await disconnectPostgres();
     await disconnectRedis();
     await disconnectMongo();

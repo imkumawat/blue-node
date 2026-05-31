@@ -1,39 +1,24 @@
 import { Worker } from "bullmq";
-import { getEnvConfig } from "../config/env.js";
 import { jobRegistry } from "../jobs/registry.js";
+import { JOB_QUEUE, bullConnection } from "../jobs/bullmq.js";
 import logger from "../utils/logger.js";
 
 /**
  * Create the BullMQ worker (Redis-backed jobs — priority, retries, scheduled).
- *
- * Pass plain connection OPTIONS (not a shared ioredis instance) so BullMQ owns
- * its connection (worker.close() cleans it up) and we avoid the version clash
- * with bullmq's bundled ioredis. maxRetriesPerRequest must be null for BullMQ's
- * blocking commands; do NOT reuse getRedis() (it sets 1).
+ * JOB_QUEUE + bullConnection() are shared with the producer Queue (jobs/bullmq.ts)
+ * so the queue name and Redis connection never drift between producer and
+ * consumer. (bullConnection uses the separate noeviction bullRedis — see there.)
  */
 export function createBullWorker(): Worker {
-  // Uses bullRedis (NOT the cache `redis`). Why a separate Redis: the cache
-  // Redis runs an eviction policy (e.g. volatile-lru) to drop old keys under
-  // memory pressure — but BullMQ requires `noeviction`, else queued jobs can be
-  // evicted (lost). The two policies are incompatible on one instance. In dev,
-  // bullRedis falls back to the same instance (low volume → safe); in prod point
-  // REDIS_BULL_* at a dedicated noeviction Redis.
-  const { bullRedis } = getEnvConfig();
-
   const worker = new Worker(
-    "default",
+    JOB_QUEUE,
     async (job) => {
       const handler = jobRegistry[job.name];
       if (!handler) throw new Error(`No handler for job "${job.name}"`);
       await handler(job.data); // throw → BullMQ retries (attempts/backoff) → failed set
     },
     {
-      connection: {
-        host: bullRedis.host,
-        port: bullRedis.port,
-        password: bullRedis.password,
-        maxRetriesPerRequest: null,
-      },
+      connection: bullConnection(),
       concurrency: 5,
     },
   );
