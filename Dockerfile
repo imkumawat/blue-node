@@ -36,7 +36,8 @@ COPY --from=build --chown=node:node /app/dist ./dist
 # drop root — run as the unprivileged `node` user
 USER node
 
-EXPOSE 3000
+# 3000 = web server, 3001 = worker health server (same image runs either role)
+EXPOSE 3000 3001
 
 # ENTRYPOINT is fixed → everything runs under dumb-init (signal forwarding +
 # zombie reaping apply to ANY command, web or worker).

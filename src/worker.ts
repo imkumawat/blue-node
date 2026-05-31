@@ -15,7 +15,7 @@ import logger from "./utils/logger.js";
 
 const { config, teardown } = await initCoreServices();
 
-const health = startHealthServer(config.server.port);
+const health = startHealthServer(config.server.workerPort);
 const bull = createBullWorker();
 const sqs = createSqsPoller(config.aws.sqs.queues.notifications);
 sqs.start();

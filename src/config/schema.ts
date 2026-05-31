@@ -3,6 +3,7 @@ import { z } from "zod";
 export const envSchema = z.object({
   // Server
   PORT: z.coerce.number().int().min(3000).max(65535),
+  WORKER_PORT: z.coerce.number().int().min(3000).max(65535).default(3001),
   NODE_ENV: z.enum(["development", "production", "test"]),
 
   // PostgreSQL

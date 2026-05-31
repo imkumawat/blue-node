@@ -12,6 +12,8 @@
     "dev": "kill-port 3000 && nodemon",
     "build": "tsc",
     "start": "node dist/server.js",
+    "worker": "kill-port 3001 && tsx watch src/worker.ts",
+    "start:worker": "node dist/worker.js",
     "lint:fix": "eslint . --fix",
     "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
     "typecheck": "tsc --noEmit",
