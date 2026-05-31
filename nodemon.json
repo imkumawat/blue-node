@@ -1,6 +1,6 @@
 {
   "watch": ["src"],
   "ext": "ts,js,json",
-  "exec": "npx kill-port 4000 && tsx src/server.ts",
+  "exec": "npx kill-port 3000 && tsx src/server.ts",
   "delay": "700"
 }

@@ -9,7 +9,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "kill-port 4000 && nodemon",
+    "dev": "kill-port 3000 && nodemon",
     "build": "tsc",
     "start": "node dist/server.js",
     "lint:fix": "eslint . --fix",
