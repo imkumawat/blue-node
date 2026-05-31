@@ -17,6 +17,10 @@ export const envSchema = z.object({
   REDIS_PORT: z.coerce.number().int().min(1).max(65535),
   REDIS_PASSWORD: z.string().optional(),
 
+  // MongoDB
+  MONGO_URI: z.string().min(1),
+  MONGO_DB: z.string().min(1),
+
   // Auth
   API_SECRET_KEY: z.string().min(16),
 

@@ -30,6 +30,15 @@ export const POSTGRES_POOL = {
   applicationName: "blue-node", // visible in pg_stat_activity for debugging
 } as const;
 
+export const MONGO = {
+  maxPoolSize: 20, // per-instance connection pool ceiling
+  minPoolSize: 2, // keep warm conns, avoid cold-start latency
+  serverSelectionTimeoutMs: 5_000, // fail fast if no reachable node
+  connectTimeoutMs: 10_000, // TCP connect cap
+  socketTimeoutMs: 30_000, // per-op socket inactivity cap
+  appName: "blue-node", // visible in Mongo server logs / profiler
+} as const;
+
 export const RATE_LIMIT = {
   windowMs: 15 * 60 * 1000, // 15 min
   maxIp: 500, // covers shared IPs (office/university), blocks DDoS

@@ -6,7 +6,7 @@ export default function serviceAvailability(
   res: Response,
   next: NextFunction,
 ): void {
-  if (!serviceState.db || !serviceState.redis) {
+  if (!serviceState.postgres || !serviceState.redis || !serviceState.mongo) {
     res.status(503).json({
       success: false,
       status: "degraded",

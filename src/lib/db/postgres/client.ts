@@ -30,12 +30,12 @@ export async function connectPostgres(): Promise<void> {
   });
 
   pool.on("error", (err: Error) => {
-    serviceState.db = false;
+    serviceState.postgres = false;
     logger.error({ err: err.message }, "PostgreSQL pool error");
   });
 
   pool.on("connect", () => {
-    serviceState.db = true;
+    serviceState.postgres = true;
   });
 
   try {
@@ -49,7 +49,7 @@ export async function connectPostgres(): Promise<void> {
     process.exit(1);
   }
 
-  serviceState.db = true;
+  serviceState.postgres = true;
   _pgClient = drizzle(pool);
   logger.info("PostgreSQL connected");
 }

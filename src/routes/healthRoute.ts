@@ -5,6 +5,7 @@ import basicAuth from "express-basic-auth";
 import { sql } from "drizzle-orm";
 import { getDb } from "../lib/db/postgres/client.js";
 import { getRedis } from "../lib/cache/redis/client.js";
+import { getMongo } from "../lib/db/mongo/client.js";
 import { serviceState } from "../utils/serviceState.js";
 import { getEnvConfig } from "../config/env.js";
 
@@ -94,15 +95,18 @@ router.get("/health", detailedAuth, async (req: Request, res: Response) => {
   const { timeoutMs } = getEnvConfig().health;
   const { env } = getEnvConfig();
 
-  const [database, redisStatus] = await Promise.all([
+  const [database, redisStatus, mongoStatus] = await Promise.all([
     pingService(() => getDb().execute(sql`SELECT 1`), timeoutMs),
     pingService(() => getRedis().ping(), timeoutMs),
+    pingService(() => getMongo().command({ ping: 1 }), timeoutMs),
   ]);
 
-  serviceState.db = database.status === "available";
+  serviceState.postgres = database.status === "available";
   serviceState.redis = redisStatus.status === "available";
+  serviceState.mongo = mongoStatus.status === "available";
 
-  const isHealthy = serviceState.db && serviceState.redis;
+  const isHealthy =
+    serviceState.postgres && serviceState.redis && serviceState.mongo;
 
   const base = {
     success: isHealthy,
@@ -110,7 +114,7 @@ router.get("/health", detailedAuth, async (req: Request, res: Response) => {
     message: isHealthy ? "Server is up and running" : "Service unavailable",
     uptime: +process.uptime().toFixed(1),
     timestamp: new Date().toISOString(),
-    services: { database, redis: redisStatus },
+    services: { database, redis: redisStatus, mongo: mongoStatus },
   };
 
   if (req.query.detailed !== "true") {

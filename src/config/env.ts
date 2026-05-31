@@ -12,6 +12,7 @@ import {
   ROUTES,
   AWS,
   POSTGRES_POOL,
+  MONGO,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -39,6 +40,11 @@ export type AppConfig = {
     commandTimeoutMs: number;
     keepAliveMs: number;
     keys: typeof REDIS_KEYS;
+  };
+  mongo: {
+    uri: string;
+    db: string;
+    options: typeof MONGO;
   };
   jwt: {
     userSecret: string;
@@ -147,6 +153,11 @@ export default async function loadEnv(
       password: e.REDIS_PASSWORD,
       ...REDIS,
       keys: REDIS_KEYS,
+    },
+    mongo: {
+      uri: e.MONGO_URI,
+      db: e.MONGO_DB,
+      options: MONGO,
     },
     jwt: {
       userSecret: e.JWT_USER_SECRET,
