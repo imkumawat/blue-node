@@ -1,7 +1,3 @@
-import { createServer } from "http";
-import { bootApp } from "./init.js";
-import { attachWebSocketServer } from "./websocket/server.js";
-import logger from "./utils/logger.js";
 import { unexpectedErrorHandler } from "./utils/unexpectedErrorHandler.js";
 
 process.on("uncaughtException", (err, origin) =>
@@ -10,6 +6,11 @@ process.on("uncaughtException", (err, origin) =>
 process.on("unhandledRejection", (reason) =>
   unexpectedErrorHandler(reason, "unhandledRejection"),
 );
+
+import { createServer } from "http";
+import { bootApp } from "./bootApp.js";
+import { attachWebSocketServer } from "./websocket/server.js";
+import logger from "./utils/logger.js";
 
 const { app, config, teardown } = await bootApp();
 const httpServer = createServer(app);
