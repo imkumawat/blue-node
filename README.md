@@ -7,6 +7,57 @@ Production-grade Node.js backend in TypeScript. Express + Drizzle + Redis + Grap
 - Node.js >= 22
 - PostgreSQL
 - Redis
+- MongoDB
+
+## Database users (least privilege)
+
+Never run the app as the database master/superuser (`postgres`, MySQL `root`,
+Mongo `atlasAdmin`/`root`). Create a **dedicated app user** with only the
+data-operation privileges the app needs, scoped to a single database. If app
+credentials leak, the blast radius stays contained — the user can touch its own
+data but cannot drop databases, manage users, or read other databases.
+
+Conventions:
+
+- **Runtime user** — `SELECT/INSERT/UPDATE/DELETE` only (no DDL, no superuser). This is what goes in `.env`.
+- **Migration user** (optional) — `CREATE/ALTER/DROP` for schema changes; used by migration scripts only.
+- Use **separate users per environment** (dev / staging / prod). Store prod credentials in AWS Secrets Manager, not `.env`.
+
+### PostgreSQL
+
+```sql
+CREATE ROLE bluenode_app WITH LOGIN PASSWORD 'change-me';
+GRANT CONNECT ON DATABASE graphql_crud TO bluenode_app;
+GRANT USAGE ON SCHEMA public TO bluenode_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO bluenode_app;
+-- Cover tables created later, too:
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO bluenode_app;
+```
+
+### MySQL
+
+```sql
+CREATE USER 'bluenode_app'@'%' IDENTIFIED BY 'change-me';
+GRANT SELECT, INSERT, UPDATE, DELETE ON graphql_crud.* TO 'bluenode_app'@'%';
+FLUSH PRIVILEGES;
+```
+
+### MongoDB
+
+```js
+// run in `mongosh` against the target cluster
+use bluenode;
+db.createUser({
+  user: "bluenode_app",
+  pwd: "change-me",
+  roles: [{ role: "readWrite", db: "bluenode" }], // NOT atlasAdmin / dbAdmin / root
+});
+```
+
+> **Atlas UI:** Database Access → Add New Database User → Built-in role
+> **Read and write to any database** is too broad — pick **Specific Privileges**
+> → `readWrite` on `bluenode` only. Also allowlist your IP under **Network Access**.
 
 ## Scripts
 
