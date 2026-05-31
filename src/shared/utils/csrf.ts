@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomToken } from "./crypto.js";
 
 // NOTE: Only needed when sameSite is "none" (cross-domain FE + BE)
 // Currently unused — sameSite: "lax" handles CSRF protection at browser level
@@ -6,5 +6,5 @@ import { randomBytes } from "crypto";
 // verifyCsrf middleware → shared/middleware/verifyCsrf.ts
 
 export function generateCsrfToken(): string {
-  return randomBytes(32).toString("hex");
+  return randomToken(32);
 }
