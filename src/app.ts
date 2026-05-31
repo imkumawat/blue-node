@@ -1,5 +1,5 @@
 import express from "express";
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
@@ -15,6 +15,7 @@ import { createRateLimiters } from "./shared/middleware/rateLimiter.js";
 import { optionalAuthenticate } from "./shared/middleware/optionalAuthenticate.js";
 import { swaggerAuth } from "./middlewares/swaggerAuth.js";
 import errorHandler from "./middlewares/errorHandler.js";
+import { NotFoundError } from "./shared/errors/NotFoundError.js";
 
 import healthRoute from "./routes/healthRoute.js";
 import { createMasterRouter } from "./routes/masterRoutes.js";
@@ -89,6 +90,13 @@ export async function buildApp(): Promise<Express> {
 
   // Master Routes Registry
   app.use("/api", createMasterRouter());
+
+  // Catch-all: no route matched → 404 via errorHandler (consistent JSON envelope)
+  app.use((req: Request, _res: Response, next: NextFunction): void => {
+    next(
+      new NotFoundError(`Route not found: ${req.method} ${req.originalUrl}`),
+    );
+  });
 
   app.use(errorHandler);
 
