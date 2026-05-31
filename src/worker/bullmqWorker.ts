@@ -12,7 +12,13 @@ import logger from "../utils/logger.js";
  * blocking commands; do NOT reuse getRedis() (it sets 1).
  */
 export function createBullWorker(): Worker {
-  const { redis } = getEnvConfig();
+  // Uses bullRedis (NOT the cache `redis`). Why a separate Redis: the cache
+  // Redis runs an eviction policy (e.g. volatile-lru) to drop old keys under
+  // memory pressure — but BullMQ requires `noeviction`, else queued jobs can be
+  // evicted (lost). The two policies are incompatible on one instance. In dev,
+  // bullRedis falls back to the same instance (low volume → safe); in prod point
+  // REDIS_BULL_* at a dedicated noeviction Redis.
+  const { bullRedis } = getEnvConfig();
 
   const worker = new Worker(
     "default",
@@ -23,9 +29,9 @@ export function createBullWorker(): Worker {
     },
     {
       connection: {
-        host: redis.host,
-        port: redis.port,
-        password: redis.password,
+        host: bullRedis.host,
+        port: bullRedis.port,
+        password: bullRedis.password,
         maxRetriesPerRequest: null,
       },
       concurrency: 5,

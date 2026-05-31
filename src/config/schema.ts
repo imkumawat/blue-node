@@ -13,10 +13,17 @@ export const envSchema = z.object({
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
 
-  // Redis
+  // Redis (cache / rate-limit — uses an eviction policy)
   REDIS_HOST: z.string().min(1),
   REDIS_PORT: z.coerce.number().int().min(1).max(65535),
   REDIS_PASSWORD: z.string().optional(),
+
+  // BullMQ Redis — needs a SEPARATE instance with maxmemory-policy=noeviction
+  // (cache eviction would silently drop queued jobs). Optional: falls back to
+  // the cache Redis above when unset (dev convenience). See .env for the why.
+  REDIS_BULL_HOST: z.string().min(1).optional(),
+  REDIS_BULL_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  REDIS_BULL_PASSWORD: z.string().optional(),
 
   // MongoDB
   MONGO_URI: z.string().min(1),

@@ -41,6 +41,13 @@ export type AppConfig = {
     keepAliveMs: number;
     keys: typeof REDIS_KEYS;
   };
+  // Separate Redis for BullMQ (see schema.ts / .env — needs noeviction).
+  // Falls back to the cache Redis values in dev.
+  bullRedis: {
+    host: string;
+    port: number;
+    password: string | undefined;
+  };
   mongo: {
     uri: string;
     db: string;
@@ -153,6 +160,11 @@ export default async function loadEnv(
       password: e.REDIS_PASSWORD,
       ...REDIS,
       keys: REDIS_KEYS,
+    },
+    bullRedis: {
+      host: e.REDIS_BULL_HOST ?? e.REDIS_HOST,
+      port: e.REDIS_BULL_PORT ?? e.REDIS_PORT,
+      password: e.REDIS_BULL_PASSWORD ?? e.REDIS_PASSWORD,
     },
     mongo: {
       uri: e.MONGO_URI,
