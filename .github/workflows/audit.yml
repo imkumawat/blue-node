@@ -1,0 +1,24 @@
+name: Dependency Audit
+
+# Decoupled from the CI quality gates on purpose: vulnerability status changes
+# with externally-published advisories (time), not with our code — so a fresh
+# CVE must not block an unrelated PR. Runs weekly + on demand. Dependabot opens
+# the actual fix PRs; this is the advisory net.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Audit (high and critical)
+        run: npm audit --audit-level=high

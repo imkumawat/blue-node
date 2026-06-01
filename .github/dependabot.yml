@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # npm dependencies — auto-PRs for security fixes + version bumps
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # keep GitHub Actions (checkout@v4, setup-node@v4, ...) up to date too
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
