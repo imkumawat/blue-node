@@ -1,0 +1,30 @@
+# Dependency audit — kept separate from azure-pipelines.yml (the quality gates)
+# on purpose: vulnerability status changes with externally-published advisories,
+# not with our code, so a fresh CVE must never block an unrelated PR. Runs on a
+# weekly schedule + on demand. Mirrors .github/workflows/audit.yml (npm Advisory
+# DB) — complements Dependabot (GitHub Advisory DB).
+
+# No push/PR triggers → this pipeline does NOT gate merges.
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 6 * * 1" # Mondays 06:00 UTC
+    displayName: Weekly dependency audit
+    branches:
+      include:
+        - main
+    always: true # run even when there are no code changes since last run
+
+pool:
+  vmImage: "ubuntu-latest"
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: "24.x"
+    displayName: "Install Node.js 24"
+
+  # npm audit reads package-lock.json — no npm ci / node_modules needed.
+  - script: npm audit --audit-level=high
+    displayName: "npm audit (high and critical)"
