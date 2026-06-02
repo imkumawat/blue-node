@@ -47,51 +47,61 @@ function keysFor(email: string, ip: string) {
   const { authFail, authFailIp, authFailPair } = getEnvConfig().redis.keys;
   const e = email.toLowerCase();
   return {
-    email: `${authFail}${e}`,
-    ip: `${authFailIp}${ip}`,
-    pair: `${authFailPair}${e}|${ip}`,
+    // failure counters (counting window)
+    emailCount: `${authFail}${e}`,
+    ipCount: `${authFailIp}${ip}`,
+    pairCount: `${authFailPair}${e}|${ip}`,
+    // fixed-duration locks (separate from counters — see assertNotLocked)
+    ipLock: `lock:ip:${ip}`,
+    pairLock: `lock:pair:${e}|${ip}`,
   };
 }
 
+// Atomic INCR + EXPIRE-on-first in one Lua op — no TTL-leak: a separate incr
+// then expire could crash in between, leaving a counter with no TTL (permanent).
+// EXPIRE only on first incr → the COUNTING window is fixed from the first
+// failure; the LOCKOUT duration is handled separately by the lock keys below.
+const INCR_WITH_TTL = `
+  local c = redis.call('INCR', KEYS[1])
+  if c == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+  return c
+`;
+
+// Lock checks read the LOCK keys (fixed duration set at the moment of locking),
+// NOT the counters — so the lockout lasts a consistent lockoutWindowSec no matter
+// when within the counting window the threshold was hit.
 async function assertNotLocked(email: string, ip: string): Promise<void> {
-  const { maxFailedLogins } = getEnvConfig().auth;
   const k = keysFor(email, ip);
-  const redis = getRedis();
+  const res = await getRedis().pipeline().ttl(k.ipLock).ttl(k.pairLock).exec();
+  const ipLockTtl = (res?.[0]?.[1] as number) ?? -2;
+  const pairLockTtl = (res?.[1]?.[1] as number) ?? -2;
 
-  const [ipRaw, pairRaw] = await redis.mget(k.ip, k.pair);
-  const ipCount = parseInt(ipRaw ?? "0", 10);
-  const pairCount = parseInt(pairRaw ?? "0", 10);
-
-  if (ipCount >= maxFailedLogins) {
-    const ttl = await redis.ttl(k.ip);
-    throw new AccountLockedError(ttl > 0 ? ttl : null);
-  }
-  if (pairCount >= maxFailedLogins) {
-    const ttl = await redis.ttl(k.pair);
-    throw new AccountLockedError(ttl > 0 ? ttl : null);
-  }
+  if (ipLockTtl > 0) throw new AccountLockedError(ipLockTtl);
+  if (pairLockTtl > 0) throw new AccountLockedError(pairLockTtl);
 }
 
 async function recordFailedAttempt(email: string, ip: string): Promise<void> {
-  const { lockoutWindowSec, emailSoftWarnThreshold } = getEnvConfig().auth;
+  const { lockoutWindowSec, maxFailedLogins, emailSoftWarnThreshold } =
+    getEnvConfig().auth;
   const k = keysFor(email, ip);
   const redis = getRedis();
 
-  const results = await redis
-    .pipeline()
-    .incr(k.email)
-    .incr(k.ip)
-    .incr(k.pair)
-    .exec();
-  const [emailCount, ipCount, pairCount] = (results ?? []).map(
-    ([, v]) => v as number,
-  );
+  const [emailCount, ipCount, pairCount] = (await Promise.all([
+    redis.eval(INCR_WITH_TTL, 1, k.emailCount, lockoutWindowSec),
+    redis.eval(INCR_WITH_TTL, 1, k.ipCount, lockoutWindowSec),
+    redis.eval(INCR_WITH_TTL, 1, k.pairCount, lockoutWindowSec),
+  ])) as [number, number, number];
 
-  if (emailCount === 1) await redis.expire(k.email, lockoutWindowSec);
-  if (ipCount === 1) await redis.expire(k.ip, lockoutWindowSec);
-  if (pairCount === 1) await redis.expire(k.pair, lockoutWindowSec);
+  // Threshold hit → set a FIXED-duration lock (NX so repeated failures don't
+  // extend it; the lock lasts exactly lockoutWindowSec from THIS moment).
+  if (ipCount >= maxFailedLogins) {
+    await redis.set(k.ipLock, "1", "EX", lockoutWindowSec, "NX");
+  }
+  if (pairCount >= maxFailedLogins) {
+    await redis.set(k.pairLock, "1", "EX", lockoutWindowSec, "NX");
+  }
 
-  if (emailCount! >= emailSoftWarnThreshold) {
+  if (emailCount >= emailSoftWarnThreshold) {
     logger.warn(
       { emailHash: sha256(email.toLowerCase()), ip, emailCount },
       "Suspicious login activity — coordinated email-wide failures",
@@ -100,10 +110,11 @@ async function recordFailedAttempt(email: string, ip: string): Promise<void> {
 }
 
 async function clearFailedAttempts(email: string, ip: string): Promise<void> {
-  // Leave the per-email surveillance counter alone — a single success doesn't
-  // prove absence of a distributed attack across other IPs.
+  // Clear the ip/pair counters AND locks on success; leave the per-email
+  // surveillance counter — a single success doesn't prove absence of a
+  // distributed attack across other IPs.
   const k = keysFor(email, ip);
-  await getRedis().del(k.ip, k.pair);
+  await getRedis().del(k.ipCount, k.pairCount, k.ipLock, k.pairLock);
 }
 
 export async function loginWithPassword({
