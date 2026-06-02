@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { signup, login, refresh, logout } from "./handlers.js";
 import { signupSchema, loginSchema } from "../schemas.js";
-import { validate } from "../../../shared/middleware/validate.js";
-import { authenticate } from "../../../shared/middleware/authenticate.js";
-import { requireCookies } from "../../../shared/middleware/requireCookies.js";
-import { createRateLimiters } from "../../../shared/middleware/rateLimiter.js";
+import { validate } from "../../../shared/middlewares/validate.js";
+import { authenticate } from "../../../shared/middlewares/authenticate.js";
+import { requireCookies } from "../../../shared/middlewares/requireCookies.js";
+import { createRateLimiters } from "../../../shared/middlewares/rateLimiter.js";
 import { getEnvConfig } from "../../../config/env.js";
 
 export function createAuthRoutes(): Router {

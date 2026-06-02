@@ -4,17 +4,17 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 
-import requestId from "./middlewares/requestId.js";
-import { requestLogger } from "./middlewares/requestLogger.js";
-import responseInterceptor from "./middlewares/responseInterceptor.js";
-import { createHttpLogger } from "./middlewares/httpLogger.js";
-import { createCorsMiddleware } from "./middlewares/cors.js";
-import { createBodyParser } from "./middlewares/bodyParser.js";
-import serviceAvailability from "./middlewares/serviceAvailability.js";
-import { createRateLimiters } from "./shared/middleware/rateLimiter.js";
-import { optionalAuthenticate } from "./shared/middleware/optionalAuthenticate.js";
-import { swaggerAuth } from "./middlewares/swaggerAuth.js";
-import errorHandler from "./middlewares/errorHandler.js";
+import requestId from "./app-middlewares/requestId.js";
+import { requestLogger } from "./app-middlewares/requestLogger.js";
+import responseInterceptor from "./app-middlewares/responseInterceptor.js";
+import { createHttpLogger } from "./app-middlewares/httpLogger.js";
+import { createCorsMiddleware } from "./app-middlewares/cors.js";
+import { createBodyParser } from "./app-middlewares/bodyParser.js";
+import serviceAvailability from "./app-middlewares/serviceAvailability.js";
+import { createRateLimiters } from "./shared/middlewares/rateLimiter.js";
+import { optionalAuthenticate } from "./shared/middlewares/optionalAuthenticate.js";
+import { swaggerAuth } from "./app-middlewares/swaggerAuth.js";
+import errorHandler from "./app-middlewares/errorHandler.js";
 import { NotFoundError } from "./shared/errors/NotFoundError.js";
 
 import healthRoute from "./routes/healthRoute.js";
