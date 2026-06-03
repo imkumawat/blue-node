@@ -11,6 +11,16 @@ export class EmailAlreadyExistsError extends HttpError {
   }
 }
 
+export class CaptchaRequiredError extends HttpError {
+  constructor() {
+    super(
+      "CAPTCHA_REQUIRED",
+      StatusCodes.FORBIDDEN,
+      "Additional verification required — please complete the CAPTCHA.",
+    );
+  }
+}
+
 export class InvalidCredentialsError extends HttpError {
   constructor() {
     super(

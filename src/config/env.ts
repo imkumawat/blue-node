@@ -68,7 +68,10 @@ export type AppConfig = {
   cors: { allowedOrigins: string };
   proxy: { hopCount: number };
   rateLimit: typeof RATE_LIMIT;
-  auth: typeof AUTH;
+  auth: typeof AUTH & {
+    captchaEnabled: boolean;
+    turnstileSecret: string | undefined;
+  };
   health: typeof HEALTH;
   body: typeof BODY;
   routes: typeof ROUTES;
@@ -184,7 +187,11 @@ export default async function loadEnv(
     cors: { allowedOrigins: e.ALLOWED_ORIGINS },
     proxy: { hopCount: e.PROXY_HOP_COUNT },
     rateLimit: RATE_LIMIT,
-    auth: AUTH,
+    auth: {
+      ...AUTH,
+      captchaEnabled: e.CAPTCHA_ENABLED === "true",
+      turnstileSecret: e.TURNSTILE_SECRET,
+    },
     health: HEALTH,
     body: BODY,
     routes: ROUTES,

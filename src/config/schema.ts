@@ -32,6 +32,10 @@ export const envSchema = z.object({
   // Auth
   API_SECRET_KEY: z.string().min(16),
 
+  // CAPTCHA (Cloudflare Turnstile) — feature-flagged; OFF = inert
+  CAPTCHA_ENABLED: z.enum(["true", "false"]).default("false"),
+  TURNSTILE_SECRET: z.string().optional(),
+
   // JWT
   JWT_USER_SECRET: z.string().min(32),
   JWT_ADMIN_SECRET: z.string().min(32),

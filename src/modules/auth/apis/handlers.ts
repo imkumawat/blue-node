@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { registerUser } from "../services/registerUser.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
+import { assessLoginRisk } from "../services/assessLoginRisk.js";
 import { renewTokens } from "../services/refreshToken.js";
 import { logoutUser } from "../services/logout.js";
 import {
@@ -41,13 +42,24 @@ export async function signup(req: Request, res: Response): Promise<void> {
   });
 }
 
+export async function loginPrecheck(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  // Pre-login risk check (CLIENT/IP-based) — FE calls this before showing the
+  // login form to decide whether to render a CAPTCHA. Not account-gated.
+  const risk = await assessLoginRisk(getClientIp(req));
+  res.status(StatusCodes.OK).json({ success: true, data: risk });
+}
+
 export async function login(req: Request, res: Response): Promise<void> {
-  const { email, password } = req.body as LoginInput;
+  const { email, password, captchaToken } = req.body as LoginInput;
 
   const { user, access, refresh } = await loginWithPassword({
     email,
     password,
     ipAddress: getClientIp(req),
+    captchaToken,
   });
 
   setAuthCookies(res, access.token, refresh.token);

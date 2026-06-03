@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { signup, login, refresh, logout } from "./handlers.js";
+import { signup, login, refresh, logout, loginPrecheck } from "./handlers.js";
 import { signupSchema, loginSchema } from "../schemas.js";
 import { validate } from "../../../shared/middlewares/validate.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
@@ -12,6 +12,8 @@ export function createAuthRoutes(): Router {
   const { authLimiter } = createRateLimiters();
   const router = Router();
 
+  // Pre-login risk check (IP-based) — FE calls before login to decide CAPTCHA
+  router.post("/v1/auth/precheck", loginPrecheck);
   router.post("/v1/auth/signup", authLimiter, validate(signupSchema), signup);
   router.post("/v1/auth/login", authLimiter, validate(loginSchema), login);
   router.post("/v1/auth/refresh", requireCookies("refresh_token"), refresh);

@@ -15,7 +15,10 @@ import {
   InvalidCredentialsError,
   AccountNotActiveError,
   AccountLockedError,
+  CaptchaRequiredError,
 } from "../errors.js";
+import { assessLoginRisk } from "./assessLoginRisk.js";
+import { verifyCaptcha } from "../lib/captcha.js";
 import type { User } from "../../../models/postgres/user/user.js";
 
 // Pre-computed bcrypt hash (cost 12) — running a dummy compare when the user
@@ -28,6 +31,7 @@ interface LoginInput {
   email: string;
   password: string;
   ipAddress: string;
+  captchaToken?: string;
 }
 
 interface LoginResult {
@@ -70,7 +74,11 @@ const INCR_WITH_TTL = `
 // Lock checks read the LOCK keys (fixed duration set at the moment of locking),
 // NOT the counters — so the lockout lasts a consistent lockoutWindowSec no matter
 // when within the counting window the threshold was hit.
-async function assertNotLocked(email: string, ip: string): Promise<void> {
+async function assertNotLocked(
+  email: string,
+  ip: string,
+  captchaToken?: string,
+): Promise<void> {
   const k = keysFor(email, ip);
   const res = await getRedis().pipeline().ttl(k.ipLock).ttl(k.pairLock).exec();
   const ipLockTtl = (res?.[0]?.[1] as number) ?? -2;
@@ -78,6 +86,16 @@ async function assertNotLocked(email: string, ip: string): Promise<void> {
 
   if (ipLockTtl > 0) throw new AccountLockedError(ipLockTtl);
   if (pairLockTtl > 0) throw new AccountLockedError(pairLockTtl);
+
+  // CAPTCHA gate — client-risk based (assessLoginRisk is keyed on IP, not the
+  // account) and inert when the feature is disabled. Runs after the hard locks
+  // so a bot is challenged BEFORE the expensive bcrypt. DoS-safe: a legit user
+  // from a clean IP is never challenged.
+  const { captchaRequired } = await assessLoginRisk(ip);
+  if (captchaRequired) {
+    const ok = captchaToken ? await verifyCaptcha(captchaToken, ip) : false;
+    if (!ok) throw new CaptchaRequiredError();
+  }
 }
 
 async function recordFailedAttempt(email: string, ip: string): Promise<void> {
@@ -121,11 +139,12 @@ export async function loginWithPassword({
   email,
   password,
   ipAddress,
+  captchaToken,
 }: LoginInput): Promise<LoginResult> {
   const { userAudience } = getEnvConfig().jwt;
 
-  // 1. Pre-check lockout BEFORE expensive bcrypt — fail fast under attack
-  await assertNotLocked(email, ipAddress);
+  // 1. Pre-check lockout + CAPTCHA gate BEFORE expensive bcrypt — fail fast
+  await assertNotLocked(email, ipAddress, captchaToken);
 
   const user = await findUserByEmail(email);
 

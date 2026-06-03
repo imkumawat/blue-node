@@ -11,14 +11,16 @@ import { createHttpLogger } from "./app-middlewares/httpLogger.js";
 import { createCorsMiddleware } from "./app-middlewares/cors.js";
 import { createBodyParser } from "./app-middlewares/bodyParser.js";
 import serviceAvailability from "./app-middlewares/serviceAvailability.js";
-import { createRateLimiters } from "./shared/middlewares/rateLimiter.js";
-import { optionalAuthenticate } from "./shared/middlewares/optionalAuthenticate.js";
 import { swaggerAuth } from "./app-middlewares/swaggerAuth.js";
 import errorHandler from "./app-middlewares/errorHandler.js";
+
+import { createRateLimiters } from "./shared/middlewares/rateLimiter.js";
+import { optionalAuthenticate } from "./shared/middlewares/optionalAuthenticate.js";
 import { NotFoundError } from "./shared/errors/NotFoundError.js";
 
 import healthRoute from "./routes/healthRoute.js";
 import { createMasterRouter } from "./routes/masterRoutes.js";
+
 import { createGraphQLMiddleware } from "./graphql/server.js";
 
 import { createSwaggerSpec } from "./config/swagger.js";

@@ -56,6 +56,8 @@ export const loginSchema = z.object({
     .string({ error: "Password is required" })
     .min(1, "Password is required")
     .max(72, "Password must be at most 72 characters"),
+  // Sent by the FE when a CAPTCHA challenge was required (feature-flagged).
+  captchaToken: z.string().optional(),
 });
 
 export type SignupInput = z.infer<typeof signupSchema>;
