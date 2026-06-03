@@ -14,13 +14,13 @@ export interface LoginRisk {
  * Used by both the pre-login /precheck endpoint and the login gate.
  */
 export async function assessLoginRisk(ip: string): Promise<LoginRisk> {
-  const { captchaEnabled, captchaFailThreshold } = getEnvConfig().auth;
-  if (!captchaEnabled) return { captchaRequired: false };
+  const { enabled, failThreshold } = getEnvConfig().captcha;
+  if (!enabled) return { captchaRequired: false };
 
   const { authFailIp } = getEnvConfig().redis.keys;
   const fails = parseInt(
     (await getRedis().get(`${authFailIp}${ip}`)) ?? "0",
     10,
   );
-  return { captchaRequired: fails >= captchaFailThreshold };
+  return { captchaRequired: fails >= failThreshold };
 }

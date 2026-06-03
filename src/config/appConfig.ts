@@ -62,7 +62,10 @@ export const AUTH = {
   maxFailedLogins: 5, // hard lockout threshold for per-IP and per-(email|ip) counters
   emailSoftWarnThreshold: 20, // per-email — log-only surveillance, does NOT block (prevents account-DoS)
   lockoutWindowSec: 15 * 60, // 15 min — counter TTL; passing this without further failure clears the count
-  captchaFailThreshold: 3, // per-IP failures → require CAPTCHA (below the hard-lock at maxFailedLogins=5)
+} as const;
+
+export const CAPTCHA = {
+  failThreshold: 3, // per-IP failures → require CAPTCHA (below the hard-lock at maxFailedLogins=5)
 } as const;
 
 export const HEALTH = {

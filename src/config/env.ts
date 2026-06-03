@@ -13,6 +13,7 @@ import {
   AWS,
   POSTGRES_POOL,
   MONGO,
+  CAPTCHA,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -68,9 +69,11 @@ export type AppConfig = {
   cors: { allowedOrigins: string };
   proxy: { hopCount: number };
   rateLimit: typeof RATE_LIMIT;
-  auth: typeof AUTH & {
-    captchaEnabled: boolean;
+  auth: typeof AUTH;
+  captcha: {
+    enabled: boolean;
     turnstileSecret: string | undefined;
+    failThreshold: number;
   };
   health: typeof HEALTH;
   body: typeof BODY;
@@ -187,10 +190,11 @@ export default async function loadEnv(
     cors: { allowedOrigins: e.ALLOWED_ORIGINS },
     proxy: { hopCount: e.PROXY_HOP_COUNT },
     rateLimit: RATE_LIMIT,
-    auth: {
-      ...AUTH,
-      captchaEnabled: e.CAPTCHA_ENABLED === "true",
+    auth: AUTH,
+    captcha: {
+      enabled: e.CAPTCHA_ENABLED === "true",
       turnstileSecret: e.TURNSTILE_SECRET,
+      failThreshold: CAPTCHA.failThreshold,
     },
     health: HEALTH,
     body: BODY,

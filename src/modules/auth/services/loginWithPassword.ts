@@ -18,7 +18,7 @@ import {
   CaptchaRequiredError,
 } from "../errors.js";
 import { assessLoginRisk } from "./assessLoginRisk.js";
-import { verifyCaptcha } from "../lib/captcha.js";
+import { verifyCaptcha } from "../../../lib/captcha.js";
 import type { User } from "../../../models/postgres/user/user.js";
 
 // Pre-computed bcrypt hash (cost 12) — running a dummy compare when the user

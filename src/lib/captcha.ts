@@ -1,18 +1,20 @@
-import { getEnvConfig } from "../../../config/env.js";
-import logger from "../../../utils/logger.js";
+import { getEnvConfig } from "../config/env.js";
+import logger from "../utils/logger.js";
 
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 /**
- * Server-side Cloudflare Turnstile verification. FAIL-CLOSED: any error, missing
- * secret, or non-success response returns false — a verification failure must
- * never silently pass. 3s timeout so a slow Turnstile call can't hang the login.
+ * Server-side Cloudflare Turnstile verification. Lives in src/lib as a generic
+ * external-service client (like lib/aws); provider-neutral filename so the
+ * captcha provider can be swapped without touching callers. FAIL-CLOSED: any
+ * error, missing secret, or non-success → false (a failure never silently
+ * passes). 3s timeout so a slow verify can't hang the login.
  */
 export async function verifyCaptcha(
   token: string,
   ip: string,
 ): Promise<boolean> {
-  const { turnstileSecret } = getEnvConfig().auth;
+  const { turnstileSecret } = getEnvConfig().captcha;
   if (!turnstileSecret) {
     logger.error("Turnstile secret not configured — rejecting captcha");
     return false;
