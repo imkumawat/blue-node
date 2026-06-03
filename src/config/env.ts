@@ -74,6 +74,7 @@ export type AppConfig = {
     enabled: boolean;
     turnstileSecret: string | undefined;
     failThreshold: number;
+    verifyUrl: string;
   };
   health: typeof HEALTH;
   body: typeof BODY;
@@ -195,6 +196,7 @@ export default async function loadEnv(
       enabled: e.CAPTCHA_ENABLED === "true",
       turnstileSecret: e.TURNSTILE_SECRET,
       failThreshold: CAPTCHA.failThreshold,
+      verifyUrl: CAPTCHA.verifyUrl,
     },
     health: HEALTH,
     body: BODY,

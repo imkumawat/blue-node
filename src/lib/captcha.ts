@@ -1,8 +1,6 @@
 import { getEnvConfig } from "../config/env.js";
 import logger from "../utils/logger.js";
 
-const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-
 /**
  * Server-side Cloudflare Turnstile verification. Lives in src/lib as a generic
  * external-service client (like lib/aws); provider-neutral filename so the
@@ -14,14 +12,14 @@ export async function verifyCaptcha(
   token: string,
   ip: string,
 ): Promise<boolean> {
-  const { turnstileSecret } = getEnvConfig().captcha;
+  const { turnstileSecret, verifyUrl } = getEnvConfig().captcha;
   if (!turnstileSecret) {
     logger.error("Turnstile secret not configured — rejecting captcha");
     return false;
   }
 
   try {
-    const res = await fetch(VERIFY_URL, {
+    const res = await fetch(verifyUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({

@@ -66,6 +66,7 @@ export const AUTH = {
 
 export const CAPTCHA = {
   failThreshold: 3, // per-IP failures → require CAPTCHA (below the hard-lock at maxFailedLogins=5)
+  verifyUrl: "https://challenges.cloudflare.com/turnstile/v0/siteverify", // Turnstile siteverify (fixed vendor endpoint)
 } as const;
 
 export const HEALTH = {
