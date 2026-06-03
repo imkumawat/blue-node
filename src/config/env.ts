@@ -76,6 +76,13 @@ export type AppConfig = {
     failThreshold: number;
     verifyUrl: string;
   };
+  email: {
+    // `from` is provider-agnostic — the sender identity stays the same if the
+    // provider is swapped. This lib is transactional-only; marketing mail is
+    // handled by Klaviyo elsewhere, so there's only ever this one sender here.
+    from: string | undefined;
+    sendgrid: { apiKey: string | undefined };
+  };
   health: typeof HEALTH;
   body: typeof BODY;
   routes: typeof ROUTES;
@@ -197,6 +204,10 @@ export default async function loadEnv(
       turnstileSecret: e.TURNSTILE_SECRET,
       failThreshold: CAPTCHA.failThreshold,
       verifyUrl: CAPTCHA.verifyUrl,
+    },
+    email: {
+      from: e.EMAIL_FROM,
+      sendgrid: { apiKey: e.SENDGRID_API_KEY },
     },
     health: HEALTH,
     body: BODY,

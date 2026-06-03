@@ -36,6 +36,12 @@ export const envSchema = z.object({
   CAPTCHA_ENABLED: z.enum(["true", "false"]).default("false"),
   TURNSTILE_SECRET: z.string().optional(),
 
+  // Email (SendGrid) — optional: only the flag-gated verify/OTP flows use it,
+  // so the app boots without it; sendEmail() throws a clear error if unset.
+  // EMAIL_FROM must be a SendGrid Single-Sender verified address.
+  SENDGRID_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().email().optional(),
+
   // JWT
   JWT_USER_SECRET: z.string().min(32),
   JWT_ADMIN_SECRET: z.string().min(32),
