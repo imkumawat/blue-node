@@ -18,7 +18,7 @@ import {
   CaptchaRequiredError,
 } from "../errors.js";
 import { assessLoginRisk } from "./assessLoginRisk.js";
-import { verifyCaptcha } from "../../../lib/captcha.js";
+import { verifyCaptcha } from "../../../lib/captcha/index.js";
 import type { User } from "../../../models/postgres/user/user.js";
 
 // Pre-computed bcrypt hash (cost 12) — running a dummy compare when the user
@@ -55,7 +55,7 @@ function keysFor(email: string, ip: string) {
     emailCount: `${authFail}${e}`,
     ipCount: `${authFailIp}${ip}`,
     pairCount: `${authFailPair}${e}|${ip}`,
-    // fixed-duration locks (separate from counters — see assertNotLocked)
+    // fixed-duration locks (separate from counters — see assertAccNotLocked)
     ipLock: `lock:ip:${ip}`,
     pairLock: `lock:pair:${e}|${ip}`,
   };
@@ -74,7 +74,7 @@ const INCR_WITH_TTL = `
 // Lock checks read the LOCK keys (fixed duration set at the moment of locking),
 // NOT the counters — so the lockout lasts a consistent lockoutWindowSec no matter
 // when within the counting window the threshold was hit.
-async function assertNotLocked(
+async function assertAccNotLocked(
   email: string,
   ip: string,
   captchaToken?: string,
@@ -144,7 +144,7 @@ export async function loginWithPassword({
   const { userAudience } = getEnvConfig().jwt;
 
   // 1. Pre-check lockout + CAPTCHA gate BEFORE expensive bcrypt — fail fast
-  await assertNotLocked(email, ipAddress, captchaToken);
+  await assertAccNotLocked(email, ipAddress, captchaToken);
 
   const user = await findUserByEmail(email);
 

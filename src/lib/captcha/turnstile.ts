@@ -1,12 +1,13 @@
-import { getEnvConfig } from "../config/env.js";
-import logger from "../utils/logger.js";
+import { getEnvConfig } from "../../config/env.js";
+import logger from "../../utils/logger.js";
 
 /**
- * Server-side Cloudflare Turnstile verification. Lives in src/lib as a generic
- * external-service client (like lib/aws); provider-neutral filename so the
- * captcha provider can be swapped without touching callers. FAIL-CLOSED: any
- * error, missing secret, or non-success → false (a failure never silently
- * passes). 3s timeout so a slow verify can't hang the login.
+ * Server-side Cloudflare Turnstile verification. Lives under src/lib/captcha as
+ * one swappable provider transport (like lib/email transports) — callers import
+ * the provider-neutral lib/captcha entry, never this file directly, so the
+ * captcha provider can be swapped without touching them. FAIL-CLOSED: any error,
+ * missing secret, or non-success → false (a failure never silently passes). 3s
+ * timeout so a slow verify can't hang the login.
  */
 export async function verifyCaptcha(
   token: string,
