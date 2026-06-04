@@ -40,7 +40,7 @@ export const envSchema = z.object({
   // so the app boots without it; sendEmail() throws a clear error if unset.
   // EMAIL_FROM must be a SendGrid Single-Sender verified address.
   SENDGRID_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().email().optional(),
+  EMAIL_FROM: z.email().optional(),
 
   // JWT
   JWT_USER_SECRET: z.string().min(32),
