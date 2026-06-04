@@ -48,3 +48,12 @@ export async function updateUserStatus(
 ): Promise<void> {
   await getDb().update(users).set({ status }).where(eq(users.id, userId));
 }
+
+// Replace a user's password hash (reset + change-password flows). Caller hashes
+// the plaintext — this layer only ever sees the bcrypt hash.
+export async function updateUserPassword(
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  await getDb().update(users).set({ passwordHash }).where(eq(users.id, userId));
+}

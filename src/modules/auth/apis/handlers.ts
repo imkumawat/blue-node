@@ -6,12 +6,22 @@ import { loginWithPassword } from "../services/loginWithPassword.js";
 import { assessLoginRisk } from "../services/assessLoginRisk.js";
 import { renewTokens } from "../services/refreshToken.js";
 import { logoutUser } from "../services/logout.js";
+import { requestPasswordReset } from "../services/requestPasswordReset.js";
+import { resetPassword as resetPasswordService } from "../services/resetPassword.js";
+import { changePassword as changePasswordService } from "../services/changePassword.js";
 import {
   setAuthCookies,
   clearAuthCookies,
 } from "../../../shared/utils/cookies.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
-import type { SignupInput, LoginInput, VerifyEmailInput } from "../schemas.js";
+import type {
+  SignupInput,
+  LoginInput,
+  VerifyEmailInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+  ChangePasswordInput,
+} from "../schemas.js";
 
 export async function signup(req: Request, res: Response): Promise<void> {
   const { email, password, consents } = req.body as SignupInput;
@@ -62,6 +72,57 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
         createdAt: user.createdAt,
       },
     },
+  });
+}
+
+export async function forgotPassword(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { email } = req.body as ForgotPasswordInput;
+
+  await requestPasswordReset({ email });
+
+  // Always generic — never reveal whether the email is registered.
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "If an account exists, a reset code has been sent.",
+  });
+}
+
+export async function resetPassword(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { email, code, newPassword } = req.body as ResetPasswordInput;
+
+  await resetPasswordService({ email, code, newPassword });
+
+  // No tokens issued — the user logs in fresh with the new password.
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Password reset successful. Please log in.",
+  });
+}
+
+export async function changePassword(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { currentPassword, newPassword } = req.body as ChangePasswordInput;
+
+  await changePasswordService({
+    userId: req.user!.id,
+    currentPassword,
+    newPassword,
+  });
+
+  // All sessions were revoked — clear this client's cookies too so the FE
+  // re-authenticates with the new password.
+  clearAuthCookies(res);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Password changed. Please log in again.",
   });
 }
 

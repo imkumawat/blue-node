@@ -6,8 +6,18 @@ import {
   refresh,
   logout,
   loginPrecheck,
+  forgotPassword,
+  resetPassword,
+  changePassword,
 } from "./handlers.js";
-import { signupSchema, loginSchema, verifyEmailSchema } from "../schemas.js";
+import {
+  signupSchema,
+  loginSchema,
+  verifyEmailSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  changePasswordSchema,
+} from "../schemas.js";
 import { validate } from "../../../shared/middlewares/validate.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
 import { requireCookies } from "../../../shared/middlewares/requireCookies.js";
@@ -29,6 +39,25 @@ export function createAuthRoutes(): Router {
     verifyEmail,
   );
   router.post("/v1/auth/login", authLimiter, validate(loginSchema), login);
+  router.post(
+    "/v1/auth/forgot-password",
+    authLimiter,
+    validate(forgotPasswordSchema),
+    forgotPassword,
+  );
+  router.post(
+    "/v1/auth/reset-password",
+    authLimiter,
+    validate(resetPasswordSchema),
+    resetPassword,
+  );
+  router.post(
+    "/v1/auth/change-password",
+    authenticate(userAudience),
+    authLimiter,
+    validate(changePasswordSchema),
+    changePassword,
+  );
   router.post("/v1/auth/refresh", requireCookies("refresh_token"), refresh);
   router.post(
     "/v1/auth/logout",

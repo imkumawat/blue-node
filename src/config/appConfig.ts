@@ -10,6 +10,7 @@ export const REDIS_KEYS = {
   authFailIp: "auth:failip:",
   authFailPair: "auth:failpair:",
   emailVerify: "verify:email:", // email-verification code (stored hashed)
+  passwordReset: "reset:password:", // password-reset code (stored hashed)
 } as const;
 
 export const REDIS = {

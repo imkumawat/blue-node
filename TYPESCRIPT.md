@@ -548,7 +548,7 @@ function factory(arg: string): RequestHandler {
 
 ```ts
 import { z } from "zod";
-const schema = z.object({ email: z.string().email(), age: z.number().int() });
+const schema = z.object({ email: z.email(), age: z.number().int() });
 type Input = z.infer<typeof schema>; // derive the TS type
 const parsed = schema.parse(data); // runtime validate (throws)
 const safe = schema.safeParse(data); // { success, data | error }
