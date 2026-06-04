@@ -24,10 +24,11 @@ export async function findUserById(id: string): Promise<User | null> {
 export async function createUser({
   email,
   passwordHash,
+  status, // optional — omit → DB default "active"; registerUser passes "pending"
 }: NewUser): Promise<Pick<User, "id" | "email" | "status" | "createdAt">> {
   const [user] = await getDb()
     .insert(users)
-    .values({ email: email.toLowerCase(), passwordHash })
+    .values({ email: email.toLowerCase(), passwordHash, status })
     .returning({
       id: users.id,
       email: users.email,
@@ -38,4 +39,12 @@ export async function createUser({
     throw new Error("createUser: insert returned no rows");
   }
   return user;
+}
+
+// Flip a user's status (e.g. pending → active after email verification).
+export async function updateUserStatus(
+  userId: string,
+  status: User["status"],
+): Promise<void> {
+  await getDb().update(users).set({ status }).where(eq(users.id, userId));
 }

@@ -14,6 +14,7 @@ import {
   POSTGRES_POOL,
   MONGO,
   CAPTCHA,
+  OTP,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -70,6 +71,7 @@ export type AppConfig = {
   proxy: { hopCount: number };
   rateLimit: typeof RATE_LIMIT;
   auth: typeof AUTH;
+  otp: typeof OTP;
   captcha: {
     enabled: boolean;
     turnstileSecret: string | undefined;
@@ -199,6 +201,7 @@ export default async function loadEnv(
     proxy: { hopCount: e.PROXY_HOP_COUNT },
     rateLimit: RATE_LIMIT,
     auth: AUTH,
+    otp: OTP,
     captcha: {
       enabled: e.CAPTCHA_ENABLED === "true",
       turnstileSecret: e.TURNSTILE_SECRET,

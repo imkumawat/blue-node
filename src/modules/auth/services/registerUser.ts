@@ -7,14 +7,14 @@ import {
 } from "../constants.js";
 import { findUserByEmail, createUser } from "../lib/userQueries.js";
 import { hashPassword } from "../../../shared/utils/password.js";
-import { grantScopes, getScopes } from "../lib/permissionQueries.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  storeRefreshToken,
-} from "../lib/tokenService.js";
-import type { IssuedToken } from "../lib/tokenService.js";
+import { grantScopes } from "../lib/permissionQueries.js";
 import { logConsent } from "../lib/consentQueries.js";
+import { createEmailVerificationCode } from "../lib/emailVerification.js";
+import {
+  enqueueEmail,
+  EMAIL_PRIORITY,
+} from "../../notifications/jobs/sendEmail.js";
+import { verificationEmail } from "../emails/verificationEmail.js";
 import { EmailAlreadyExistsError } from "../errors.js";
 import type { User } from "../../../models/postgres/user/user.js";
 
@@ -31,10 +31,8 @@ interface RegisterInput {
   consentMeta: ConsentMeta;
 }
 
-interface AuthResult {
+interface RegisterResult {
   user: Pick<User, "id" | "email" | "status" | "createdAt">;
-  access: IssuedToken;
-  refresh: IssuedToken;
 }
 
 export async function registerUser({
@@ -42,27 +40,14 @@ export async function registerUser({
   password,
   consents,
   consentMeta,
-}: RegisterInput): Promise<AuthResult> {
-  const { userAudience } = getEnvConfig().jwt;
-
+}: RegisterInput): Promise<RegisterResult> {
   const existing = await findUserByEmail(email);
   if (existing) throw new EmailAlreadyExistsError();
 
   const passwordHash = await hashPassword(password);
-  const user = await createUser({ email, passwordHash });
+  const user = await createUser({ email, passwordHash, status: "pending" });
 
   await grantScopes(user.id, [...DEFAULT_USER_SCOPES]);
-  const scopes = await getScopes(user.id);
-
-  const access = generateAccessToken(user.id, scopes, userAudience);
-  const refresh = generateRefreshToken(user.id, userAudience);
-  await storeRefreshToken(
-    user.id,
-    refresh.jti,
-    refresh.expiresAt,
-    access.jti,
-    access.expiresAt,
-  );
 
   await Promise.all(
     consents.map((consentType) =>
@@ -75,5 +60,17 @@ export async function registerUser({
     ),
   );
 
-  return { user, access, refresh };
+  // Email verification: issue a one-time code + queue the email. NO tokens here
+  // — the user logs in only after verifying via POST /v1/auth/verify-email.
+  const code = await createEmailVerificationCode(user.id);
+  const { ttlSec } = getEnvConfig().otp;
+  await enqueueEmail(
+    {
+      to: user.email,
+      ...verificationEmail({ code, expiresInMin: ttlSec / 60 }),
+    },
+    EMAIL_PRIORITY.high,
+  );
+
+  return { user };
 }

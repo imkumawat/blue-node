@@ -85,3 +85,13 @@ export class UserNotFoundError extends HttpError {
     super("USER_NOT_FOUND", StatusCodes.NOT_FOUND, "User not found");
   }
 }
+
+export class InvalidVerificationCodeError extends HttpError {
+  constructor() {
+    super(
+      "INVALID_VERIFICATION_CODE",
+      StatusCodes.BAD_REQUEST,
+      "Invalid or expired verification code",
+    );
+  }
+}

@@ -24,6 +24,16 @@ export function randomToken(bytes: number = 32): string {
 }
 
 /**
+ * Cryptographically-random N-digit numeric code (zero-padded) — for email
+ * verification / OTP codes. Uses crypto.randomInt (unbiased), never Math.random.
+ * padStart keeps leading-zero codes (e.g. "000042") a valid N digits.
+ */
+export function randomNumericCode(digits: number = 6): string {
+  const max = 10 ** digits;
+  return crypto.randomInt(0, max).toString().padStart(digits, "0");
+}
+
+/**
  * Constant-time string compare — prevents timing attacks when comparing
  * secrets/tokens. ALWAYS use this for token equality, never `===`.
  *

@@ -13,6 +13,7 @@ export const userStatusEnum = pgEnum("user_status", [
   "active",
   "inactive",
   "suspended",
+  "pending", // signup → pending until email is verified
 ]);
 
 export const users = pgTable(
@@ -37,7 +38,8 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
 /*
-  CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
+  CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended', 'pending');
+  -- existing DB: ALTER TYPE user_status ADD VALUE IF NOT EXISTS 'pending';
 
   CREATE TABLE users (
     id            UUID PRIMARY KEY,

@@ -9,6 +9,7 @@ export const REDIS_KEYS = {
   authFail: "auth:fail:",
   authFailIp: "auth:failip:",
   authFailPair: "auth:failpair:",
+  emailVerify: "verify:email:", // email-verification code (stored hashed)
 } as const;
 
 export const REDIS = {
@@ -67,6 +68,13 @@ export const AUTH = {
 export const CAPTCHA = {
   failThreshold: 3, // per-IP failures → require CAPTCHA (below the hard-lock at maxFailedLogins=5)
   verifyUrl: "https://challenges.cloudflare.com/turnstile/v0/siteverify", // Turnstile siteverify (fixed vendor endpoint)
+} as const;
+
+// Shared one-time-code settings — email verification now, device-2FA later.
+export const OTP = {
+  codeLength: 6,
+  ttlSec: 10 * 60, // 10 min — code validity window
+  maxAttempts: 5, // wrong-code tries before the code is invalidated
 } as const;
 
 export const HEALTH = {

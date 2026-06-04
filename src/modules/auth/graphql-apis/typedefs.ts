@@ -15,6 +15,11 @@ export const authTypeDefs: string = `#graphql
     tokens: AuthTokens!
   }
 
+  type RegisterResult {
+    user: User!
+    verificationRequired: Boolean!
+  }
+
   input RegisterInput {
     email: String!
     password: String!
@@ -25,6 +30,11 @@ export const authTypeDefs: string = `#graphql
   input LoginInput {
     email: String!
     password: String!
+  }
+
+  input VerifyEmailInput {
+    email: String!
+    code: String!
   }
 
   type Query {
@@ -40,10 +50,14 @@ export const authTypeDefs: string = `#graphql
   }
 
   type Mutation {
-    register(input: RegisterInput!): AuthPayload!
+    register(input: RegisterInput!): RegisterResult!
       @noAlias
       @rateLimit(max: 5, windowSec: 900)
       @authRateLimit(max: 3, windowSec: 900)
+    verifyEmail(input: VerifyEmailInput!): AuthPayload!
+      @noAlias
+      @rateLimit(max: 10, windowSec: 900)
+      @authRateLimit(max: 5, windowSec: 900)
     login(input: LoginInput!): AuthPayload!
       @noAlias
       @rateLimit(max: 30, windowSec: 900)

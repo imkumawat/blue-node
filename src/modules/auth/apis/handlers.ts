@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { registerUser } from "../services/registerUser.js";
+import { verifyEmail as verifyEmailService } from "../services/verifyEmail.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
 import { assessLoginRisk } from "../services/assessLoginRisk.js";
 import { renewTokens } from "../services/refreshToken.js";
@@ -10,7 +11,7 @@ import {
   clearAuthCookies,
 } from "../../../shared/utils/cookies.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
-import type { SignupInput, LoginInput } from "../schemas.js";
+import type { SignupInput, LoginInput, VerifyEmailInput } from "../schemas.js";
 
 export async function signup(req: Request, res: Response): Promise<void> {
   const { email, password, consents } = req.body as SignupInput;
@@ -21,15 +22,37 @@ export async function signup(req: Request, res: Response): Promise<void> {
     platform: (req.headers["x-platform"] as string | undefined) ?? "web",
   };
 
-  const { user, access, refresh } = await registerUser({
+  const { user } = await registerUser({
     email,
     password,
     consents,
     consentMeta,
   });
 
-  setAuthCookies(res, access.token, refresh.token);
+  // No session yet — the user must verify their email (POST /v1/auth/verify-email)
+  // before any tokens are issued.
   res.status(StatusCodes.CREATED).json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        status: user.status,
+        createdAt: user.createdAt,
+      },
+      verificationRequired: true,
+    },
+  });
+}
+
+export async function verifyEmail(req: Request, res: Response): Promise<void> {
+  const { email, code } = req.body as VerifyEmailInput;
+
+  // Code valid → account activated → issue tokens (first login) + set cookies.
+  const { user, access, refresh } = await verifyEmailService({ email, code });
+
+  setAuthCookies(res, access.token, refresh.token);
+  res.status(StatusCodes.OK).json({
     success: true,
     data: {
       user: {

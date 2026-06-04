@@ -1,9 +1,10 @@
 import { registerUser } from "../services/registerUser.js";
+import { verifyEmail as verifyEmailService } from "../services/verifyEmail.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
 import { logoutUser } from "../services/logout.js";
 import { getUserById } from "../services/getUserById.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
-import { signupSchema, loginSchema } from "../schemas.js";
+import { signupSchema, loginSchema, verifyEmailSchema } from "../schemas.js";
 import { InvalidRefreshTokenError } from "../errors.js";
 import type { GraphQLContext } from "../../../graphql/buildContext.js";
 import type { IssuedToken } from "../lib/tokenService.js";
@@ -25,6 +26,10 @@ interface RegisterArgs {
 
 interface LoginArgs {
   input: { email: string; password: string };
+}
+
+interface VerifyEmailArgs {
+  input: { email: string; code: string };
 }
 
 interface EchoArgs {
@@ -56,7 +61,7 @@ export const authResolvers = {
       ctx: GraphQLContext,
     ) => {
       const validated = parseInput(signupSchema, input);
-      const result = await registerUser({
+      const { user } = await registerUser({
         email: validated.email,
         password: validated.password,
         consents: validated.consents,
@@ -66,6 +71,17 @@ export const authResolvers = {
           platform: ctx.platform,
         },
       });
+      // No tokens — the user verifies their email before logging in.
+      return { user, verificationRequired: true };
+    },
+
+    verifyEmail: async (
+      _parent: unknown,
+      { input }: VerifyEmailArgs,
+      _ctx: GraphQLContext,
+    ) => {
+      const validated = parseInput(verifyEmailSchema, input);
+      const result = await verifyEmailService(validated);
       return toAuthPayload(result);
     },
 

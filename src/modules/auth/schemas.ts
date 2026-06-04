@@ -60,5 +60,13 @@ export const loginSchema = z.object({
   captchaToken: z.string().optional(),
 });
 
+export const verifyEmailSchema = z.object({
+  email: z.email("Invalid email address"),
+  // String, never number — leading-zero codes ("000123") must stay N digits.
+  // Length matches appConfig OTP.codeLength (6).
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
