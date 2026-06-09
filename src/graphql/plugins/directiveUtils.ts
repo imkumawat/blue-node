@@ -8,25 +8,6 @@ import type {
   FragmentDefinitionNode,
 } from "graphql";
 
-/** Read a directive's string argument by name (null if absent). */
-export function getDirectiveArg(
-  directive: DirectiveNode,
-  argName: string,
-): string | null {
-  const arg = directive.arguments?.find((a) => a.name.value === argName);
-  if (arg && "value" in arg.value) return String(arg.value.value);
-  return null;
-}
-
-/** Read a directive's integer argument by name (0 if absent). */
-export function getDirectiveIntArg(
-  directive: DirectiveNode,
-  argName: string,
-): number {
-  const raw = getDirectiveArg(directive, argName);
-  return raw === null ? 0 : parseInt(raw, 10);
-}
-
 /**
  * Scan every field in the schema for `directiveName`; for each tagged field run
  * `parse(directive)` and collect into a Map keyed by field name. Called once at

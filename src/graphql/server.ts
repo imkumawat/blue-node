@@ -12,15 +12,27 @@ import { formatError } from "./formatError.js";
 import { createDisableAliasingPlugin } from "./plugins/disableAliasing.js";
 import { createComplexityPlugin } from "./plugins/queryComplexity.js";
 import { createObservabilityPlugin } from "./plugins/observability.js";
-import { createAuthPlugin } from "./plugins/auth.js";
-import { createRateLimitPlugin } from "./plugins/rateLimit.js";
-import { createAuthRateLimitPlugin } from "./plugins/authRateLimit.js";
+import { authenticatedDirectiveTransformer } from "./directives/authenticatedDirective.js";
+import { requireScopeDirectiveTransformer } from "./directives/requireScopeDirective.js";
+import { authRateLimitDirectiveTransformer } from "./directives/authRateLimitDirective.js";
+import { rateLimitDirectiveTransformer } from "./directives/rateLimitDirective.js";
 import { buildContext } from "./buildContext.js";
 import type { GraphQLContext } from "./buildContext.js";
 
 const typeDefs = mergeTypeDefs([baseTypeDefs, authTypeDefs]);
 const resolvers = mergeResolvers([authResolvers]);
-const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+// Build the executable schema, then apply the auth/authz directive transformers.
+// Each wraps the resolver of every field tagged @authenticated / @requireScope,
+// so enforcement is bound to the exact (type, field) — no field-name collision.
+let schema = makeExecutableSchema({ typeDefs, resolvers });
+schema = authenticatedDirectiveTransformer(schema);
+schema = requireScopeDirectiveTransformer(schema);
+// Rate-limit transformers applied last → they wrap outermost (run first), so
+// flood/abuse checks happen before auth/resolver work. authRateLimit applied
+// before rateLimit so the general limiter runs first (matches the prior order).
+schema = authRateLimitDirectiveTransformer(schema);
+schema = rateLimitDirectiveTransformer(schema);
 
 export async function createGraphQLMiddleware(): Promise<RequestHandler> {
   const server = new ApolloServer<GraphQLContext>({
@@ -34,9 +46,6 @@ export async function createGraphQLMiddleware(): Promise<RequestHandler> {
       createObservabilityPlugin({ slowThresholdMs: 500 }),
       createDisableAliasingPlugin(schema),
       createComplexityPlugin(schema, 1000),
-      createAuthPlugin(schema),
-      createRateLimitPlugin(schema),
-      createAuthRateLimitPlugin(schema),
     ],
   });
 
