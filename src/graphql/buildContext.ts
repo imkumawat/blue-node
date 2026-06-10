@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import type { Logger } from "pino";
 import { getClientIp } from "../utils/getClientIp.js";
 import { createLoaders } from "./loaders/index.js";
@@ -32,6 +32,10 @@ export async function buildContext({
   req,
 }: {
   req: Request;
+  // `res` (Express Response) is also provided by Apollo's context fn. Not used
+  // today — tokens go in the response body — but it's available: destructure it
+  // here if cookie set/clear is ever needed (e.g. httpOnly auth cookies on web).
+  res: Response;
 }): Promise<GraphQLContext> {
   return {
     user: req.user ?? null,
