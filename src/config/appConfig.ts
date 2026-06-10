@@ -49,6 +49,11 @@ export const RATE_LIMIT = {
   maxAuth: 10, // per IP on auth routes — only failed attempts count
 } as const;
 
+export const GRAPHQL = {
+  maxDepth: 5, // reject queries nested deeper than this (depth-limit)
+  maxComplexity: 1000, // reject queries whose estimated cost exceeds this
+} as const;
+
 export const JWT = {
   adminAudience: "nodeforge:admin",
   userAudience: "nodeforge:user",

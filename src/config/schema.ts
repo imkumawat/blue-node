@@ -74,6 +74,10 @@ export const envSchema = z.object({
   // App
   API_BASE_URL: z.string().url(),
   PROXY_HOP_COUNT: z.coerce.number().int().min(0).max(10),
+
+  // GraphQL (optional — fall back to appConfig.GRAPHQL defaults)
+  GRAPHQL_MAX_DEPTH: z.coerce.number().int().min(1).max(20).optional(),
+  GRAPHQL_MAX_COMPLEXITY: z.coerce.number().int().min(1).optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

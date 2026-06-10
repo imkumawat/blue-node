@@ -15,6 +15,7 @@ import {
   MONGO,
   CAPTCHA,
   OTP,
+  GRAPHQL,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -70,6 +71,7 @@ export type AppConfig = {
   cors: { allowedOrigins: string };
   proxy: { hopCount: number };
   rateLimit: typeof RATE_LIMIT;
+  graphql: { maxDepth: number; maxComplexity: number };
   auth: typeof AUTH;
   otp: typeof OTP;
   captcha: {
@@ -200,6 +202,10 @@ export default async function loadEnv(
     cors: { allowedOrigins: e.ALLOWED_ORIGINS },
     proxy: { hopCount: e.PROXY_HOP_COUNT },
     rateLimit: RATE_LIMIT,
+    graphql: {
+      maxDepth: e.GRAPHQL_MAX_DEPTH ?? GRAPHQL.maxDepth,
+      maxComplexity: e.GRAPHQL_MAX_COMPLEXITY ?? GRAPHQL.maxComplexity,
+    },
     auth: AUTH,
     otp: OTP,
     captcha: {

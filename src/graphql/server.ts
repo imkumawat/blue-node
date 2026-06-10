@@ -18,6 +18,7 @@ import { authRateLimitDirectiveTransformer } from "./directives/authRateLimitDir
 import { rateLimitDirectiveTransformer } from "./directives/rateLimitDirective.js";
 import { buildContext } from "./buildContext.js";
 import type { GraphQLContext } from "./buildContext.js";
+import { getEnvConfig } from "../config/env.js";
 
 const typeDefs = mergeTypeDefs([baseTypeDefs, authTypeDefs]);
 const resolvers = mergeResolvers([authResolvers]);
@@ -35,17 +36,19 @@ schema = authRateLimitDirectiveTransformer(schema);
 schema = rateLimitDirectiveTransformer(schema);
 
 export async function createGraphQLMiddleware(): Promise<RequestHandler> {
+  const { maxDepth, maxComplexity } = getEnvConfig().graphql;
+
   const server = new ApolloServer<GraphQLContext>({
     schema,
     formatError,
     introspection: process.env.NODE_ENV !== "production",
     includeStacktraceInErrorResponses: false,
-    validationRules: [depthLimit(5)],
+    validationRules: [depthLimit(maxDepth)],
     csrfPrevention: true,
     plugins: [
       createObservabilityPlugin({ slowThresholdMs: 500 }),
       createDisableAliasingPlugin(schema),
-      createComplexityPlugin(schema, 1000),
+      createComplexityPlugin(schema, maxComplexity),
     ],
   });
 
