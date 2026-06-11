@@ -12,6 +12,12 @@ export const envSchema = z.object({
   POSTGRES_DB: z.string().min(1),
   POSTGRES_USER: z.string().min(1),
   POSTGRES_PASSWORD: z.string().min(1),
+  POSTGRES_SSL: z.enum(["true", "false"]).default("false"),
+  // PEM contents of the RDS CA bundle (not a path — containers inject it via
+  // Secrets Manager). When set with POSTGRES_SSL=true the server certificate
+  // is verified (MITM-safe). When omitted, TLS still encrypts the wire but the
+  // cert is NOT verified — encryption without authentication.
+  POSTGRES_SSL_CA: z.string().optional(),
 
   // Redis (cache / rate-limit — uses an eviction policy)
   REDIS_HOST: z.string().min(1),

@@ -12,7 +12,21 @@ let pool: PoolType | undefined;
 let _pgClient: NodePgDatabase | undefined;
 
 export async function connectPostgres(): Promise<void> {
-  const { host, port, name, user, password, pool: p } = getEnvConfig().postgres;
+  const {
+    host,
+    port,
+    name,
+    user,
+    password,
+    pool: p,
+    ssl,
+  } = getEnvConfig().postgres;
+
+  if (ssl && !ssl.rejectUnauthorized) {
+    logger.warn(
+      "Postgres TLS is ON but POSTGRES_SSL_CA is not set — the wire is encrypted but the server certificate is NOT verified (MITM risk). Provide the RDS CA bundle in production.",
+    );
+  }
 
   pool = new Pool({
     host,
@@ -27,6 +41,7 @@ export async function connectPostgres(): Promise<void> {
     statement_timeout: p.statementTimeoutMs,
     query_timeout: p.queryTimeoutMs,
     application_name: p.applicationName,
+    ssl,
   });
 
   pool.on("error", (err: Error) => {

@@ -31,6 +31,7 @@ export type AppConfig = {
     user: string;
     password: string;
     pool: typeof POSTGRES_POOL;
+    ssl: false | { rejectUnauthorized: boolean; ca?: string };
   };
   redis: {
     host: string;
@@ -171,6 +172,13 @@ export default async function loadEnv(
       user: e.POSTGRES_USER,
       password: e.POSTGRES_PASSWORD,
       pool: POSTGRES_POOL,
+      ssl:
+        e.POSTGRES_SSL === "true"
+          ? {
+              rejectUnauthorized: Boolean(e.POSTGRES_SSL_CA),
+              ca: e.POSTGRES_SSL_CA,
+            }
+          : false,
     },
     redis: {
       host: e.REDIS_HOST,
