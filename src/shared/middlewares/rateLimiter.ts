@@ -1,4 +1,4 @@
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import type { Options } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import type { Request, Response, NextFunction } from "express";
@@ -39,7 +39,7 @@ export function createRateLimiters() {
     standardHeaders: true,
     legacyHeaders: false,
     store: redisStore(keys.rlIp),
-    keyGenerator: (req: Request) => getClientIp(req),
+    // keyGenerator omitted — v8 default keys on req.ip with IPv6 /56 bucketing
     handler: rateLimitHandler,
   });
 
@@ -54,7 +54,8 @@ export function createRateLimiters() {
     standardHeaders: true,
     legacyHeaders: false,
     store: redisStore(keys.rlUser),
-    keyGenerator: (req: Request) => req.user?.id ?? getClientIp(req),
+    keyGenerator: (req: Request) =>
+      req.user?.id ?? ipKeyGenerator(getClientIp(req)),
     handler: rateLimitHandler,
   });
 
@@ -65,7 +66,7 @@ export function createRateLimiters() {
     legacyHeaders: false,
     skipSuccessfulRequests: true,
     store: redisStore(keys.rlAuth),
-    keyGenerator: (req: Request) => getClientIp(req),
+    // keyGenerator omitted — v8 default keys on req.ip with IPv6 /56 bucketing
     handler: rateLimitHandler,
   });
 
@@ -88,7 +89,7 @@ export function createRateLimiters() {
     store: redisStore(keys.rlApiKey),
     keyGenerator: (req: Request) => {
       const auth = req.headers.authorization;
-      if (!auth?.startsWith("ApiKey ")) return getClientIp(req);
+      if (!auth?.startsWith("ApiKey ")) return ipKeyGenerator(getClientIp(req));
       return sha256(auth.slice(7));
     },
     handler: rateLimitHandler,
