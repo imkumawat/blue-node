@@ -10,5 +10,12 @@ export async function fetchSecrets(
   if (!response.SecretString) {
     throw new Error(`Secret ${secretName} has no SecretString`);
   }
-  return JSON.parse(response.SecretString);
+  try {
+    return JSON.parse(response.SecretString);
+  } catch {
+    // Never surface the raw SecretString: a JSON SyntaxError embeds a snippet
+    // of the input (the secret material) in its message, which would otherwise
+    // leak into the boot error logs.
+    throw new Error(`Secret ${secretName} is not valid JSON`);
+  }
 }

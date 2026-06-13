@@ -19,10 +19,12 @@ export interface ReceiveOptions {
   waitTimeSeconds?: number;
 }
 
-export interface ReceivedMessage<T = unknown> {
+export interface ReceivedMessage {
   messageId: string | undefined;
   receiptHandle: string | undefined;
-  body: T;
+  // Raw, unparsed SQS body. The consumer parses it inside its own per-message
+  // guard so one malformed body cannot abort the whole batch receive.
+  body: string;
   attributes: Record<string, string>;
 }
 
@@ -53,10 +55,10 @@ export async function sendMessage(
  * Receive messages from an SQS queue.
  * Uses long polling by default — avoids busy-waiting and reduces cost.
  */
-export async function receiveMessages<T = unknown>(
+export async function receiveMessages(
   queueUrl: string,
   options: ReceiveOptions = {},
-): Promise<ReceivedMessage<T>[]> {
+): Promise<ReceivedMessage[]> {
   const {
     visibilityTimeout: defaultVisibility,
     waitTime,
@@ -83,7 +85,9 @@ export async function receiveMessages<T = unknown>(
   return (response.Messages ?? []).map((msg) => ({
     messageId: msg.MessageId,
     receiptHandle: msg.ReceiptHandle,
-    body: JSON.parse(msg.Body ?? "null") as T,
+    // Raw body — parsed per-message by the consumer (see sqsPoller) so a single
+    // malformed body fails only that message, not the entire batch receive.
+    body: msg.Body ?? "null",
     attributes: (msg.Attributes ?? {}) as Record<string, string>,
   }));
 }

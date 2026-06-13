@@ -25,7 +25,17 @@ export function createSqsPoller(queueUrl: string): SqsPoller {
   async function processMessage(
     msg: Awaited<ReturnType<typeof receiveMessages>>[number],
   ): Promise<void> {
-    const { type, payload } = sqsEnvelope.parse(msg.body);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(msg.body);
+    } catch {
+      // Re-throw WITHOUT the body: a JSON SyntaxError embeds an input snippet
+      // (potential PII) in its message. This runs inside the per-message try in
+      // loop(), so a malformed body fails only this message (→ visibility
+      // timeout → DLQ) instead of aborting the whole batch, and never leaks.
+      throw new Error("malformed JSON body");
+    }
+    const { type, payload } = sqsEnvelope.parse(parsed);
     const handler = jobRegistry[type];
     if (!handler) {
       // no delete → visibility timeout → retry → DLQ (never silently drop)
