@@ -13,7 +13,9 @@ import {
 import type { IssuedToken } from "../lib/tokenService.js";
 import {
   InvalidCredentialsError,
-  AccountNotActiveError,
+  EmailNotVerifiedError,
+  AccountSuspendedError,
+  AccountInactiveError,
   AccountLockedError,
   CaptchaRequiredError,
 } from "../errors.js";
@@ -160,7 +162,16 @@ export async function loginWithPassword({
     throw new InvalidCredentialsError();
   }
 
-  if (user.status !== "active") throw new AccountNotActiveError();
+  // Account state is only revealed AFTER a correct password, so the only
+  // viewer is someone who already holds valid credentials — distinct,
+  // actionable messages are an accepted UX tradeoff (Instagram/GitHub style).
+  // No recordFailedAttempt here: the password was correct, so there is no
+  // brute-force to throttle and a legit user must not be locked out.
+  if (user.status !== "active") {
+    if (user.status === "pending") throw new EmailNotVerifiedError();
+    if (user.status === "suspended") throw new AccountSuspendedError();
+    throw new AccountInactiveError();
+  }
 
   // Success — clear the per-IP + per-pair counters so legitimate users with
   // typos aren't penalized. Email-wide counter is intentionally retained as a

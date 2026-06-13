@@ -31,9 +31,33 @@ export class InvalidCredentialsError extends HttpError {
   }
 }
 
-export class AccountNotActiveError extends HttpError {
+export class EmailNotVerifiedError extends HttpError {
   constructor() {
-    super("ACCOUNT_NOT_ACTIVE", StatusCodes.FORBIDDEN, "Account is not active");
+    super(
+      "EMAIL_NOT_VERIFIED",
+      StatusCodes.FORBIDDEN,
+      "Please verify your email address before signing in.",
+    );
+  }
+}
+
+export class AccountSuspendedError extends HttpError {
+  constructor() {
+    super(
+      "ACCOUNT_SUSPENDED",
+      StatusCodes.FORBIDDEN,
+      "Your account has been suspended. Please contact support.",
+    );
+  }
+}
+
+export class AccountInactiveError extends HttpError {
+  constructor() {
+    super(
+      "ACCOUNT_INACTIVE",
+      StatusCodes.FORBIDDEN,
+      "Your account is inactive. Please contact support to reactivate it.",
+    );
   }
 }
 
