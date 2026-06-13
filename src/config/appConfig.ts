@@ -5,7 +5,6 @@ export const REDIS_KEYS = {
   rlUser: "rl:user:",
   rlApiKey: "rl:apikey:",
   rlAuth: "rl:auth:",
-  refreshRotated: "refresh:rotated:",
   authFail: "auth:fail:",
   authFailIp: "auth:failip:",
   authFailPair: "auth:failpair:",

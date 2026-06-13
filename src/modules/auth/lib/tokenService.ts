@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { JwtPayload } from "jsonwebtoken";
 import { v7 as uuidv7 } from "uuid";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "../../../lib/db/postgres/client.js";
 import { getRedis } from "../../../lib/cache/redis/client.js";
 import { refreshTokens } from "../../../models/postgres/user/refreshToken.js";
@@ -180,47 +180,39 @@ export async function revokeAllRefreshTokensForUser(
   await getDb().delete(refreshTokens).where(eq(refreshTokens.userId, userId));
 }
 
-async function markTokenAsRotated(
-  jti: string,
-  userId: string,
-  audience: string,
-): Promise<void> {
-  const { refreshRotated } = getEnvConfig().redis.keys;
-  const { refreshExpiry } = audienceConfig(audience);
-  await getRedis().set(
-    `${refreshRotated}${jti}`,
-    String(userId),
-    "EX",
-    refreshExpiry,
-  );
-}
-
-async function getRotatedTokenOwner(jti: string): Promise<string | null> {
-  const { refreshRotated } = getEnvConfig().redis.keys;
-  return getRedis().get(`${refreshRotated}${jti}`);
-}
-
 export async function rotateRefreshToken(
   oldToken: string,
   audience: string,
-): Promise<{ payload: TokenPayload; deleted: RefreshToken }> {
+): Promise<{ payload: TokenPayload; rotated: RefreshToken }> {
   const payload = verifyRefreshToken(oldToken, audience);
-  const [deleted] = await getDb()
-    .delete(refreshTokens)
-    .where(eq(refreshTokens.jti, payload.jti))
+
+  // Atomic claim: flip rotated_at on the live row only (rotated_at IS NULL).
+  // The conditional UPDATE takes a row lock, so among concurrent presenters of
+  // the same jti exactly one matches and gets the row back via RETURNING; the
+  // rest match zero rows. The "already rotated" evidence lives in the same row,
+  // so a loser can never observe "row gone but marker absent" — this closes the
+  // old DELETE-then-Redis-SET window without a second store.
+  const [rotated] = await getDb()
+    .update(refreshTokens)
+    .set({ rotatedAt: new Date() })
+    .where(
+      and(eq(refreshTokens.jti, payload.jti), isNull(refreshTokens.rotatedAt)),
+    )
     .returning();
 
-  if (deleted) {
-    // Normal rotation — mark this jti as rotated so future presentations are detected as reuse.
-    await markTokenAsRotated(payload.jti, deleted.userId, audience);
-    return { payload, deleted };
-  }
+  if (rotated) return { payload, rotated };
 
-  // JWT valid but jti not in DB — could be expired OR reused. Check Redis marker.
-  const rotatedOwner = await getRotatedTokenOwner(payload.jti);
-  if (rotatedOwner) {
-    // REUSE DETECTED — wipe all this user's refresh tokens (kills attacker's stolen rotated token too).
-    await revokeAllRefreshTokensForUser(rotatedOwner);
+  // We didn't win the claim: the jti was either already rotated (reuse) or its
+  // row is gone (logged out / expired / never existed). One read tells them apart.
+  const [row] = await getDb()
+    .select()
+    .from(refreshTokens)
+    .where(eq(refreshTokens.jti, payload.jti));
+
+  if (row) {
+    // Row present with rotated_at already set → a second use of a spent token →
+    // REUSE. Wipe the whole family (kills the attacker's stolen rotated token too).
+    await revokeAllRefreshTokensForUser(row.userId);
   }
 
   throw new InvalidRefreshTokenError();
