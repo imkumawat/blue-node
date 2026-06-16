@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { verifyToken } from "../../modules/auth/services/verifyToken.js";
+import { verifyToken } from "../../modules/auth/index.js";
 
 export function optionalAuthenticate(audience: string): RequestHandler {
   return async (req, _res, next) => {

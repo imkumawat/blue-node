@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import type { AuthUser } from "../modules/auth/services/verifyToken.js";
+import type { AuthUser } from "../modules/auth/index.js";
 
 declare global {
   namespace Express {

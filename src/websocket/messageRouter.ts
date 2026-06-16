@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import type { AuthUser } from "../modules/auth/services/verifyToken.js";
+import type { AuthUser } from "../modules/auth/index.js";
 
 interface WSMessage {
   type: string;

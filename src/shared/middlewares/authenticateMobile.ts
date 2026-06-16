@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
-import { verifyToken } from "../../modules/auth/services/verifyToken.js";
+import { verifyToken } from "../../modules/auth/index.js";
 import { HttpError } from "../errors/HttpError.js";
 import { ERROR_MESSAGES } from "../constants/errors.js";
 

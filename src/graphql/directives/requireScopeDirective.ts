@@ -1,7 +1,7 @@
 import { mapSchema, getDirective, MapperKind } from "@graphql-tools/utils";
 import { defaultFieldResolver } from "graphql";
 import type { GraphQLSchema } from "graphql";
-import { InvalidTokenError } from "../../modules/auth/errors.js";
+import { InvalidTokenError } from "../../modules/auth/index.js";
 import { ForbiddenError } from "../../shared/errors/ForbiddenError.js";
 import type { GraphQLContext } from "../buildContext.js";
 

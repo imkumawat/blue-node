@@ -3,7 +3,7 @@ import type { Logger } from "pino";
 import { getClientIp } from "../utils/getClientIp.js";
 import { createLoaders } from "./loaders/index.js";
 import type { Loaders } from "./loaders/index.js";
-import type { AuthUser } from "../modules/auth/services/verifyToken.js";
+import type { AuthUser } from "../modules/auth/index.js";
 
 export interface GraphQLContext {
   user: AuthUser | null;
