@@ -4,8 +4,8 @@ import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import cookie from "cookie";
-import { verifyToken } from "../modules/auth/services/verifyToken.js";
-import type { AuthUser } from "../modules/auth/services/verifyToken.js";
+import { verifyToken } from "../modules/auth/index.js";
+import type { AuthUser } from "../modules/auth/index.js";
 import { addConnection, removeConnection } from "./connectionManager.js";
 import { routeMessage } from "./messageRouter.js";
 import logger from "../utils/logger.js";
@@ -27,6 +27,9 @@ export function attachWebSocketServer(
   config: AppConfig,
 ): WebSocketServer {
   const { jwt } = config;
+  const allowedOrigins = config.cors.allowedOrigins
+    .split(",")
+    .map((o) => o.trim());
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: MAX_PAYLOAD_BYTES,
@@ -48,8 +51,23 @@ export function attachWebSocketServer(
         return;
       }
 
-      const accessToken = extractToken(req);
+      // CSWSH defense: the WS upgrade is NOT subject to CORS, and a browser
+      // attaches cookies automatically on a cross-origin handshake — so a
+      // malicious page could open an authenticated socket as the victim.
+      // Validate Origin against the same allowlist as REST/GraphQL CORS.
+      const origin = req.headers.origin;
+      if (origin && !allowedOrigins.includes(origin)) {
+        return rejectUpgrade(socket, 403);
+      }
+
+      const { token: accessToken, viaCookie } = extractToken(req);
       if (!accessToken) return rejectUpgrade(socket, 401);
+
+      // A browser always sends Origin, so a cookie-authenticated upgrade with
+      // no Origin is anomalous → reject. Bearer tokens can't be set cross-site
+      // by a browser, so native/non-browser clients (which omit Origin) stay
+      // allowed.
+      if (viaCookie && !origin) return rejectUpgrade(socket, 403);
 
       const user = await verifyToken(accessToken, jwt.userAudience);
 
@@ -109,15 +127,26 @@ export function attachWebSocketServer(
   return wss;
 }
 
-function extractToken(req: IncomingMessage): string | null {
+function extractToken(req: IncomingMessage): {
+  token: string | null;
+  viaCookie: boolean;
+} {
   const cookies = cookie.parse(req.headers.cookie ?? "");
-  if (cookies.access_token) return cookies.access_token;
+  if (cookies.access_token) {
+    return { token: cookies.access_token, viaCookie: true };
+  }
   const auth = req.headers.authorization;
-  return auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  return { token, viaCookie: false };
 }
 
 function rejectUpgrade(socket: Duplex, status: number): void {
-  const reason = status === 401 ? "Unauthorized" : "Bad Request";
+  const reason =
+    status === 401
+      ? "Unauthorized"
+      : status === 403
+        ? "Forbidden"
+        : "Bad Request";
   socket.write(`HTTP/1.1 ${status} ${reason}\r\n\r\n`);
   socket.destroy();
 }
