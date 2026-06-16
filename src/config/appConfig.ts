@@ -10,6 +10,7 @@ export const REDIS_KEYS = {
   authFailPair: "auth:failpair:",
   emailVerify: "verify:email:", // email-verification code (stored hashed)
   passwordReset: "reset:password:", // password-reset code (stored hashed)
+  jobDone: "job:done:", // idempotency marker — a job that completed (dispatchJob)
 } as const;
 
 export const REDIS = {

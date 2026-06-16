@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { jobRegistry } from "../jobs/registry.js";
+import { dispatchJob } from "../jobs/dispatch.js";
 import { JOB_QUEUE, bullConnection } from "../jobs/bullmq.js";
 import logger from "../utils/logger.js";
 
@@ -13,9 +13,9 @@ export function createBullWorker(): Worker {
   const worker = new Worker(
     JOB_QUEUE,
     async (job) => {
-      const handler = jobRegistry[job.name];
-      if (!handler) throw new Error(`No handler for job "${job.name}"`);
-      await handler(job.data); // throw → BullMQ retries (attempts/backoff) → failed set
+      // job.id is stable across retries → dispatchJob skips a redelivery that
+      // already completed. throw → BullMQ retries (attempts/backoff) → failed set.
+      await dispatchJob(job.name, job.data, job.id);
     },
     {
       connection: bullConnection(),

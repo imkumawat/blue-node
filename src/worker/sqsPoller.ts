@@ -4,7 +4,7 @@ import {
   deleteMessage,
   extendVisibility,
 } from "../lib/aws/sqs.js";
-import { jobRegistry } from "../jobs/registry.js";
+import { dispatchJob } from "../jobs/dispatch.js";
 import { sleep } from "../shared/utils/common.js";
 import { getEnvConfig } from "../config/env.js";
 import logger from "../utils/logger.js";
@@ -67,15 +67,7 @@ export function createSqsPoller(queueUrl: string): SqsPoller {
       throw new Error("malformed JSON body");
     }
     const { type, payload } = sqsEnvelope.parse(parsed);
-    const handler = jobRegistry[type];
-    if (!handler) {
-      // no delete → visibility timeout → retry → DLQ (never silently drop)
-      logger.warn(
-        { type, messageId: msg.messageId },
-        "No handler — leaving for DLQ",
-      );
-      return;
-    }
+
     // Keep the message hidden while the handler runs: without this, a handler
     // slower than the visibility timeout lets SQS redeliver to another worker →
     // concurrent double-processing. The heartbeat resets the timeout at
@@ -84,11 +76,13 @@ export function createSqsPoller(queueUrl: string): SqsPoller {
       ? startVisibilityHeartbeat(msg.receiptHandle)
       : undefined;
     try {
-      await handler(payload);
+      // messageId is stable across redeliveries → dispatchJob skips a redelivery
+      // that already completed. Unknown type throws → no delete → retry → DLQ.
+      await dispatchJob(type, payload, msg.messageId);
     } finally {
       stopHeartbeat?.();
     }
-    // delete ONLY on success; throw → message reappears → retry → DLQ
+    // delete on success OR a deduped skip; throw → message reappears → retry → DLQ
     if (msg.receiptHandle) await deleteMessage(queueUrl, msg.receiptHandle);
   }
 
