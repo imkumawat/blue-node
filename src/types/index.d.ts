@@ -24,6 +24,7 @@ declare module "http" {
 declare module "ws" {
   interface WebSocket {
     isAlive?: boolean;
+    userExp?: number; // unix seconds — close the socket once the auth token expires
   }
 }
 

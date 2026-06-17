@@ -100,6 +100,12 @@ export const AWS_HTTP = {
   requestTimeoutMs: 10_000, // per-request total cap (raise for S3 uploads if needed)
 } as const;
 
+export const WS = {
+  path: "/ws",
+  maxPayloadBytes: 16 * 1024, // 16KB — reject huge inbound frames
+  heartbeatIntervalMs: 30_000, // ping sweep + token-expiry/liveness check cadence
+} as const;
+
 export const AWS = {
   s3: {
     signedUrlExpiry: 86_400, // 24h — private file access

@@ -16,6 +16,7 @@ import {
   CAPTCHA,
   OTP,
   GRAPHQL,
+  WS,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -91,6 +92,7 @@ export type AppConfig = {
   health: typeof HEALTH;
   body: typeof BODY;
   routes: typeof ROUTES;
+  ws: typeof WS;
   aws: {
     s3: typeof AWS.s3 & {
       buckets: { uploads: string; reports: string };
@@ -229,6 +231,7 @@ export default async function loadEnv(
     health: HEALTH,
     body: BODY,
     routes: ROUTES,
+    ws: WS,
     aws: {
       s3: {
         ...AWS.s3,

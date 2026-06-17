@@ -11,9 +11,10 @@ import { routeMessage } from "./messageRouter.js";
 import logger from "../utils/logger.js";
 import type { AppConfig } from "../config/env.js";
 
-const WS_PATH = "/ws";
-const MAX_PAYLOAD_BYTES = 16 * 1024; // 16KB — reject huge messages
-const HEARTBEAT_INTERVAL_MS = 30_000;
+// App-private WebSocket close code (4000-4999 range). Client contract: reconnect
+// with a fresh token. A protocol constant, not a tunable, so it stays here — the
+// tunables (path / payload cap / heartbeat) live in appConfig → config.ws.
+const WS_CLOSE_AUTH_EXPIRED = 4001;
 
 /**
  * Attaches a WebSocket server to the existing httpServer. Auth happens during
@@ -32,7 +33,7 @@ export function attachWebSocketServer(
     .map((o) => o.trim());
   const wss = new WebSocketServer({
     noServer: true,
-    maxPayload: MAX_PAYLOAD_BYTES,
+    maxPayload: config.ws.maxPayloadBytes,
   });
 
   httpServer.on("upgrade", (req, socket, head) => {
@@ -46,7 +47,7 @@ export function attachWebSocketServer(
   ): Promise<void> {
     try {
       const url = new URL(req.url ?? "", `http://${req.headers.host}`);
-      if (url.pathname !== WS_PATH) {
+      if (url.pathname !== config.ws.path) {
         socket.destroy();
         return;
       }
@@ -85,6 +86,7 @@ export function attachWebSocketServer(
     logger.info({ userId: user.id }, "WS connected");
 
     ws.isAlive = true;
+    ws.userExp = user.exp;
     ws.on("pong", () => {
       ws.isAlive = true;
     });
@@ -113,14 +115,20 @@ export function attachWebSocketServer(
     });
   }
 
-  // Heartbeat sweep — terminate connections that didn't pong since last tick
+  // Heartbeat sweep — close expired sessions, then terminate dead connections.
   const heartbeat = setInterval(() => {
+    const nowSec = Date.now() / 1000;
     wss.clients.forEach((ws) => {
+      // Auth is verified only at connect (WS has no per-message middleware), so
+      // close the socket once the token's own lifetime is up — otherwise an
+      // expired session lingers on the open connection. 4001 = app close code.
+      if (ws.userExp && ws.userExp <= nowSec)
+        return ws.close(WS_CLOSE_AUTH_EXPIRED, "auth expired");
       if (!ws.isAlive) return ws.terminate();
       ws.isAlive = false;
       ws.ping();
     });
-  }, HEARTBEAT_INTERVAL_MS);
+  }, config.ws.heartbeatIntervalMs);
 
   wss.on("close", () => clearInterval(heartbeat));
 
