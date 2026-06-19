@@ -4,7 +4,7 @@ import {
   DeleteMessageCommand,
   ChangeMessageVisibilityCommand,
 } from "@aws-sdk/client-sqs";
-import { sqsClient } from "./client.js";
+import { getSqsClient } from "./client.js";
 import { getEnvConfig } from "../../config/env.js";
 
 export interface SendOptions {
@@ -38,7 +38,7 @@ export async function sendMessage(
 ): Promise<string | undefined> {
   const { delaySeconds, messageGroupId, deduplicationId } = options;
 
-  const response = await sqsClient.send(
+  const response = await getSqsClient().send(
     new SendMessageCommand({
       QueueUrl: queueUrl,
       MessageBody: JSON.stringify(body),
@@ -70,7 +70,7 @@ export async function receiveMessages(
     waitTimeSeconds = waitTime,
   } = options;
 
-  const response = await sqsClient.send(
+  const response = await getSqsClient().send(
     new ReceiveMessageCommand({
       QueueUrl: queueUrl,
       MaxNumberOfMessages: maxMessages,
@@ -101,7 +101,7 @@ export async function deleteMessage(
   queueUrl: string,
   receiptHandle: string,
 ): Promise<void> {
-  await sqsClient.send(
+  await getSqsClient().send(
     new DeleteMessageCommand({
       QueueUrl: queueUrl,
       ReceiptHandle: receiptHandle,
@@ -119,7 +119,7 @@ export async function extendVisibility(
   receiptHandle: string,
   visibilityTimeout: number,
 ): Promise<void> {
-  await sqsClient.send(
+  await getSqsClient().send(
     new ChangeMessageVisibilityCommand({
       QueueUrl: queueUrl,
       ReceiptHandle: receiptHandle,

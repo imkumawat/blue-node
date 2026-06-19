@@ -1,10 +1,10 @@
 import { GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
-import { secretsClient } from "./client.js";
+import { getSecretsClient } from "./client.js";
 
 export async function fetchSecrets(
   secretName: string,
 ): Promise<Record<string, string>> {
-  const response = await secretsClient.send(
+  const response = await getSecretsClient().send(
     new GetSecretValueCommand({ SecretId: secretName }),
   );
   if (!response.SecretString) {

@@ -1,6 +1,6 @@
 import { getSignedUrl, getSignedCookies } from "@aws-sdk/cloudfront-signer";
 import { CreateInvalidationCommand } from "@aws-sdk/client-cloudfront";
-import { cfClient } from "./client.js";
+import { getCfClient } from "./client.js";
 import { getEnvConfig } from "../../config/env.js";
 
 function getSigningConfig(): { keyPairId: string; privateKey: string } {
@@ -63,7 +63,7 @@ export async function invalidatePaths(
       "CloudFront distributionId is required for cache invalidation",
     );
   }
-  await cfClient.send(
+  await getCfClient().send(
     new CreateInvalidationCommand({
       DistributionId: distributionId,
       InvalidationBatch: {

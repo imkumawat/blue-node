@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Readable } from "node:stream";
-import { s3Client } from "./client.js";
+import { getS3Client } from "./client.js";
 import { getEnvConfig } from "../../config/env.js";
 
 /**
@@ -19,7 +19,7 @@ export async function uploadFile(
   contentType: string,
   metadata: Record<string, string> = {},
 ): Promise<string> {
-  await s3Client.send(
+  await getS3Client().send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -44,10 +44,10 @@ export async function getSignedDownloadUrl(
   const { signedUrlExpiry } = getEnvConfig().aws.s3;
 
   // verify object exists before generating URL — avoids leaking signed URLs for missing keys
-  await s3Client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+  await getS3Client().send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 
   return getSignedUrl(
-    s3Client,
+    getS3Client(),
     new GetObjectCommand({ Bucket: bucket, Key: key }),
     { expiresIn: signedUrlExpiry },
   );
@@ -74,7 +74,9 @@ export async function getPresignedUploadUrl(
     ...(maxSizeBytes && { ContentLength: maxSizeBytes }),
   });
 
-  return getSignedUrl(s3Client, command, { expiresIn: presignedUrlExpiry });
+  return getSignedUrl(getS3Client(), command, {
+    expiresIn: presignedUrlExpiry,
+  });
 }
 
 /**
@@ -82,5 +84,7 @@ export async function getPresignedUploadUrl(
  * S3 DeleteObject is idempotent — no error if key does not exist.
  */
 export async function deleteFile(bucket: string, key: string): Promise<void> {
-  await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  await getS3Client().send(
+    new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+  );
 }
