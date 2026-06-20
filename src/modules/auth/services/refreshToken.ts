@@ -15,8 +15,18 @@ export async function renewTokens(
   const { payload } = await rotateRefreshToken(rawRefreshToken, userAudience);
 
   const scopes = await getScopes(payload.sub);
-  const access = generateAccessToken(payload.sub, scopes, userAudience);
-  const refresh = generateRefreshToken(payload.sub, userAudience);
+  // Thread the session id through rotation so a refreshed token keeps the SAME
+  // sid — the WS layer's per-session disconnect stays stable across the 15-min
+  // access-token rotation.
+  const access = generateAccessToken(userAudience, {
+    sub: payload.sub,
+    scopes,
+    sid: payload.sid,
+  });
+  const refresh = generateRefreshToken(userAudience, {
+    sub: payload.sub,
+    sid: payload.sid,
+  });
   await storeRefreshToken(
     payload.sub,
     refresh.jti,

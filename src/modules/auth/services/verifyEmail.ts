@@ -1,3 +1,4 @@
+import { v7 as uuidv7 } from "uuid";
 import { getEnvConfig } from "../../../config/env.js";
 import { findUserByEmail, updateUserStatus } from "../lib/userQueries.js";
 import { getScopes } from "../lib/permissionQueries.js";
@@ -42,8 +43,16 @@ export async function verifyEmail({
   await updateUserStatus(user.id, "active");
 
   const scopes = await getScopes(user.id);
-  const access = generateAccessToken(user.id, scopes, userAudience);
-  const refresh = generateRefreshToken(user.id, userAudience);
+  const sessionId = uuidv7();
+  const access = generateAccessToken(userAudience, {
+    sub: user.id,
+    scopes,
+    sid: sessionId,
+  });
+  const refresh = generateRefreshToken(userAudience, {
+    sub: user.id,
+    sid: sessionId,
+  });
   await storeRefreshToken(
     user.id,
     refresh.jti,

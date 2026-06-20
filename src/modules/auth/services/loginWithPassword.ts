@@ -1,3 +1,4 @@
+import { v7 as uuidv7 } from "uuid";
 import { getEnvConfig } from "../../../config/env.js";
 import { getRedis } from "../../../lib/cache/redis/client.js";
 import logger from "../../../utils/logger.js";
@@ -179,8 +180,16 @@ export async function loginWithPassword({
   await clearFailedAttempts(email, ipAddress);
 
   const scopes = await getScopes(user.id);
-  const access = generateAccessToken(user.id, scopes, userAudience);
-  const refresh = generateRefreshToken(user.id, userAudience);
+  const sessionId = uuidv7();
+  const access = generateAccessToken(userAudience, {
+    sub: user.id,
+    scopes,
+    sid: sessionId,
+  });
+  const refresh = generateRefreshToken(userAudience, {
+    sub: user.id,
+    sid: sessionId,
+  });
   await storeRefreshToken(
     user.id,
     refresh.jti,

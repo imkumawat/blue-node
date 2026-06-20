@@ -5,6 +5,7 @@ export interface AuthUser {
   scopes: string[];
   jti: string;
   exp: number;
+  sessionId?: string; // from token `sid` claim — server-generated per login; absent on legacy tokens
 }
 
 /**
@@ -24,5 +25,6 @@ export async function verifyToken(
     scopes: payload.scopes ?? [],
     jti: payload.jti,
     exp: payload.exp ?? 0,
+    sessionId: payload.sid,
   };
 }

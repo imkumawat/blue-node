@@ -30,6 +30,16 @@ interface TokenPayload extends JwtPayload {
   sub: string;
   jti: string;
   scopes?: string[];
+  sid?: string;
+}
+
+// Input claims for token generation (jti is generated internally, not passed in).
+interface TokenClaims {
+  sub: string; // user id
+  sid?: string; // session id — server-generated per login, survives token rotation; powers per-session WS disconnect
+}
+interface AccessTokenClaims extends TokenClaims {
+  scopes?: string[];
 }
 
 function audienceConfig(audience: string): AudienceConfig {
@@ -62,14 +72,13 @@ function audienceConfig(audience: string): AudienceConfig {
 }
 
 export function generateAccessToken(
-  userId: string,
-  scopes: string[] = [],
   audience: string,
+  claims: AccessTokenClaims,
 ): IssuedToken {
   const { issuer } = getEnvConfig().jwt;
   const { secret, accessExpiry } = audienceConfig(audience);
   const jti = uuidv7();
-  const token = jwt.sign({ sub: String(userId), scopes, jti }, secret, {
+  const token = jwt.sign({ ...claims, jti }, secret, {
     algorithm: "HS256",
     issuer,
     audience,
@@ -80,14 +89,14 @@ export function generateAccessToken(
 }
 
 export function generateRefreshToken(
-  userId: string,
   audience: string,
+  claims: TokenClaims,
 ): IssuedToken {
   const { issuer } = getEnvConfig().jwt;
   const { secret, refreshExpiry } = audienceConfig(audience);
   const jti = uuidv7();
   const expiresAt = new Date(Date.now() + refreshExpiry * 1000);
-  const token = jwt.sign({ sub: String(userId), jti }, secret, {
+  const token = jwt.sign({ ...claims, jti }, secret, {
     algorithm: "HS256",
     issuer,
     audience,
