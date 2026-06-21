@@ -1,4 +1,6 @@
 import type { WebSocket } from "ws";
+import { getEnvConfig } from "../config/env.js";
+import logger from "../utils/logger.js";
 
 // In-memory map: userId → Set<WebSocket>. One user can have multiple connections
 // (multi-tab, multi-device). Per-process state — for multi-instance prod, layer
@@ -27,13 +29,37 @@ export function getConnections(userId: string): Set<WebSocket> {
 }
 
 /**
+ * Send to one socket with backpressure protection. ws.send() only QUEUES bytes;
+ * if the client reads slowly the queue (bufferedAmount) grows unbounded → OOM.
+ * Past the high-water mark the client can't keep up, so terminate it — it will
+ * reconnect and resync from the source of truth (cheaper, and safer, than
+ * silently dropping messages, which corrupts client state).
+ */
+function trySend(ws: WebSocket, data: string): void {
+  if (ws.readyState !== ws.OPEN) return;
+  if (ws.bufferedAmount > getEnvConfig().ws.maxBufferedBytes) {
+    logger.warn(
+      {
+        userId: ws.userId,
+        sessionId: ws.sessionId,
+        bufferedAmount: ws.bufferedAmount,
+      },
+      "WS slow consumer — terminating",
+    );
+    ws.terminate();
+    return;
+  }
+  ws.send(data);
+}
+
+/**
  * Send a payload to ALL of a user's open connections. No-op if user offline.
  * Payload can be a string or an object (auto-JSON.stringify).
  */
 export function sendToUser(userId: string, payload: string | object): void {
   const data = typeof payload === "string" ? payload : JSON.stringify(payload);
   for (const ws of getConnections(userId)) {
-    if (ws.readyState === ws.OPEN) ws.send(data);
+    trySend(ws, data);
   }
 }
 
@@ -57,7 +83,7 @@ export function sendToSession(
 ): void {
   const data = typeof payload === "string" ? payload : JSON.stringify(payload);
   for (const ws of getConnections(userId)) {
-    if (ws.sessionId === sessionId && ws.readyState === ws.OPEN) ws.send(data);
+    if (ws.sessionId === sessionId) trySend(ws, data);
   }
 }
 
