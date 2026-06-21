@@ -172,6 +172,8 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 export async function logout(req: Request, res: Response): Promise<void> {
   const user = req.user!;
   await logoutUser({
+    userId: user.id,
+    sessionId: user.sessionId,
     accessJti: user.jti,
     accessExp: user.exp,
     rawRefreshToken: req.cookies.refresh_token,

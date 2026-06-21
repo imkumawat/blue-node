@@ -25,6 +25,9 @@ declare module "ws" {
   interface WebSocket {
     isAlive?: boolean;
     userExp?: number; // unix seconds — close the socket once the auth token expires
+    userId?: string; // = AuthUser.id — owner of this socket
+    sessionId?: string; // = AuthUser.sessionId (token `sid`) — per-session disconnect key
+    connectionId?: string; // uuidv7 minted at accept — this socket's unique id
   }
 }
 

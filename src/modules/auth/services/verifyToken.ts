@@ -5,7 +5,7 @@ export interface AuthUser {
   scopes: string[];
   jti: string;
   exp: number;
-  sessionId?: string; // from token `sid` claim — server-generated per login; absent on legacy tokens
+  sessionId: string; // from token `sid` claim — server-generated per login
 }
 
 /**

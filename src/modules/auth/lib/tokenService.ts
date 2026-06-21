@@ -30,13 +30,13 @@ interface TokenPayload extends JwtPayload {
   sub: string;
   jti: string;
   scopes?: string[];
-  sid?: string;
+  sid: string; // session id — every token we issue carries it (see TokenClaims)
 }
 
 // Input claims for token generation (jti is generated internally, not passed in).
 interface TokenClaims {
   sub: string; // user id
-  sid?: string; // session id — server-generated per login, survives token rotation; powers per-session WS disconnect
+  sid: string; // session id — server-generated per login, survives token rotation; powers per-session WS disconnect
 }
 interface AccessTokenClaims extends TokenClaims {
   scopes?: string[];

@@ -4,17 +4,19 @@ import type { Server } from "http";
 import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import cookie from "cookie";
+import { v7 as uuidv7 } from "uuid";
 import { verifyToken } from "../modules/auth/index.js";
 import type { AuthUser } from "../modules/auth/index.js";
-import { addConnection, removeConnection } from "./connectionManager.js";
+import {
+  addConnection,
+  removeConnection,
+  hasLocalUser,
+} from "./connectionManager.js";
+import { subscribeUser, unsubscribeUser } from "./subscriber.js";
+import { WS_CLOSE_AUTH_EXPIRED } from "./protocol.js";
 import { routeMessage } from "./messageRouter.js";
 import logger from "../utils/logger.js";
 import type { AppConfig } from "../config/env.js";
-
-// App-private WebSocket close code (4000-4999 range). Client contract: reconnect
-// with a fresh token. A protocol constant, not a tunable, so it stays here — the
-// tunables (path / payload cap / heartbeat) live in appConfig → config.ws.
-const WS_CLOSE_AUTH_EXPIRED = 4001;
 
 /**
  * Attaches a WebSocket server to the existing httpServer. Auth happens during
@@ -82,8 +84,29 @@ export function attachWebSocketServer(
   }
 
   function handleConnection(ws: WebSocket, user: AuthUser): void {
+    // Set identities BEFORE addConnection so a pub/sub message arriving the
+    // instant we subscribe can already filter on sessionId.
+    ws.userId = user.id;
+    ws.sessionId = user.sessionId;
+    ws.connectionId = uuidv7();
+
+    const isFirstLocalSocket = !hasLocalUser(user.id);
     addConnection(user.id, ws);
-    logger.info({ userId: user.id }, "WS connected");
+    // Subscribe to this user's cross-instance channel on their first local
+    // socket; the last socket's close unsubscribes (see ws "close" below).
+    if (isFirstLocalSocket) {
+      void subscribeUser(user.id).catch((err) =>
+        logger.error({ err, userId: user.id }, "WS subscribe failed"),
+      );
+    }
+    logger.info(
+      {
+        userId: user.id,
+        sessionId: user.sessionId,
+        connectionId: ws.connectionId,
+      },
+      "WS connected",
+    );
 
     ws.isAlive = true;
     ws.userExp = user.exp;
@@ -107,6 +130,12 @@ export function attachWebSocketServer(
 
     ws.on("close", () => {
       removeConnection(user.id, ws);
+      // Last local socket for this user gone → drop the channel subscription.
+      if (!hasLocalUser(user.id)) {
+        void unsubscribeUser(user.id).catch((err) =>
+          logger.error({ err, userId: user.id }, "WS unsubscribe failed"),
+        );
+      }
       logger.info({ userId: user.id }, "WS disconnected");
     });
 

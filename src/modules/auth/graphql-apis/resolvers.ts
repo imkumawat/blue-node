@@ -103,6 +103,8 @@ export const authResolvers = {
       // — same JWT). Refresh cookie is independent — validate explicitly.
       if (!ctx.rawRefreshToken) throw new InvalidRefreshTokenError();
       await logoutUser({
+        userId: ctx.user!.id,
+        sessionId: ctx.user!.sessionId,
         accessJti: ctx.accessJti!,
         accessExp: ctx.accessExp!,
         rawRefreshToken: ctx.rawRefreshToken,

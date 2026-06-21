@@ -11,6 +11,7 @@ export const REDIS_KEYS = {
   emailVerify: "verify:email:", // email-verification code (stored hashed)
   passwordReset: "reset:password:", // password-reset code (stored hashed)
   jobDone: "job:done:", // idempotency marker — a job that completed (dispatchJob)
+  wsUser: "ws:user:", // per-user WebSocket pub/sub channel (cross-instance fan-out)
 } as const;
 
 export const REDIS = {

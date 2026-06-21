@@ -10,6 +10,8 @@ import {
 } from "../../notifications/jobs/sendEmail.js";
 import { changePasswordEmail } from "../emails/changePasswordEmail.js";
 import { InvalidCredentialsError, UserNotFoundError } from "../errors.js";
+import { disconnectUser } from "../../../websocket/index.js";
+import logger from "../../../utils/logger.js";
 
 interface ChangePasswordInput {
   userId: string; // from the authenticated session (req.user.id)
@@ -37,6 +39,17 @@ export async function changePassword({
   await updateUserPassword(user.id, passwordHash);
 
   await revokeAllRefreshTokensForUser(user.id);
+
+  // Close all of this user's live sockets across instances — every session is
+  // now invalid. Non-fatal (unlike logout): the password and token revocation
+  // are ALREADY committed above, so a WS hiccup must not fail a succeeded
+  // change. The heartbeat token-expiry close is the backstop.
+  await disconnectUser(user.id, "password changed").catch((err) =>
+    logger.warn(
+      { err, userId: user.id },
+      "WS disconnect on password change failed",
+    ),
+  );
 
   await enqueueEmail(
     { to: user.email, ...changePasswordEmail() },
