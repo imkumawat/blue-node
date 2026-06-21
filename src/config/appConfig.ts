@@ -106,6 +106,7 @@ export const WS = {
   maxPayloadBytes: 16 * 1024, // 16KB — reject huge inbound frames
   heartbeatIntervalMs: 30_000, // ping sweep + token-expiry/liveness check cadence
   maxBufferedBytes: 1024 * 1024, // 1MB outbound backlog cap — past this the client is too slow → terminate (it reconnects + resyncs)
+  maxConnections: 10_000, // per-instance guardrail vs OOM — tune via load test; scale horizontally past it
 } as const;
 
 export const AWS = {

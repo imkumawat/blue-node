@@ -11,6 +11,7 @@ import {
   addConnection,
   removeConnection,
   hasLocalUser,
+  connectionCount,
 } from "./connectionManager.js";
 import { subscribeUser, unsubscribeUser } from "./subscriber.js";
 import { WS_CLOSE_AUTH_EXPIRED } from "./protocol.js";
@@ -52,6 +53,12 @@ export function attachWebSocketServer(
       if (url.pathname !== config.ws.path) {
         socket.destroy();
         return;
+      }
+
+      // Shed load before the auth handshake: a full instance rejects new sockets
+      // so it can't OOM. Clients retry → ALB routes to a less-loaded instance.
+      if (connectionCount() >= config.ws.maxConnections) {
+        return rejectUpgrade(socket, 503);
       }
 
       // CSWSH defense: the WS upgrade is NOT subject to CORS, and a browser
@@ -183,7 +190,9 @@ function rejectUpgrade(socket: Duplex, status: number): void {
       ? "Unauthorized"
       : status === 403
         ? "Forbidden"
-        : "Bad Request";
+        : status === 503
+          ? "Service Unavailable"
+          : "Bad Request";
   socket.write(`HTTP/1.1 ${status} ${reason}\r\n\r\n`);
   socket.destroy();
 }

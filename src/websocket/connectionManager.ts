@@ -7,6 +7,7 @@ import logger from "../utils/logger.js";
 // Redis pub/sub on top to broadcast across Node instances.
 
 const connections = new Map<string, Set<WebSocket>>();
+let totalConnections = 0; // live socket count on this instance (capacity cap)
 
 export function addConnection(userId: string, ws: WebSocket): void {
   let set = connections.get(userId);
@@ -15,12 +16,13 @@ export function addConnection(userId: string, ws: WebSocket): void {
     connections.set(userId, set);
   }
   set.add(ws);
+  totalConnections++;
 }
 
 export function removeConnection(userId: string, ws: WebSocket): void {
   const set = connections.get(userId);
   if (!set) return;
-  set.delete(ws);
+  if (set.delete(ws)) totalConnections--; // dec only if it was actually present
   if (set.size === 0) connections.delete(userId);
 }
 
@@ -112,4 +114,9 @@ export function closeUser(userId: string, code: number, reason: string): void {
  *  after a Redis reconnect. */
 export function localUserIds(): string[] {
   return [...connections.keys()];
+}
+
+/** Live socket count on THIS instance — drives the per-instance capacity cap. */
+export function connectionCount(): number {
+  return totalConnections;
 }
