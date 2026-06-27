@@ -35,6 +35,14 @@ export const envSchema = z.object({
   MONGO_URI: z.string().min(1),
   MONGO_DB: z.string().min(1),
 
+  // MQTT (EMQX broker) — delivery-tracking transport. Non-core: the app boots
+  // and serves even if the broker is down (only the delivery feature degrades),
+  // but the URL itself is required config. Username/password optional — a dev
+  // broker may allow anonymous; prod sets credentials.
+  MQTT_URL: z.string().min(1), // e.g. mqtt://localhost:1883 (native) or wss://broker/mqtt (browser)
+  MQTT_USERNAME: z.string().optional(),
+  MQTT_PASSWORD: z.string().optional(),
+
   // Auth
   API_SECRET_KEY: z.string().min(16),
 

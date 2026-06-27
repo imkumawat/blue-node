@@ -17,6 +17,7 @@ import {
   OTP,
   GRAPHQL,
   WS,
+  MQTT,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
 
@@ -93,6 +94,11 @@ export type AppConfig = {
   body: typeof BODY;
   routes: typeof ROUTES;
   ws: typeof WS;
+  mqtt: {
+    url: string;
+    username: string | undefined;
+    password: string | undefined;
+  } & typeof MQTT;
   aws: {
     s3: typeof AWS.s3 & {
       buckets: { uploads: string; reports: string };
@@ -232,6 +238,12 @@ export default async function loadEnv(
     body: BODY,
     routes: ROUTES,
     ws: WS,
+    mqtt: {
+      url: e.MQTT_URL,
+      username: e.MQTT_USERNAME,
+      password: e.MQTT_PASSWORD,
+      ...MQTT,
+    },
     aws: {
       s3: {
         ...AWS.s3,

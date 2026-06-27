@@ -109,6 +109,12 @@ export const WS = {
   maxConnections: 10_000, // per-instance guardrail vs OOM — tune via load test; scale horizontally past it
 } as const;
 
+export const MQTT = {
+  connectTimeoutMs: 10_000, // bound the initial connect / each reconnect attempt
+  reconnectPeriodMs: 5_000, // auto-reconnect cadence after a drop (0 disables)
+  keepaliveSec: 30, // ping cadence — broker marks the client dead past ~1.5x this
+} as const;
+
 export const AWS = {
   s3: {
     signedUrlExpiry: 86_400, // 24h — private file access
