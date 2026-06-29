@@ -1,16 +1,45 @@
 import type { WebSocket } from "ws";
 import { getEnvConfig } from "../config/env.js";
 import logger from "../utils/logger.js";
+import type { ServerMessage } from "./protocol.js";
 
 // In-memory map: userId → Set<WebSocket>. One user can have multiple connections
-// (multi-tab, multi-device). Per-process state — for multi-instance prod, layer
-// Redis pub/sub on top to broadcast across Node instances.
-
+// (multi-tab, multi-device). Per-process state — cross-instance fan-out is
+// layered on top via Redis pub/sub (see publisher.ts / subscriber.ts).
 const userConnections = new Map<string, Set<WebSocket>>();
 // Public (unauthenticated) sockets have no userId, so they live in their own
 // set rather than the per-user map. Used for public broadcasts.
 const publicConnections = new Set<WebSocket>();
 let totalConnections = 0; // live socket count on this instance (capacity cap)
+
+/**
+ * Send raw data to one socket with backpressure protection. ws.send() only
+ * QUEUES bytes; if the client reads slowly the queue (bufferedAmount) grows
+ * unbounded → OOM. Past the high-water mark the client can't keep up, so
+ * terminate it — it will reconnect and resync from the source of truth (cheaper,
+ * and safer, than silently dropping messages, which corrupts client state).
+ */
+function trySend(ws: WebSocket, data: string): void {
+  if (ws.readyState !== ws.OPEN) return;
+  if (ws.bufferedAmount > getEnvConfig().ws.maxBufferedBytes) {
+    logger.warn(
+      {
+        userId: ws.userId,
+        sessionId: ws.sessionId,
+        bufferedAmount: ws.bufferedAmount,
+      },
+      "WS slow consumer — terminating",
+    );
+    ws.terminate();
+    return;
+  }
+  ws.send(data);
+}
+
+/** Send a structured message to ONE socket (direct reply). No-op if not open. */
+export function sendToSocket(ws: WebSocket, message: ServerMessage): void {
+  trySend(ws, JSON.stringify(message));
+}
 
 export function addUserConnection(userId: string, ws: WebSocket): void {
   let set = userConnections.get(userId);
@@ -47,48 +76,8 @@ export function connectionCount(): number {
   return totalConnections;
 }
 
-/** Register a public (unauthenticated) socket — counts toward the capacity cap. */
-export function addPublicConnection(ws: WebSocket): void {
-  publicConnections.add(ws);
-  totalConnections++;
-}
-
-export function removePublicConnection(ws: WebSocket): void {
-  if (publicConnections.delete(ws)) totalConnections--;
-}
-
-/** Broadcast to ALL public sockets (announcements / public live data). */
-export function broadcastPublic(payload: string | object): void {
-  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
-  for (const ws of publicConnections) trySend(ws, data);
-}
-
 /**
- * Send to one socket with backpressure protection. ws.send() only QUEUES bytes;
- * if the client reads slowly the queue (bufferedAmount) grows unbounded → OOM.
- * Past the high-water mark the client can't keep up, so terminate it — it will
- * reconnect and resync from the source of truth (cheaper, and safer, than
- * silently dropping messages, which corrupts client state).
- */
-function trySend(ws: WebSocket, data: string): void {
-  if (ws.readyState !== ws.OPEN) return;
-  if (ws.bufferedAmount > getEnvConfig().ws.maxBufferedBytes) {
-    logger.warn(
-      {
-        userId: ws.userId,
-        sessionId: ws.sessionId,
-        bufferedAmount: ws.bufferedAmount,
-      },
-      "WS slow consumer — terminating",
-    );
-    ws.terminate();
-    return;
-  }
-  ws.send(data);
-}
-
-/**
- * Send a payload to ALL of a user's open userConnections. No-op if user offline.
+ * Send a payload to ALL of a user's open sockets. No-op if user offline.
  * Payload can be a string or an object (auto-JSON.stringify).
  */
 export function sendToUser(userId: string, payload: string | object): void {
@@ -132,6 +121,22 @@ export function closeUser(userId: string, code: number, reason: string): void {
   for (const ws of getUserConnections(userId)) {
     if (ws.readyState === ws.OPEN) ws.close(code, reason);
   }
+}
+
+/** Register a public (unauthenticated) socket — counts toward the capacity cap. */
+export function addPublicConnection(ws: WebSocket): void {
+  publicConnections.add(ws);
+  totalConnections++;
+}
+
+export function removePublicConnection(ws: WebSocket): void {
+  if (publicConnections.delete(ws)) totalConnections--;
+}
+
+/** Broadcast to ALL public sockets (announcements / public live data). */
+export function broadcastPublic(payload: string | object): void {
+  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+  for (const ws of publicConnections) trySend(ws, data);
 }
 
 /** All userIds with at least one local socket — used to re-subscribe channels

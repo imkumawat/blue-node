@@ -102,7 +102,9 @@ export const AWS_HTTP = {
 } as const;
 
 export const WS = {
-  path: ["/public-ws", "/api/ws"] as string[], // multiple paths for public vs authenticated WS (same server, same port)
+  // Single source of truth for WS paths — used both to gate the upgrade and to
+  // branch in handleUpgrade. Same server/port, different auth treatment.
+  paths: { authenticated: "/api/ws", public: "/public-ws" },
   maxPayloadBytes: 16 * 1024, // 16KB — reject huge inbound frames
   heartbeatIntervalMs: 30_000, // ping sweep + token-expiry/liveness check cadence
   maxBufferedBytes: 1024 * 1024, // 1MB outbound backlog cap — past this the client is too slow → terminate (it reconnects + resyncs)

@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import type { AuthUser } from "../modules/auth/index.js";
+import { sendToSocket } from "./connectionManager.js";
 
 interface WSMessage {
   type: string;
@@ -16,7 +17,7 @@ type Handler = (
 
 const handlers: Record<string, Handler> = {
   ping: async (_msg, _user, ws) => {
-    ws.send(JSON.stringify({ type: "pong", ts: Date.now() }));
+    sendToSocket(ws, { type: "pong", ts: Date.now() });
   },
   // Add real handlers as features arrive:
   //   "notifications.subscribe": ...,
@@ -31,7 +32,10 @@ export async function routeMessage(
 ): Promise<void> {
   const handler = handlers[msg?.type];
   if (!handler) {
-    ws.send(JSON.stringify({ type: "error", message: "Unknown message type" }));
+    sendToSocket(ws, {
+      type: "error",
+      data: { message: "Unknown message type" },
+    });
     return;
   }
   await handler(msg, user, ws);

@@ -28,3 +28,14 @@ export interface WsEnvelope {
   closeCode?: number; // cmd: "disconnect"
   reason?: string; // cmd: "disconnect"
 }
+
+/**
+ * The shape of every message the SERVER sends to a CLIENT. `type` is the event
+ * the client switches on, `data` carries the event payload, `ts` is an optional
+ * server timestamp. One consistent shape → the client parses uniformly.
+ */
+export interface ServerMessage<T = unknown> {
+  type: string;
+  data?: T;
+  ts?: number;
+}

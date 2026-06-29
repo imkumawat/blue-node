@@ -14,6 +14,7 @@ import {
   connectionCount,
   addPublicConnection,
   removePublicConnection,
+  sendToSocket,
 } from "./connectionManager.js";
 import { subscribeUser, unsubscribeUser } from "./subscriber.js";
 import { WS_CLOSE_AUTH_EXPIRED } from "./protocol.js";
@@ -50,7 +51,8 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     next: () => void,
   ): void {
     const url = new URL(req.url ?? "", `http://${req.headers.host}`);
-    if (!wsConfig.path.includes(url.pathname)) {
+    const knownPaths: string[] = Object.values(wsConfig.paths);
+    if (!knownPaths.includes(url.pathname)) {
       socket.destroy();
       return;
     }
@@ -72,7 +74,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
       return rejectUpgrade(socket, 503);
     }
 
-    // ip rate limiting
+    // TODO: per-IP upgrade rate-limit (Redis) — bound connection churn (CPU).
     next();
   }
 
@@ -82,7 +84,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     head: Buffer,
   ): Promise<void> {
     try {
-      if (req.pathname === "/api/ws") {
+      if (req.pathname === wsConfig.paths.authenticated) {
         const { token: accessToken, viaCookie } = extractToken(req);
         if (!accessToken) return rejectUpgrade(socket, 401);
 
@@ -97,7 +99,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
         wss.handleUpgrade(req, socket, head, (ws) => {
           handleConnection(ws, user);
         });
-      } else if (req.pathname === "/public-ws") {
+      } else if (req.pathname === wsConfig.paths.public) {
         // Public WS: no authenticated user → pass null. handleConnection skips
         // the per-user identity/channel/expiry and registers it as public.
         wss.handleUpgrade(req, socket, head, (ws) =>
@@ -159,9 +161,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
           await routeMessage(msg, user, ws);
         } catch (err) {
           logger.warn({ err, userId: user?.id }, "WS message handling failed");
-          if (ws.readyState === ws.OPEN) {
-            ws.send(JSON.stringify({ type: "error", message: "Bad message" }));
-          }
+          sendToSocket(ws, { type: "error", data: { message: "Bad message" } });
         }
       })();
     });
