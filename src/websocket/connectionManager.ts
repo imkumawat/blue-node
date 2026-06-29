@@ -6,28 +6,61 @@ import logger from "../utils/logger.js";
 // (multi-tab, multi-device). Per-process state — for multi-instance prod, layer
 // Redis pub/sub on top to broadcast across Node instances.
 
-const connections = new Map<string, Set<WebSocket>>();
+const userConnections = new Map<string, Set<WebSocket>>();
+// Public (unauthenticated) sockets have no userId, so they live in their own
+// set rather than the per-user map. Used for public broadcasts.
+const publicConnections = new Set<WebSocket>();
 let totalConnections = 0; // live socket count on this instance (capacity cap)
 
-export function addConnection(userId: string, ws: WebSocket): void {
-  let set = connections.get(userId);
+export function addUserConnection(userId: string, ws: WebSocket): void {
+  let set = userConnections.get(userId);
   if (!set) {
     set = new Set();
-    connections.set(userId, set);
+    userConnections.set(userId, set);
   }
   set.add(ws);
   totalConnections++;
 }
 
-export function removeConnection(userId: string, ws: WebSocket): void {
-  const set = connections.get(userId);
+export function removeUserConnection(userId: string, ws: WebSocket): void {
+  const set = userConnections.get(userId);
   if (!set) return;
   if (set.delete(ws)) totalConnections--; // dec only if it was actually present
-  if (set.size === 0) connections.delete(userId);
+  if (set.size === 0) userConnections.delete(userId);
 }
 
-export function getConnections(userId: string): Set<WebSocket> {
-  return connections.get(userId) ?? new Set();
+export function getUserConnections(userId: string): Set<WebSocket> {
+  return userConnections.get(userId) ?? new Set();
+}
+
+/**
+ * True if THIS instance currently holds any socket for the user. Drives the
+ * pub/sub lifecycle: subscribe to the user's channel on the first local socket,
+ * unsubscribe on the last.
+ */
+export function hasLocalUser(userId: string): boolean {
+  return userConnections.has(userId);
+}
+
+/** Live socket count on THIS instance — drives the per-instance capacity cap. */
+export function connectionCount(): number {
+  return totalConnections;
+}
+
+/** Register a public (unauthenticated) socket — counts toward the capacity cap. */
+export function addPublicConnection(ws: WebSocket): void {
+  publicConnections.add(ws);
+  totalConnections++;
+}
+
+export function removePublicConnection(ws: WebSocket): void {
+  if (publicConnections.delete(ws)) totalConnections--;
+}
+
+/** Broadcast to ALL public sockets (announcements / public live data). */
+export function broadcastPublic(payload: string | object): void {
+  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+  for (const ws of publicConnections) trySend(ws, data);
 }
 
 /**
@@ -55,23 +88,14 @@ function trySend(ws: WebSocket, data: string): void {
 }
 
 /**
- * Send a payload to ALL of a user's open connections. No-op if user offline.
+ * Send a payload to ALL of a user's open userConnections. No-op if user offline.
  * Payload can be a string or an object (auto-JSON.stringify).
  */
 export function sendToUser(userId: string, payload: string | object): void {
   const data = typeof payload === "string" ? payload : JSON.stringify(payload);
-  for (const ws of getConnections(userId)) {
+  for (const ws of getUserConnections(userId)) {
     trySend(ws, data);
   }
-}
-
-/**
- * True if THIS instance currently holds any socket for the user. Drives the
- * pub/sub lifecycle: subscribe to the user's channel on the first local socket,
- * unsubscribe on the last.
- */
-export function hasLocalUser(userId: string): boolean {
-  return connections.has(userId);
 }
 
 /**
@@ -84,7 +108,7 @@ export function sendToSession(
   payload: string | object,
 ): void {
   const data = typeof payload === "string" ? payload : JSON.stringify(payload);
-  for (const ws of getConnections(userId)) {
+  for (const ws of getUserConnections(userId)) {
     if (ws.sessionId === sessionId) trySend(ws, data);
   }
 }
@@ -96,7 +120,7 @@ export function closeSession(
   code: number,
   reason: string,
 ): void {
-  for (const ws of getConnections(userId)) {
+  for (const ws of getUserConnections(userId)) {
     if (ws.sessionId === sessionId && ws.readyState === ws.OPEN) {
       ws.close(code, reason);
     }
@@ -105,7 +129,7 @@ export function closeSession(
 
 /** Close ALL of a user's local sockets (logout-everywhere / password change). */
 export function closeUser(userId: string, code: number, reason: string): void {
-  for (const ws of getConnections(userId)) {
+  for (const ws of getUserConnections(userId)) {
     if (ws.readyState === ws.OPEN) ws.close(code, reason);
   }
 }
@@ -113,10 +137,5 @@ export function closeUser(userId: string, code: number, reason: string): void {
 /** All userIds with at least one local socket — used to re-subscribe channels
  *  after a Redis reconnect. */
 export function localUserIds(): string[] {
-  return [...connections.keys()];
-}
-
-/** Live socket count on THIS instance — drives the per-instance capacity cap. */
-export function connectionCount(): number {
-  return totalConnections;
+  return [...userConnections.keys()];
 }

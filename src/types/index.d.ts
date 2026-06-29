@@ -15,6 +15,7 @@ declare global {
 
 declare module "http" {
   interface IncomingMessage {
+    pathname?: string; // parsed URL pathname for WS upgrade pre-checks
     requestId?: string;
     startTime?: bigint;
     rawBody?: Buffer;

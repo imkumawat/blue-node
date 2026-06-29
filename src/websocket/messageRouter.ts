@@ -6,7 +6,13 @@ interface WSMessage {
   [k: string]: unknown;
 }
 
-type Handler = (msg: WSMessage, user: AuthUser, ws: WebSocket) => Promise<void>;
+// user is null for public (unauthenticated) connections — user-specific
+// handlers must null-check before acting.
+type Handler = (
+  msg: WSMessage,
+  user: AuthUser | null,
+  ws: WebSocket,
+) => Promise<void>;
 
 const handlers: Record<string, Handler> = {
   ping: async (_msg, _user, ws) => {
@@ -20,7 +26,7 @@ const handlers: Record<string, Handler> = {
 
 export async function routeMessage(
   msg: WSMessage,
-  user: AuthUser,
+  user: AuthUser | null,
   ws: WebSocket,
 ): Promise<void> {
   const handler = handlers[msg?.type];

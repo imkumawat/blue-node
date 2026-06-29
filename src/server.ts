@@ -19,7 +19,7 @@ import logger from "./utils/logger.js";
 const { app, config, teardown } = await bootApp();
 const httpServer = createServer(app);
 
-const wss = attachWebSocketServer(httpServer, config);
+const wss = attachWebSocketServer(httpServer);
 await initWsPubsub(); // start the cross-instance subscriber (Redis is up post-bootApp)
 
 // Upstream proxy chain: Cloudflare (100s) → ALB (120s) → Node (125s)

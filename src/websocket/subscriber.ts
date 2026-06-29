@@ -1,15 +1,10 @@
 import type { Redis } from "ioredis";
 import { getRedis } from "../lib/cache/redis/client.js";
 import { getEnvConfig } from "../config/env.js";
-import { userChannel, WS_CLOSE_LOGGED_OUT } from "./protocol.js";
+import { userChannel } from "./protocol.js";
 import type { WsEnvelope } from "./protocol.js";
-import {
-  sendToUser,
-  sendToSession,
-  closeUser,
-  closeSession,
-  localUserIds,
-} from "./connectionManager.js";
+import { localUserIds } from "./connectionManager.js";
+import { routeEnvelope } from "./envelopeRouter.js";
 import logger from "../utils/logger.js";
 
 let _sub: Redis | undefined;
@@ -41,22 +36,7 @@ export async function initWsPubsub(): Promise<void> {
       logger.warn({ err }, "WS subscriber: bad envelope");
       return;
     }
-    if (env.cmd === "deliver") {
-      if (env.sessionId) {
-        sendToSession(
-          env.userId,
-          env.sessionId,
-          env.payload as string | object,
-        );
-      } else {
-        sendToUser(env.userId, env.payload as string | object);
-      }
-    } else {
-      const code = env.closeCode ?? WS_CLOSE_LOGGED_OUT;
-      const reason = env.reason ?? "session revoked";
-      if (env.sessionId) closeSession(env.userId, env.sessionId, code, reason);
-      else closeUser(env.userId, code, reason);
-    }
+    routeEnvelope(env);
   });
 
   // Defensive re-subscribe on every (re)connect. ioredis re-subscribes tracked

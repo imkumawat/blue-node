@@ -4,4 +4,9 @@
 // auth's verifyToken; auth imports only these publishers, not server.ts's deps).
 export { attachWebSocketServer } from "./server.js";
 export { initWsPubsub, closeWsPubsub } from "./subscriber.js";
-export { disconnectSession, disconnectUser } from "./publisher.js";
+export {
+  disconnectSession,
+  disconnectUser,
+  deliverToUser,
+  deliverToSession,
+} from "./publisher.js";
