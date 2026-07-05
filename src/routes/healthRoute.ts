@@ -143,4 +143,18 @@ router.get("/health", detailedAuth, async (req: Request, res: Response) => {
   });
 });
 
+/**
+ * Test endpoint for the HTTP QUERY method — a safe, idempotent read that carries
+ * its filters in the request body instead of the URL. Echoes the parsed body back
+ * so we can confirm QUERY routes end-to-end (method dispatch + body parsing).
+ * Placeholder until QUERY is adopted for real filter/search endpoints.
+ */
+router.query("/search", (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    method: req.method,
+    filters: req.body,
+  });
+});
+
 export default router;

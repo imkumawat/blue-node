@@ -32,4 +32,11 @@ declare module "ws" {
   }
 }
 
+declare module "express-serve-static-core" {
+  interface IRouter {
+    /** HTTP QUERY — safe, idempotent read with a request body. Not yet in @types/express. */
+    query: IRouterMatcher<this>;
+  }
+}
+
 export {};
