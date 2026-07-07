@@ -12,6 +12,7 @@ export const REDIS_KEYS = {
   passwordReset: "reset:password:", // password-reset code (stored hashed)
   jobDone: "job:done:", // idempotency marker — a job that completed (dispatchJob)
   wsUser: "ws:user:", // per-user WebSocket pub/sub channel (cross-instance fan-out)
+  wsRoom: "ws:room:", // per-room WebSocket pub/sub channel (cross-instance fan-out)
 } as const;
 
 export const REDIS = {

@@ -10,6 +10,9 @@ const userConnections = new Map<string, Set<WebSocket>>();
 // Public (unauthenticated) sockets have no userId, so they live in their own
 // set rather than the per-user map. Used for public broadcasts.
 const publicConnections = new Set<WebSocket>();
+// Room membership: roomId → local sockets. Ephemeral, connection-based groups
+// (live chat sessions, presence) — cross-instance via ws:room:<id> channels.
+const rooms = new Map<string, Set<WebSocket>>();
 let totalConnections = 0; // live socket count on this instance (capacity cap)
 
 /**
@@ -143,4 +146,71 @@ export function broadcastPublic(payload: string | object): void {
  *  after a Redis reconnect. */
 export function localUserIds(): string[] {
   return [...userConnections.keys()];
+}
+
+// --- Rooms (ephemeral, connection-based groupings) ---------------------------
+
+/** Join a room. Returns true if this is the FIRST local member — caller then
+ *  subscribes the room's Redis channel (drives cross-instance fan-out). */
+export function joinRoom(roomId: string, ws: WebSocket): boolean {
+  let set = rooms.get(roomId);
+  const isFirstLocalMember = !set;
+  if (!set) {
+    set = new Set();
+    rooms.set(roomId, set);
+  }
+  set.add(ws);
+  (ws.rooms ??= new Set()).add(roomId); // track on socket → disconnect cleanup
+  return isFirstLocalMember;
+}
+
+/** Leave a room. Returns true if that was the LAST local member — caller then
+ *  unsubscribes the Redis channel. */
+export function leaveRoom(roomId: string, ws: WebSocket): boolean {
+  const set = rooms.get(roomId);
+  if (!set) return false;
+  set.delete(ws);
+  ws.rooms?.delete(roomId);
+  if (set.size === 0) {
+    rooms.delete(roomId);
+    return true;
+  }
+  return false;
+}
+
+/** On disconnect: leave every room. Returns roomIds now empty locally (caller
+ *  unsubscribes their channels). Without this, dropped sockets leak membership. */
+export function leaveAllRooms(ws: WebSocket): string[] {
+  const emptied: string[] = [];
+  if (!ws.rooms) return emptied;
+  for (const roomId of ws.rooms) {
+    const set = rooms.get(roomId);
+    if (!set) continue;
+    set.delete(ws);
+    if (set.size === 0) {
+      rooms.delete(roomId);
+      emptied.push(roomId);
+    }
+  }
+  ws.rooms.clear();
+  return emptied;
+}
+
+/** Send to a room's LOCAL members, optionally excluding one connection. */
+export function sendToRoom(
+  roomId: string,
+  payload: string | object,
+  exceptConnectionId?: string,
+): void {
+  const set = rooms.get(roomId);
+  if (!set) return;
+  const data = typeof payload === "string" ? payload : JSON.stringify(payload);
+  for (const ws of set) {
+    if (ws.connectionId !== exceptConnectionId) trySend(ws, data);
+  }
+}
+
+/** All roomIds with ≥1 local member — re-subscribe channels after a Redis reconnect. */
+export function localRoomIds(): string[] {
+  return [...rooms.keys()];
 }

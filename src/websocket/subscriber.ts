@@ -1,9 +1,9 @@
 import type { Redis } from "ioredis";
 import { getRedis } from "../lib/cache/redis/client.js";
 import { getEnvConfig } from "../config/env.js";
-import { userChannel } from "./protocol.js";
+import { userChannel, roomChannel } from "./protocol.js";
 import type { WsEnvelope } from "./protocol.js";
-import { localUserIds } from "./connectionManager.js";
+import { localUserIds, localRoomIds } from "./connectionManager.js";
 import { routeEnvelope } from "./envelopeRouter.js";
 import logger from "../utils/logger.js";
 
@@ -11,6 +11,10 @@ let _sub: Redis | undefined;
 
 function channelFor(userId: string): string {
   return userChannel(getEnvConfig().redis.keys.wsUser, userId);
+}
+
+function roomChannelFor(roomId: string): string {
+  return roomChannel(getEnvConfig().redis.keys.wsRoom, roomId);
 }
 
 function requireSub(): Redis {
@@ -44,7 +48,10 @@ export async function initWsPubsub(): Promise<void> {
   // suspenders restore of all users this instance hosts — and documents the
   // invariant: subscriptions are per-connection state, not data Redis keeps.
   _sub.on("ready", () => {
-    const channels = localUserIds().map(channelFor);
+    const channels = [
+      ...localUserIds().map(channelFor),
+      ...localRoomIds().map(roomChannelFor),
+    ];
     if (channels.length) {
       requireSub()
         .subscribe(...channels)
@@ -63,6 +70,16 @@ export async function subscribeUser(userId: string): Promise<void> {
 /** Unsubscribe — on the LAST local socket for that user closing. */
 export async function unsubscribeUser(userId: string): Promise<void> {
   await requireSub().unsubscribe(channelFor(userId));
+}
+
+/** Subscribe to a room's channel — on the FIRST local member joining. */
+export async function subscribeRoom(roomId: string): Promise<void> {
+  await requireSub().subscribe(roomChannelFor(roomId));
+}
+
+/** Unsubscribe from a room's channel — on the LAST local member leaving. */
+export async function unsubscribeRoom(roomId: string): Promise<void> {
+  await requireSub().unsubscribe(roomChannelFor(roomId));
 }
 
 export async function closeWsPubsub(): Promise<void> {

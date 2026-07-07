@@ -1,6 +1,6 @@
 import { getRedis } from "../lib/cache/redis/client.js";
 import { getEnvConfig } from "../config/env.js";
-import { userChannel, WS_CLOSE_LOGGED_OUT } from "./protocol.js";
+import { userChannel, roomChannel, WS_CLOSE_LOGGED_OUT } from "./protocol.js";
 import type { WsEnvelope } from "./protocol.js";
 
 // Publish a delivery/control envelope on a user's channel. Every instance
@@ -17,6 +17,24 @@ export async function deliverToUser(
   payload: unknown,
 ): Promise<void> {
   await publish(userId, { v: 1, cmd: "deliver", userId, payload });
+}
+
+/** Deliver a payload to a room's sockets across every instance, optionally
+ *  excluding the sender's own connection (except-self broadcast). */
+export async function deliverToRoom(
+  roomId: string,
+  payload: unknown,
+  exceptConnectionId?: string,
+): Promise<void> {
+  const { wsRoom } = getEnvConfig().redis.keys;
+  const env: WsEnvelope = {
+    v: 1,
+    cmd: "deliver",
+    roomId,
+    payload,
+    exceptConnectionId,
+  };
+  await getRedis().publish(roomChannel(wsRoom, roomId), JSON.stringify(env));
 }
 
 /** Deliver a payload to ONE session's sockets, across every instance. */

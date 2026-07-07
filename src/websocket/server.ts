@@ -15,8 +15,13 @@ import {
   addPublicConnection,
   removePublicConnection,
   sendToSocket,
+  leaveAllRooms,
 } from "./connectionManager.js";
-import { subscribeUser, unsubscribeUser } from "./subscriber.js";
+import {
+  subscribeUser,
+  unsubscribeUser,
+  unsubscribeRoom,
+} from "./subscriber.js";
 import { WS_CLOSE_AUTH_EXPIRED } from "./protocol.js";
 import { routeMessage } from "./messageRouter.js";
 import logger from "../utils/logger.js";
@@ -167,6 +172,12 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     });
 
     ws.on("close", () => {
+      // Leave all joined rooms; unsubscribe channels the last local member left.
+      for (const roomId of leaveAllRooms(ws)) {
+        void unsubscribeRoom(roomId).catch((err) =>
+          logger.error({ err, roomId }, "WS room unsubscribe failed"),
+        );
+      }
       if (user) {
         removeUserConnection(user.id, ws);
         // Last local socket for this user gone → drop the channel subscription.

@@ -15,6 +15,11 @@ export function userChannel(prefix: string, userId: string): string {
   return `${prefix}${userId}`;
 }
 
+/** Redis pub/sub channel for a single room (mirrors userChannel). */
+export function roomChannel(prefix: string, roomId: string): string {
+  return `${prefix}${roomId}`;
+}
+
 /**
  * What a publisher puts on a user channel. Every subscribing instance acts on
  * it against its LOCAL sockets only (deliver → send, disconnect → close).
@@ -22,11 +27,13 @@ export function userChannel(prefix: string, userId: string): string {
 export interface WsEnvelope {
   v: 1; // envelope version — lets us evolve the shape later
   cmd: "deliver" | "disconnect";
-  userId: string;
+  userId?: string; // user-targeted; absent on room envelopes
   sessionId?: string; // target one session; absent = all of the user's sessions
+  roomId?: string; // room-targeted; absent on user envelopes
   payload?: unknown; // cmd: "deliver"
   closeCode?: number; // cmd: "disconnect"
   reason?: string; // cmd: "disconnect"
+  exceptConnectionId?: string; // room deliver: skip the sender's own connection
 }
 
 /**
