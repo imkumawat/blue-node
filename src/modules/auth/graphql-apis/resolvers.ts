@@ -2,10 +2,9 @@ import { registerUser } from "../services/registerUser.js";
 import { verifyEmail as verifyEmailService } from "../services/verifyEmail.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
 import { logoutUser } from "../services/logout.js";
-import { getUserById } from "../services/getUserById.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { signupSchema, loginSchema, verifyEmailSchema } from "../schemas.js";
-import { InvalidRefreshTokenError } from "../errors.js";
+import { InvalidRefreshTokenError, UserNotFoundError } from "../errors.js";
 import type { GraphQLContext } from "../../../graphql/buildContext.js";
 import type { IssuedToken } from "../lib/tokenService.js";
 
@@ -47,7 +46,10 @@ export const authResolvers = {
   Query: {
     me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
       if (!ctx.user) return null;
-      return getUserById(ctx.user.id);
+      // Load via the per-request DataLoader (batches + caches within the request).
+      const user = await ctx.loaders.userById.load(ctx.user.id);
+      if (!user) throw new UserNotFoundError();
+      return user;
     },
 
     echo: (_parent: unknown, { limit }: EchoArgs) =>

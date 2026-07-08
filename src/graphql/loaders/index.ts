@@ -1,33 +1,24 @@
+import DataLoader from "dataloader";
+import { findUsersByIds } from "../../modules/auth/lib/userQueries.js";
+import type { User } from "../../models/postgres/user/user.js";
+
 /**
- * Per-request DataLoader factory. Called once per request from buildContext.
+ * Per-request DataLoader set. Instantiated once per request in buildContext,
+ * so the batching window AND the cache are scoped to a single request.
  *
- * DataLoaders batch + cache resolver-level reads within a single request to
- * eliminate N+1 queries (e.g. `users { posts { author { name } } }`).
+ * NEVER instantiate at module level — that would batch/cache across requests
+ * and leak one user's data into another's response.
  *
- * Pattern when adding a loader:
- *
- *   import DataLoader from "dataloader";
- *   import { findUsersByIds } from "../../modules/auth/lib/userQueries.js";
- *
- *   export function createLoaders(): Loaders {
- *     return {
- *       userById: new DataLoader(async (ids) => {
- *         const users = await findUsersByIds(ids);
- *         return ids.map(id => users.find(u => u.id === id) ?? null);
- *       }),
- *     };
- *   }
- *
- * Resolver usage:
- *   User: {
- *     posts: (parent, _, ctx) => ctx.loaders.postsByUserId.load(parent.id),
- *   }
- *
- * IMPORTANT: must be called per-request (in buildContext). NEVER instantiate
- * at module level — that would cache across requests and leak data between users.
+ * Add a loader per hot read path, e.g.:
+ *   postsByUserId: new DataLoader<string, Post[]>(...)
  */
-export type Loaders = Record<string, never>;
+export interface Loaders {
+  userById: DataLoader<string, User | null>;
+}
 
 export function createLoaders(): Loaders {
-  return {};
+  return {
+    // All `.load(id)` calls in one tick collapse into a single findUsersByIds().
+    userById: new DataLoader<string, User | null>((ids) => findUsersByIds(ids)),
+  };
 }
