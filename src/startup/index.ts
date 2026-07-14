@@ -23,10 +23,10 @@ export async function runStartupTasks(): Promise<void> {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (job.critical) {
-        logger.fatal({ err: message }, `${job.name} failed — aborting startup`);
+        logger.fatal({ err: message }, `${job.name} failed - aborting startup`);
         process.exit(1);
       }
-      logger.warn({ err: message }, `${job.name} failed — continuing startup`);
+      logger.warn({ err: message }, `${job.name} failed - continuing startup`);
     }
   }, Promise.resolve());
 }

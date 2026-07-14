@@ -96,7 +96,9 @@ export async function buildApp(): Promise<Express> {
   // Catch-all: no route matched → 404 via errorHandler (consistent JSON envelope)
   app.use((req: Request, _res: Response, next: NextFunction): void => {
     next(
-      new NotFoundError(`Route not found: ${req.method} ${req.originalUrl}`),
+      new NotFoundError(
+        `The requested URL was not found on this server: ${req.method} ${req.originalUrl}`,
+      ),
     );
   });
 
