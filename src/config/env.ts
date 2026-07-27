@@ -17,6 +17,7 @@ import {
   OTP,
   GRAPHQL,
   WS,
+  MCP,
   MQTT,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
@@ -94,6 +95,11 @@ export type AppConfig = {
   body: typeof BODY;
   routes: typeof ROUTES;
   ws: typeof WS;
+  mcp: {
+    enabled: boolean;
+    resourceUri: string | undefined;
+    authServerUrl: string | undefined;
+  } & typeof MCP;
   mqtt: {
     url: string;
     username: string | undefined;
@@ -238,6 +244,12 @@ export default async function loadEnv(
     body: BODY,
     routes: ROUTES,
     ws: WS,
+    mcp: {
+      enabled: e.MCP_ENABLED === "true",
+      resourceUri: e.MCP_RESOURCE_URI,
+      authServerUrl: e.MCP_AUTH_SERVER_URL,
+      ...MCP,
+    },
     mqtt: {
       url: e.MQTT_URL,
       username: e.MQTT_USERNAME,

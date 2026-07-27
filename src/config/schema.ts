@@ -43,6 +43,21 @@ export const envSchema = z.object({
   MQTT_USERNAME: z.string().optional(),
   MQTT_PASSWORD: z.string().optional(),
 
+  // MCP (Model Context Protocol) server — feature-flagged; OFF = endpoint not
+  // mounted at all. RESOURCE_URI is the canonical resource id this server is
+  // known by; it is what an access token's `aud` claim is validated against, so
+  // a missing value would mean skipping that check — mcp/server.ts therefore
+  // throws at boot when the flag is on and it is unset. AUTH_SERVER_URL is the
+  // authorization server advertised in the protected-resource document; in dev
+  // it points back at this app.
+  MCP_ENABLED: z.enum(["true", "false"]).default("false"),
+  // The value an access token's `aud` claim must equal. RFC 8707 says a resource
+  // indicator SHOULD be a URI (in prod: https://api.blue-node.dev/mcp), but it is
+  // matched as an opaque string — in dev point it at the existing JWT audience so
+  // the aud check stays real against tokens this app already issues.
+  MCP_RESOURCE_URI: z.string().min(1).optional(),
+  MCP_AUTH_SERVER_URL: z.url().optional(),
+
   // Auth
   API_SECRET_KEY: z.string().min(16),
 

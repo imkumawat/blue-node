@@ -112,6 +112,30 @@ export const WS = {
   maxConnections: 10_000, // per-instance guardrail vs OOM — tune via load test; scale horizontally past it
 } as const;
 
+export const MCP = {
+  // Single source of truth for the two client-facing paths. Both are a public
+  // contract: changing either breaks every connector a user has already added.
+  path: "/mcp",
+  wellKnownPath: "/.well-known/oauth-protected-resource",
+
+  // Identity advertised in `initialize` → result.serverInfo.
+  serverName: "blue-node",
+  serverVersion: "1.0.0",
+
+  // Optional `instructions` field of the initialize result: server-level guidance
+  // that lands in the model's context for the whole session. Used here to close
+  // the failure mode the tool design already guards against — a model inventing
+  // or asking for an account id when identity always comes from the token.
+  instructions:
+    "Tools on this server always act on the signed-in user's own account. " +
+    "Identity comes from the access token, so no tool takes a user or account " +
+    "id — never ask the person for one.",
+
+  // Tool results are fed into the model's context window, not shown to a person.
+  // Cap them so one broad query can't burn the whole context.
+  maxToolResultChars: 20_000,
+} as const;
+
 export const MQTT = {
   connectTimeoutMs: 10_000, // bound the initial connect / each reconnect attempt
   reconnectPeriodMs: 5_000, // auto-reconnect cadence after a drop (0 disables)
