@@ -1,0 +1,1575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Connector — URL se jawab tak</title>
+
+<style>
+  /* ─── tokens ────────────────────────────────────────────────── */
+  :root {
+    --bg: #eceff2;
+    --surface: #fbfcfd;
+    --surface-2: #e3e8ec;
+    --surface-3: #d6dee3;
+    --rail: #c2ccd3;
+    --line: #cfd8de;
+    --text: #111a20;
+    --dim: #54656f;
+    --faint: #83949e;
+
+    --c-user: #6d7d89;
+    --c-claude: #d4593f;
+    --c-as: #7b5fc7;
+    --c-rs: #00887c;
+    --signal: #00887c;
+    --ok: #0e8f6c;
+    --warn: #c9741b;
+
+    --shadow: 0 1px 2px rgba(16, 26, 32, .06), 0 10px 28px -14px rgba(16, 26, 32, .22);
+
+    --f-mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "JetBrains Mono",
+              "SF Mono", Consolas, Menlo, monospace;
+    --f-sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI",
+              Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a1014;
+      --surface: #111a20;
+      --surface-2: #17232b;
+      --surface-3: #1e2d36;
+      --rail: #24343e;
+      --line: #22323c;
+      --text: #e4ebef;
+      --dim: #93a4ae;
+      --faint: #647680;
+
+      --c-user: #8ea0ac;
+      --c-claude: #f0836a;
+      --c-as: #a891ec;
+      --c-rs: #2ec2b3;
+      --signal: #2ec2b3;
+      --ok: #3ecf9e;
+      --warn: #eda44e;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 34px -18px rgba(0, 0, 0, .7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0a1014;
+    --surface: #111a20;
+    --surface-2: #17232b;
+    --surface-3: #1e2d36;
+    --rail: #24343e;
+    --line: #22323c;
+    --text: #e4ebef;
+    --dim: #93a4ae;
+    --faint: #647680;
+    --c-user: #8ea0ac;
+    --c-claude: #f0836a;
+    --c-as: #a891ec;
+    --c-rs: #2ec2b3;
+    --signal: #2ec2b3;
+    --ok: #3ecf9e;
+    --warn: #eda44e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 34px -18px rgba(0, 0, 0, .7);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #eceff2;
+    --surface: #fbfcfd;
+    --surface-2: #e3e8ec;
+    --surface-3: #d6dee3;
+    --rail: #c2ccd3;
+    --line: #cfd8de;
+    --text: #111a20;
+    --dim: #54656f;
+    --faint: #83949e;
+    --c-user: #6d7d89;
+    --c-claude: #d4593f;
+    --c-as: #7b5fc7;
+    --c-rs: #00887c;
+    --signal: #00887c;
+    --ok: #0e8f6c;
+    --warn: #c9741b;
+    --shadow: 0 1px 2px rgba(16, 26, 32, .06), 0 10px 28px -14px rgba(16, 26, 32, .22);
+  }
+
+  /* ─── base ──────────────────────────────────────────────────── */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--f-sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: clamp(28px, 6vw, 68px) clamp(16px, 4vw, 34px) 80px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(30px, 5vw, 52px);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* ─── masthead ──────────────────────────────────────────────── */
+  .eyebrow {
+    margin: 0 0 14px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--signal);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  h1 {
+    margin: 0 0 16px;
+    font-family: var(--f-mono);
+    font-size: clamp(27px, 4.6vw, 43px);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 64ch;
+    color: var(--dim);
+    font-size: 16px;
+  }
+
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .legend {
+    list-style: none;
+    margin: 26px 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+  }
+
+  .legend li {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--dim);
+  }
+
+  .legend b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex: none;
+    transform: translateY(-1px);
+  }
+
+  /* ─── console shell ─────────────────────────────────────────── */
+  .console {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .phases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    background: var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .phase {
+    flex: 1 1 150px;
+    appearance: none;
+    border: 0;
+    background: var(--surface-2);
+    color: var(--dim);
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 13px 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background .16s, color .16s;
+  }
+
+  .phase:hover { background: var(--surface-3); color: var(--text); }
+
+  .phase[aria-selected="true"] {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: inset 0 2px 0 var(--signal);
+  }
+
+  .phase span {
+    display: block;
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: none;
+    color: var(--faint);
+    margin-top: 2px;
+  }
+
+  /* ─── stage ─────────────────────────────────────────────────── */
+  .stage {
+    height: clamp(330px, 50vh, 540px);
+    overflow: auto;
+    background:
+      linear-gradient(var(--surface) 0 0) padding-box;
+    scroll-behavior: smooth;
+  }
+
+  .lanebar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-width: 780px;
+    height: 46px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .lanechip {
+    position: absolute;
+    top: 11px;
+    transform: translateX(-50%);
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    white-space: nowrap;
+    padding: 4px 11px;
+    border-radius: 100px;
+    border: 1px solid currentColor;
+    color: var(--dim);
+    background: var(--surface);
+    transition: background .2s, color .2s;
+  }
+
+  .lanechip.hot {
+    color: var(--surface);
+    background: var(--hue);
+    border-color: var(--hue);
+  }
+
+  svg#seq {
+    display: block;
+    width: 100%;
+    min-width: 780px;
+  }
+
+  /* ─── svg step states ───────────────────────────────────────── */
+  .rail { stroke: var(--rail); stroke-width: 1; stroke-dasharray: 2 7; }
+
+  .step { opacity: .26; transition: opacity .3s; }
+  .step.done { opacity: .62; }
+  .step.live { opacity: 1; }
+
+  .step .wire {
+    stroke: var(--hue);
+    stroke-width: 1.7;
+    fill: none;
+    transition: stroke-dashoffset .62s cubic-bezier(.4, 0, .2, 1);
+  }
+
+  .step .head { fill: var(--hue); }
+
+  .step .lbl {
+    font-family: var(--f-mono);
+    font-size: 15px;
+    fill: var(--dim);
+  }
+
+  .step.live .lbl { fill: var(--text); }
+  .step .lbl .m { fill: var(--hue); font-weight: 700; }
+
+  .step .box {
+    fill: var(--surface-2);
+    stroke: var(--hue);
+    stroke-width: 1.4;
+    rx: 5;
+  }
+
+  .step.live .box {
+    fill: var(--surface-3);
+    animation: boxpulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes boxpulse {
+    0%, 100% { stroke-width: 1.4; }
+    50% { stroke-width: 2.6; }
+  }
+
+  .step .num {
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    fill: var(--faint);
+  }
+
+  #packet {
+    opacity: 0;
+    transition: transform .62s cubic-bezier(.4, 0, .2, 1), opacity .2s;
+  }
+
+  #packet circle { fill: var(--hue); }
+  #packet .halo { fill: var(--hue); opacity: .22; }
+
+  /* ─── controls ──────────────────────────────────────────────── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+
+  .btn {
+    appearance: none;
+    font-family: var(--f-mono);
+    font-size: 12px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 7px 13px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--dim);
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+
+  .btn:hover { color: var(--text); border-color: var(--rail); }
+
+  .btn.primary {
+    background: var(--signal);
+    border-color: var(--signal);
+    color: var(--surface);
+    font-weight: 700;
+    min-width: 94px;
+  }
+
+  .btn.primary:hover { filter: brightness(1.08); color: var(--surface); }
+
+  .counter {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  .track {
+    width: 100%;
+    height: 2px;
+    background: var(--surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .track i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--signal);
+    transition: width .3s;
+  }
+
+  /* ─── dock ──────────────────────────────────────────────────── */
+  .dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  }
+
+  @media (max-width: 780px) {
+    .dock { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .detail {
+    padding: 20px 22px 24px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .detail__top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .stepno {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chip {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    color: var(--surface);
+    background: var(--hue, var(--signal));
+  }
+
+  .detail h2 {
+    margin: 0;
+    font-family: var(--f-mono);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+
+  .detail p {
+    margin: 0;
+    max-width: 58ch;
+    color: var(--dim);
+    font-size: 14.5px;
+  }
+
+  .detail p strong { color: var(--text); font-weight: 600; }
+
+  pre.wirebox {
+    margin: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--hue, var(--signal));
+    border-radius: 5px;
+    padding: 13px 15px;
+    overflow-x: auto;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--dim);
+    tab-size: 2;
+  }
+
+  .w-verb { color: var(--text); font-weight: 700; }
+  .w-key { color: var(--c-as); }
+  .w-str { color: var(--signal); }
+  .w-note { color: var(--warn); font-style: italic; }
+  .w-ok { color: var(--ok); font-weight: 700; }
+  .w-bad { color: var(--warn); font-weight: 700; }
+
+  .index {
+    border-left: 1px solid var(--line);
+    background: var(--surface-2);
+    max-height: 420px;
+    overflow-y: auto;
+    padding: 10px 0;
+  }
+
+  @media (max-width: 780px) {
+    .index { border-left: 0; border-top: 1px solid var(--line); max-height: 260px; }
+  }
+
+  .index ol { list-style: none; margin: 0; padding: 0; }
+
+  .index button {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 9px;
+    align-items: baseline;
+    appearance: none;
+    border: 0;
+    background: none;
+    text-align: left;
+    padding: 5px 16px;
+    cursor: pointer;
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    color: var(--faint);
+    transition: background .14s, color .14s;
+  }
+
+  .index button:hover { background: var(--surface-3); color: var(--text); }
+
+  .index button i {
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+    color: var(--faint);
+  }
+
+  .index button.seen { color: var(--dim); }
+
+  .index button.now {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--signal);
+  }
+
+  .index button.now i { color: var(--signal); }
+
+  .index h3 {
+    margin: 14px 0 5px;
+    padding: 0 16px;
+    font-family: var(--f-mono);
+    font-size: 10.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 600;
+  }
+
+  .index h3:first-child { margin-top: 2px; }
+
+  /* ─── prose sections ────────────────────────────────────────── */
+  .section > h2 {
+    margin: 0 0 6px;
+    font-family: var(--f-mono);
+    font-size: clamp(18px, 2.6vw, 23px);
+    font-weight: 600;
+    letter-spacing: -.01em;
+  }
+
+  .section > p.sub {
+    margin: 0 0 24px;
+    max-width: 62ch;
+    color: var(--dim);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 20px 21px 22px;
+    border-top: 2px solid var(--hue, var(--signal));
+  }
+
+  .card h3 {
+    margin: 0 0 3px;
+    font-family: var(--f-mono);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: var(--hue, var(--signal));
+  }
+
+  .card .role {
+    margin: 0 0 14px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .card ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card li {
+    display: grid;
+    grid-template-columns: 15px 1fr;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--dim);
+  }
+
+  .card li b { color: var(--text); font-weight: 600; }
+
+  .card li::before {
+    content: "→";
+    font-family: var(--f-mono);
+    color: var(--hue, var(--signal));
+    font-size: 13px;
+  }
+
+  .card li.no::before { content: "×"; color: var(--faint); }
+  .card code {
+    font-family: var(--f-mono);
+    font-size: 12.5px;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+
+  .traps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: 14px;
+  }
+
+  .trap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 16px 18px 18px;
+  }
+
+  .trap h4 {
+    margin: 0 0 6px;
+    font-family: var(--f-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .02em;
+  }
+
+  .trap p { margin: 0; font-size: 13.5px; color: var(--dim); }
+  .trap p code {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+    font-family: var(--f-mono);
+    font-size: 11.5px;
+    color: var(--faint);
+    line-height: 1.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition-duration: .001s !important;
+      animation: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Model Context Protocol · wire trace</p>
+    <h1>Claude connector: URL se jawab tak</h1>
+    <p class="lede">
+      Aap connector settings me ek URL paste karte ho. Uske baad Claude
+      <strong>29 steps</strong> chalata hai — pehle pata karta hai ki server protected hai,
+      phir Authorization Server dhoondh ke token leta hai, phir Resource Server se tools
+      maangta hai. Har step ka asli HTTP neeche hai. Play dabao.
+    </p>
+    <ul class="legend">
+      <li><span class="swatch" style="background: var(--c-user)"></span><b>User</b> browser</li>
+      <li><span class="swatch" style="background: var(--c-claude)"></span><b>Claude</b> MCP client</li>
+      <li><span class="swatch" style="background: var(--c-as)"></span><b>Authorization Server</b> token banata hai</li>
+      <li><span class="swatch" style="background: var(--c-rs)"></span><b>Resource Server</b> blue-node · token check + data</li>
+    </ul>
+  </header>
+
+  <section class="console">
+    <div class="phases" role="tablist" id="phases"></div>
+
+    <div class="stage" id="stage">
+      <div class="lanebar" id="lanebar"></div>
+      <svg id="seq" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="play">Play</button>
+      <button class="btn" id="prev">◀ Prev</button>
+      <button class="btn" id="next">Next ▶</button>
+      <button class="btn" id="speed">1×</button>
+      <button class="btn" id="reset">Restart</button>
+      <span class="counter" id="counter">01 / 29</span>
+      <div class="track"><i id="bar"></i></div>
+    </div>
+
+    <div class="dock">
+      <article class="detail" id="detail" aria-live="polite">
+        <div class="detail__top">
+          <span class="stepno" id="d-no">STEP 01</span>
+          <span class="chip" id="d-chip">UI</span>
+        </div>
+        <h2 id="d-title">—</h2>
+        <p id="d-why">—</p>
+        <pre class="wirebox" id="d-wire"></pre>
+      </article>
+      <nav class="index" id="index" aria-label="Steps"></nav>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Authorization Server vs Resource Server</h2>
+    <p class="sub">
+      Poora confusion isi line pe hota hai. Ek token <em>banata</em> hai, doosra token
+      <em>check</em> karta hai. Trace me dekho — steps 6–14 sirf AS ke saath hain,
+      steps 15–26 sirf RS ke saath.
+    </p>
+    <div class="split">
+      <div class="card" style="--hue: var(--c-as)">
+        <h3>Authorization Server</h3>
+        <p class="role">auth.blue-node.dev · token banata hai</p>
+        <ul>
+          <li><code>/.well-known/oauth-authorization-server</code> — endpoint discovery <b>(RFC 8414)</b></li>
+          <li><code>/authorize</code> — user login + <b>consent screen</b>, auth code deta hai</li>
+          <li><code>/token</code> — code + PKCE verifier → access + refresh token</li>
+          <li><code>/register</code> — <b>Dynamic Client Registration</b>, Claude khud register hota hai <b>(RFC 7591)</b></li>
+          <li><code>/.well-known/jwks.json</code> — public keys, taaki RS signature verify kar sake</li>
+          <li>Owns: user identity, consent records, client registry, <b>token signing keys</b>, scope catalog</li>
+        </ul>
+      </div>
+      <div class="card" style="--hue: var(--c-rs)">
+        <h3>Resource Server</h3>
+        <p class="role">api.blue-node.dev/mcp · data deta hai</p>
+        <ul>
+          <li><code>/mcp</code> — asli MCP endpoint: tools, resources, prompts</li>
+          <li><code>/.well-known/oauth-protected-resource</code> — "mera AS ye hai" <b>(RFC 9728)</b></li>
+          <li>Har request pe: signature, <code>iss</code>, <b><code>aud</code></b>, <code>exp</code>, scopes validate</li>
+          <li>Token nahi/galat → <code>401</code> + <code>WWW-Authenticate</code> header</li>
+          <li class="no">User login — nahi karta</li>
+          <li class="no">Consent screen — nahi dikhata</li>
+          <li class="no">Token issue — kabhi nahi</li>
+        </ul>
+      </div>
+    </div>
+    <p class="sub" style="margin: 20px 0 0">
+      Dono ek hi host pe bhi ho sakte hain — tab <code>authorization_servers</code> apne aap ko
+      point karta hai. blue-node abhi apne frontend ke liye dono kaam kar raha hai
+      (login token deta hai + middleware verify karta hai). Lekin Claude
+      <strong>third-party client</strong> hai — usko browser redirect, consent screen aur DCR
+      chahiye, jo aaj nahi hai. Isliye <strong>RS-only</strong> se start karna sasta padta hai.
+    </p>
+  </section>
+
+  <section class="section">
+    <h2>Jahan log phaste hain</h2>
+    <p class="sub">Ye saat cheezein trace me marked hain — build karte waqt in pe rukna.</p>
+    <div class="traps">
+      <div class="trap">
+        <h4>1 · <code>aud</code> check chhod dena</h4>
+        <p>Sabse common bug. Kisi doosre server ke liye bana valid token aapke server pe chal jaayega — "confused deputy". <code>resource</code> param (RFC 8707) isi liye hai.</p>
+      </div>
+      <div class="trap">
+        <h4>2 · Token passthrough</h4>
+        <p>MCP spec me <strong>explicitly mana</strong> hai — upstream ka token aage forward karna, ya doosre audience ka token accept karna. Har hop apna token.</p>
+      </div>
+      <div class="trap">
+        <h4>3 · Consent skip karna</h4>
+        <p>Third-party client hai. User ko dikhna chahiye kaunse scopes diye jaa rahe hain. Silent grant = security bug, feature nahi.</p>
+      </div>
+      <div class="trap">
+        <h4>4 · Tool description ko doc samajhna</h4>
+        <p>Wo <strong>prompt</strong> hai. Model usi se decide karta hai. "Kab call karna hai" likho — sirf "kya karta hai" likhne se tool trigger hi nahi hoga.</p>
+      </div>
+      <div class="trap">
+        <h4>5 · Arguments ko trust karna</h4>
+        <p><code>arguments</code> model ka output hai — untrusted. Zod parse + per-tool scope check + tenant filter. Auth ≠ authz.</p>
+      </div>
+      <div class="trap">
+        <h4>6 · Bada tool result</h4>
+        <p>Result seedha model ke context me jaata hai. 500 rows bhejna context jalana hai. Paginate karo, summary do, cursor rakho.</p>
+      </div>
+      <div class="trap">
+        <h4>7 · Ek hi <code>mcp</code> scope</h4>
+        <p>Sab tools ek scope ke peeche = all-or-nothing. Per-tool scopes do (<code>leads.read</code> vs <code>leads.write</code>) taaki user read-only de sake.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    MCP protocol revision 2025-06-18 · Streamable HTTP transport<br>
+    OAuth 2.1 + PKCE · RFC 9728 protected-resource metadata · RFC 8414 AS metadata ·
+    RFC 7591 dynamic client registration · RFC 8707 resource indicators<br>
+    Hostnames aur token values illustrative hain.
+  </footer>
+</div>
+
+<script>
+  "use strict";
+
+  /* ── actors ─────────────────────────────────────────────────── */
+  const LANES = [
+    { id: "user",   label: "USER · browser",     hue: "var(--c-user)" },
+    { id: "claude", label: "CLAUDE",             hue: "var(--c-claude)" },
+    { id: "as",     label: "AUTH SERVER",        hue: "var(--c-as)" },
+    { id: "rs",     label: "RESOURCE SERVER",    hue: "var(--c-rs)" }
+  ];
+  const LI = { user: 0, claude: 1, as: 2, rs: 3 };
+  const LANE_X = [110, 370, 630, 890];
+  const LANE_PCT = ["11%", "37%", "63%", "89%"];
+
+  const PHASES = [
+    { name: "Discovery",  hint: "auth ka pata lagana" },
+    { name: "Authorize",  hint: "register + consent + token" },
+    { name: "Handshake",  hint: "tools discover karna" },
+    { name: "Runtime",    hint: "ek sawaal, ek jawab" }
+  ];
+
+  /* ── the trace ──────────────────────────────────────────────── */
+  const STEPS = [
+    /* ---------- phase 0 : discovery ---------- */
+    {
+      p: 0, from: "user", to: "claude", chip: "UI", lbl: "connector URL paste",
+      title: "Aap connector add karte ho",
+      why: "Aap sirf ek URL dete ho. Claude ko is waqt kuch nahi pata — auth chahiye ya nahi, kaunse tools hain, token kahan se milega. Sab kuch aage discover hoga.",
+      wire:
+`claude.ai  ›  Settings  ›  Connectors  ›  Add custom connector
+
+Name : blue-node CRM
+URL  : https://api.blue-node.dev/mcp`
+    },
+    {
+      p: 0, from: "claude", to: "rs", chip: "POST", lbl: "initialize · no token",
+      title: "Claude bina token pehla probe bhejta hai",
+      why: "Ye jaan-boojh ke hai. 401 ka response hi auth ka poora roadmap deta hai — isliye pehle khali haath jaana sasta hai.",
+      wire:
+`POST /mcp HTTP/1.1
+Host: api.blue-node.dev
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{"jsonrpc":"2.0","id":1,"method":"initialize",
+ "params":{"protocolVersion":"2025-06-18",
+           "clientInfo":{"name":"claude","version":"1.0"}}}`
+    },
+    {
+      p: 0, from: "rs", to: "claude", chip: "401", lbl: "WWW-Authenticate",
+      title: "Resource Server auth ka roadmap deta hai",
+      why: "RS ka poora auth contribution yahi hai — 'main protected hoon, aur mera metadata yahan hai'. Ye header na ho to Claude aage badh hi nahi sakta.",
+      wire:
+`HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer resource_metadata=
+  "https://api.blue-node.dev/.well-known/oauth-protected-resource"`
+    },
+    {
+      p: 0, from: "claude", to: "rs", chip: "GET", lbl: "protected-resource metadata",
+      title: "Claude poochhta hai — tumhare tokens kaun banata hai?",
+      why: "RFC 9728. Ye ek chhoti si JSON file hai jo RS ko uske AS se jodti hai.",
+      wire:
+`GET /.well-known/oauth-protected-resource HTTP/1.1
+Host: api.blue-node.dev`
+    },
+    {
+      p: 0, from: "rs", to: "claude", chip: "200", lbl: "authorization_servers",
+      title: "Yahin RS aur AS alag hote hain",
+      why: "RS keh raha hai — 'main token nahi banata, auth.blue-node.dev banata hai'. Agar dono same host hote, ye field apne aap ko point karta. Yahi ek field split ya combined decide karta hai.",
+      wire:
+`HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "resource": "https://api.blue-node.dev/mcp",
+  "authorization_servers": ["https://auth.blue-node.dev"],
+  "scopes_supported": ["leads.read", "leads.write"],
+  "bearer_methods_supported": ["header"]
+}`
+    },
+    {
+      p: 0, from: "claude", to: "as", chip: "GET", lbl: "AS metadata",
+      title: "Ab Claude Authorization Server se baat karta hai",
+      why: "RFC 8414. RS ka kaam filhaal khatam — agla poora block AS ke saath hai.",
+      wire:
+`GET /.well-known/oauth-authorization-server HTTP/1.1
+Host: auth.blue-node.dev`
+    },
+    {
+      p: 0, from: "as", to: "claude", chip: "200", lbl: "endpoints + scopes",
+      title: "AS apna poora menu deta hai",
+      why: "registration_endpoint hona zaroori hai — warna Claude ke paas client_id aayega hi nahi. S256 ka matlab PKCE mandatory hai.",
+      wire:
+`{
+  "issuer": "https://auth.blue-node.dev",
+  "authorization_endpoint": "https://auth.blue-node.dev/authorize",
+  "token_endpoint": "https://auth.blue-node.dev/token",
+  "registration_endpoint": "https://auth.blue-node.dev/register",
+  "jwks_uri": "https://auth.blue-node.dev/.well-known/jwks.json",
+  "code_challenge_methods_supported": ["S256"],
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "scopes_supported": ["leads.read", "leads.write", "offline_access"]
+}`
+    },
+
+    /* ---------- phase 1 : authorize ---------- */
+    {
+      p: 1, from: "claude", to: "as", chip: "POST", lbl: "/register · DCR",
+      title: "Claude khud ko register karta hai",
+      why: "Dynamic Client Registration (RFC 7591). Aapne Claude ko manually register nahi kiya — wo khud kar raha hai. Iske bina har user ko haath se client banana padta.",
+      wire:
+`POST /register HTTP/1.1
+Content-Type: application/json
+
+{
+  "client_name": "Claude",
+  "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}`
+    },
+    {
+      p: 1, from: "as", to: "claude", chip: "201", lbl: "client_id",
+      title: "Claude ko identity mil gayi",
+      why: "token_endpoint_auth_method: none ka matlab public client hai — koi client_secret nahi. Isliye PKCE hi asli security hai, optional nahi.",
+      wire:
+`HTTP/1.1 201 Created
+
+{
+  "client_id": "cli_9f2a7c41",
+  "client_id_issued_at": 1785000000,
+  "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"]
+}`
+    },
+    {
+      p: 1, from: "claude", to: "user", chip: "BROWSER", lbl: "browser khulta hai",
+      title: "Flow browser me shift ho jaata hai",
+      why: "Yahan se control Claude ke haath me nahi hai. resource param (RFC 8707) sabse important hai — ye token ko sirf aapke MCP server ke liye bind karta hai.",
+      wire:
+`GET https://auth.blue-node.dev/authorize
+  ?response_type=code
+  &client_id=cli_9f2a7c41
+  &redirect_uri=https://claude.ai/api/mcp/auth_callback
+  &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &code_challenge_method=S256
+  &scope=leads.read%20leads.write%20offline_access
+  &resource=https://api.blue-node.dev/mcp
+  &state=xr7Qm1Zb`
+    },
+    {
+      p: 1, from: "user", to: "as", chip: "CONSENT", lbl: "login → Allow",
+      title: "Consent screen — AS ka kaam, RS ka nahi",
+      why: "Third-party client hai, isliye user ko dikhna chahiye ki kya diya jaa raha hai. Silent grant security bug hai. Ye screen aur login page AS owns karta hai.",
+      wire:
+`+----------------------------------------------+
+|  Claude wants access to your account          |
+|                                               |
+|  * Read your leads              leads.read    |
+|  * Create and update leads      leads.write   |
+|  * Stay signed in               offline_access|
+|                                               |
+|          [  Deny  ]      [  Allow  ]          |
++----------------------------------------------+
+
+signed in as  manoj@blue-node.dev`
+    },
+    {
+      p: 1, from: "as", to: "claude", chip: "302", lbl: "callback?code=…",
+      title: "Auth code callback pe wapas aata hai",
+      why: "Code short-lived aur single-use hai. state match karna zaroori — wahi CSRF guard hai. Code khud se koi access nahi deta.",
+      wire:
+`HTTP/1.1 302 Found
+Location: https://claude.ai/api/mcp/auth_callback
+  ?code=Ac9xK2pLm4
+  &state=xr7Qm1Zb          <-- request ke state se match hona chahiye`
+    },
+    {
+      p: 1, from: "claude", to: "as", chip: "POST", lbl: "/token · code + verifier",
+      title: "Code ko token se exchange karta hai",
+      why: "code_verifier PKCE ka doosra hissa hai. AS check karta hai S256(verifier) == code_challenge. Isse intercepted code kisi kaam ka nahi rehta.",
+      wire:
+`POST /token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=Ac9xK2pLm4
+&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+&client_id=cli_9f2a7c41
+&redirect_uri=https://claude.ai/api/mcp/auth_callback
+&resource=https://api.blue-node.dev/mcp`
+    },
+    {
+      p: 1, from: "as", to: "claude", chip: "200", lbl: "access + refresh token",
+      title: "AS ka kaam khatam",
+      why: "Decoded payload me aud dekho — ye token sirf aapke MCP resource pe chalega, kisi doosre server pe nahi. Yahi confused-deputy attack rokta hai.",
+      wire:
+`HTTP/1.1 200 OK
+
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_8Kd2Yq5nR",
+  "scope": "leads.read leads.write offline_access"
+}
+
+// decoded access_token payload
+{
+  "iss": "https://auth.blue-node.dev",
+  "aud": "https://api.blue-node.dev/mcp",     <-- resource-bound
+  "sub": "usr_01J9XKQ2",
+  "scope": "leads.read leads.write",
+  "exp": 1785000900
+}`
+    },
+
+    /* ---------- phase 2 : handshake ---------- */
+    {
+      p: 2, from: "claude", to: "rs", chip: "POST", lbl: "initialize + Bearer",
+      title: "Wahi pehla request — ab token ke saath",
+      why: "Step 2 ka exact repeat, sirf Authorization header add hua. Ab Resource Server ka asli kaam shuru hota hai.",
+      wire:
+`POST /mcp HTTP/1.1
+Host: api.blue-node.dev
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0...
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":1,"method":"initialize",
+ "params":{"protocolVersion":"2025-06-18", ...}}`
+    },
+    {
+      p: 2, from: "rs", to: "rs", chip: "VERIFY", lbl: "token validate",
+      title: "RS ka poora kaam sirf yahi hai",
+      why: "Validate karo aur serve karo — bas. Login nahi, consent nahi, token issue nahi. Step 4 (aud check) chhodna sabse common galti hai: kisi aur ke liye bana token accept ho jaayega.",
+      wire:
+`1  JWKS fetch (cached)   GET auth.blue-node.dev/.well-known/jwks.json
+2  signature verify      RS256, header ke kid se key pick        OK
+3  iss   == https://auth.blue-node.dev                           OK
+4  aud   == https://api.blue-node.dev/mcp                        OK   <-- kabhi skip mat karo
+5  exp   >  now                                                  OK
+6  scope contains  leads.read                                    OK
+7  sub   -> resolve user -> tenant scope                         OK`
+    },
+    {
+      p: 2, from: "rs", to: "claude", chip: "200", lbl: "capabilities + session id",
+      title: "Handshake complete",
+      why: "Server batata hai wo kya support karta hai. Mcp-Session-Id stateful transport ke liye hai — stateless design me ye optional hai.",
+      wire:
+`HTTP/1.1 200 OK
+Mcp-Session-Id: sess_4bQvR7
+
+{"jsonrpc":"2.0","id":1,"result":{
+  "protocolVersion":"2025-06-18",
+  "serverInfo":{"name":"blue-node","version":"1.0.0"},
+  "capabilities":{"tools":{},"resources":{}}}}`
+    },
+    {
+      p: 2, from: "claude", to: "rs", chip: "POST", lbl: "tools/list",
+      title: "Claude poochhta hai — tum kya kar sakte ho?",
+      why: "MCP me teen cheezein expose hoti hain: tools (actions), resources (data), prompts (templates). Yahan tools maange jaa rahe hain.",
+      wire:
+`POST /mcp
+Authorization: Bearer eyJ...
+Mcp-Session-Id: sess_4bQvR7
+
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}`
+    },
+    {
+      p: 2, from: "rs", to: "claude", chip: "200", lbl: "tool catalog",
+      title: "Tool catalog — yahan description hi prompt hai",
+      why: "Model isi description se decide karta hai kab tool call karna hai. 'Kab call karna hai' likhna zaroori hai, sirf 'kya karta hai' nahi. inputSchema plain JSON Schema hai — zod se generate kar sakte ho.",
+      wire:
+`{"jsonrpc":"2.0","id":2,"result":{"tools":[
+  {
+    "name": "search_leads",
+    "description": "Search CRM leads by status, owner, or date.
+                    Call this when the user asks about leads,
+                    pipeline, prospects, or follow-ups.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "status": {"type":"string",
+                   "enum":["new","contacted","qualified","won","lost"]},
+        "since":  {"type":"string","format":"date"},
+        "limit":  {"type":"integer","maximum":50,"default":20}
+      }
+    }
+  },
+  { "name": "create_lead", "description": "...", "inputSchema": {...} }
+]}}`
+    },
+    {
+      p: 2, from: "claude", to: "user", chip: "READY", lbl: "connector connected",
+      title: "Setup ek baar hota hai",
+      why: "Token store ho gaya. Agli baar user seedha step 21 se shuru hota hai — poora OAuth block dobara nahi chalta.",
+      wire:
+`Connectors
+
+  *  blue-node CRM            connected
+     https://api.blue-node.dev/mcp
+     2 tools  ·  leads.read, leads.write`
+    },
+
+    /* ---------- phase 3 : runtime ---------- */
+    {
+      p: 3, from: "user", to: "claude", chip: "ASK", lbl: "sawaal",
+      title: "User sawaal poochhta hai",
+      why: "Yahan se rozana ka flow hai. Ab jo bhi hoga, user ko protocol ka kuch nahi dikhega.",
+      wire:
+`"Pichhle hafte ke qualified leads dikhao"`
+    },
+    {
+      p: 3, from: "claude", to: "claude", chip: "THINK", lbl: "tool select",
+      title: "Model tool chunta hai",
+      why: "Tool descriptions pehle se context me hain. Model description padh ke match karta hai aur arguments khud banata hai. Isliye description likhna prompt engineering hai — MCP ka sabse under-rated hissa.",
+      wire:
+`context me available:
+  search_leads(status?, since?, limit?)
+    "...Call this when the user asks about leads, pipeline..."
+  create_lead(name, email?, company?)
+    "...Call this when the user wants to add a new lead..."
+
+user intent  ->  leads + qualified + last week
+match        ->  search_leads
+arguments    ->  { "status": "qualified", "since": "2026-07-20" }`
+    },
+    {
+      p: 3, from: "claude", to: "rs", chip: "POST", lbl: "tools/call search_leads",
+      title: "Tool call jaata hai",
+      why: "Dhyaan do — arguments model ka output hai, isliye untrusted hai. Ise bilkul user input ki tarah treat karo.",
+      wire:
+`POST /mcp
+Authorization: Bearer eyJ...
+Mcp-Session-Id: sess_4bQvR7
+
+{"jsonrpc":"2.0","id":3,"method":"tools/call",
+ "params":{"name":"search_leads",
+   "arguments":{"status":"qualified","since":"2026-07-20"}}}`
+    },
+    {
+      p: 3, from: "rs", to: "rs", chip: "GUARD", lbl: "validate + authz",
+      title: "Auth ≠ authz",
+      why: "Token valid hone ka matlab nahi ki ye user ye tool ya ye rows use kar sakta hai. Tenant filter query me lagana zaroori hai — warna cross-tenant leak. Rate limit per user + per tool.",
+      wire:
+`token       valid, sub = usr_01J9XKQ2                     OK
+scope       needs leads.read                              OK
+arguments   zod parse against inputSchema                 OK
+            status "qualified" in enum                    OK
+            since  valid ISO date                         OK
+authz       query filter { ownerId: sub }                 <-- per-tenant
+limit       clamp 20 (max 50)                             OK
+ratelimit   rl:mcp:usr_01J9XKQ2:search_leads              OK`
+    },
+    {
+      p: 3, from: "rs", to: "rs", chip: "WORK", lbl: "services → DB",
+      title: "Adapter thin, service reused",
+      why: "MCP aapke module ka teesra adapter hai — apis/ aur graphql-apis/ ke saath. Business logic wahi service layer hai, duplicate nahi hota. Ye hissa MCP protocol ka part nahi hai.",
+      wire:
+`mcp-apis/tools.ts        <-- thin adapter: parse + call
+  -> services/searchLeads.ts    <-- business logic (shared)
+    -> lib/leadQueries.ts       <-- only place that touches DB
+      -> Mongo  leads.find({ ownerId, status, createdAt: { $gte } })
+
+3 documents  ·  8 ms`
+    },
+    {
+      p: 3, from: "rs", to: "claude", chip: "200", lbl: "tool result",
+      title: "Result model ke context me jaata hai",
+      why: "Seedha user ko nahi — model ko. Isliye size matter karta hai: 500 rows bhejna context jalana hai. Summary do, paginate karo, cursor rakho.",
+      wire:
+`{"jsonrpc":"2.0","id":3,"result":{
+  "content":[{"type":"text","text":
+    "3 qualified leads since 2026-07-20 (of 3 total):
+
+     1. Ritu Sharma  - Acme Corp  - score 82 - 22 Jul
+     2. Dev Patel    - Nimbus AI  - score 77 - 24 Jul
+     3. Sana Khan    - Zeta Labs  - score 71 - 26 Jul"}],
+  "isError":false}}`
+    },
+    {
+      p: 3, from: "claude", to: "claude", chip: "THINK", lbl: "result se reason",
+      title: "Loop chalta rehta hai",
+      why: "Result context me aane ke baad model chahe to doosra tool call kar sakta hai. Ek turn me kai tool calls ho sakte hain — ye ek round-trip nahi, ek loop hai.",
+      wire:
+`tool result  ->  context  ->  model reasons
+
+  aur tool chahiye?  ->  nahi
+  jawab bana sakte ho?  ->  haan`
+    },
+    {
+      p: 3, from: "claude", to: "user", chip: "ANSWER", lbl: "jawab",
+      title: "User ne kabhi JSON nahi dekha",
+      why: "Poora protocol invisible hai — 28 steps ke baad user ko sirf ek normal jawab milta hai. Yahi connector ka asli point hai.",
+      wire:
+`"Pichhle hafte 3 qualified leads aaye:
+
+  * Ritu Sharma (Acme Corp) - highest score, 82
+  * Dev Patel (Nimbus AI)   - 77
+  * Sana Khan (Zeta Labs)   - 71
+
+Ritu ko pehle follow up karna chahiye - score sabse
+zyada hai aur 22 Jul se pending hai. Koi lead update
+karni hai?"`
+    },
+    {
+      p: 3, from: "claude", to: "as", chip: "REFRESH", lbl: "token expired → refresh",
+      title: "15 min baad — chup-chaap refresh",
+      why: "Access token expire hone pe Claude refresh token se naya le leta hai. User ko dobara consent nahi dena padta. Refresh token rotate karna best practice hai — blue-node me reuse-detection ka pattern already hai, wahi lagta hai.",
+      wire:
+`POST /token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=rt_8Kd2Yq5nR
+&client_id=cli_9f2a7c41
+&resource=https://api.blue-node.dev/mcp
+
+HTTP/1.1 200 OK
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...(naya)",
+  "expires_in": 900,
+  "refresh_token": "rt_9Le3Zt6mS"      <-- rotate karo, purana revoke
+}`
+    }
+  ];
+
+  /* ── geometry ───────────────────────────────────────────────── */
+  const NS = "http://www.w3.org/2000/svg";
+  const TOP = 46;
+  const ROW = 78;
+  const BOX_W = 250;
+  const H = TOP + (STEPS.length - 1) * ROW + 52;
+
+  const svg = document.getElementById("seq");
+  svg.setAttribute("viewBox", `0 0 1000 ${H}`);
+
+  const el = (name, attrs) => {
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  };
+
+  /* lane rails */
+  LANE_X.forEach((x) => {
+    svg.appendChild(el("line", { class: "rail", x1: x, y1: 8, x2: x, y2: H - 14 }));
+  });
+
+  /* lane header chips */
+  const lanebar = document.getElementById("lanebar");
+  const chips = LANES.map((ln, i) => {
+    const c = document.createElement("span");
+    c.className = "lanechip";
+    c.style.left = LANE_PCT[i];
+    c.style.setProperty("--hue", ln.hue);
+    c.textContent = ln.label;
+    lanebar.appendChild(c);
+    return c;
+  });
+
+  /* step groups */
+  const groups = STEPS.map((s, i) => {
+    const y = TOP + i * ROW;
+    const fi = LI[s.from], ti = LI[s.to];
+    const hue = LANES[fi].hue;
+    const g = el("g", { class: "step" });
+    g.style.setProperty("--hue", hue);
+    s._hue = hue;
+    s._y = y;
+
+    g.appendChild(el("text", {
+      class: "num", x: 22, y: y + 5, "text-anchor": "start"
+    })).textContent = String(i + 1).padStart(2, "0");
+
+    if (fi === ti) {
+      /* self step — box hangs off the lane toward the diagram centre so it
+         never runs past the viewBox on the outer lanes */
+      const x = LANE_X[fi];
+      const bx = fi >= 2 ? x + 30 - BOX_W : x - 30;
+      const cx = bx + BOX_W / 2;
+      g.appendChild(el("rect", {
+        class: "box", x: bx, y: y - 17, width: BOX_W, height: 34
+      }));
+      const t = el("text", { class: "lbl", x: cx, y: y + 5, "text-anchor": "middle" });
+      const m = el("tspan", { class: "m" });
+      m.textContent = s.chip;
+      t.appendChild(m);
+      t.appendChild(document.createTextNode("  " + s.lbl));
+      g.appendChild(t);
+      s._kind = "self";
+      s._box = g.querySelector(".box");
+    } else {
+      /* arrow step */
+      const dir = ti > fi ? 1 : -1;
+      const sx = LANE_X[fi] + 15 * dir;
+      const ex = LANE_X[ti] - 17 * dir;
+      const len = Math.abs(ex - sx);
+
+      const line = el("line", { class: "wire", x1: sx, y1: y, x2: ex, y2: y });
+      line.style.strokeDasharray = len;
+      line.style.strokeDashoffset = len;
+      g.appendChild(line);
+
+      g.appendChild(el("polygon", {
+        class: "head",
+        points: `${ex},${y} ${ex - 9 * dir},${y - 5} ${ex - 9 * dir},${y + 5}`
+      }));
+
+      const t = el("text", {
+        class: "lbl", x: (sx + ex) / 2, y: y - 11, "text-anchor": "middle"
+      });
+      const m = el("tspan", { class: "m" });
+      m.textContent = s.chip;
+      t.appendChild(m);
+      t.appendChild(document.createTextNode("  " + s.lbl));
+      g.appendChild(t);
+
+      s._kind = "arrow";
+      s._line = line;
+      s._len = len;
+      s._sx = sx;
+      s._ex = ex;
+    }
+
+    svg.appendChild(g);
+    return g;
+  });
+
+  /* travelling packet */
+  const packet = el("g", { id: "packet" });
+  packet.appendChild(el("circle", { class: "halo", cx: 0, cy: 0, r: 13 }));
+  packet.appendChild(el("circle", { cx: 0, cy: 0, r: 5.5 }));
+  svg.appendChild(packet);
+
+  /* ── phase tabs ─────────────────────────────────────────────── */
+  const phasesEl = document.getElementById("phases");
+  const firstOf = PHASES.map((_, pi) => STEPS.findIndex((s) => s.p === pi));
+  const tabs = PHASES.map((ph, pi) => {
+    const b = document.createElement("button");
+    b.className = "phase";
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.innerHTML = "";
+    b.append(document.createTextNode(`${pi + 1} · ${ph.name}`));
+    const s = document.createElement("span");
+    s.textContent = ph.hint;
+    b.appendChild(s);
+    b.addEventListener("click", () => { pause(); go(firstOf[pi]); });
+    phasesEl.appendChild(b);
+    return b;
+  });
+
+  /* ── step index ─────────────────────────────────────────────── */
+  const indexEl = document.getElementById("index");
+  const idxBtns = [];
+  let lastPhase = -1;
+  let ol = null;
+  STEPS.forEach((s, i) => {
+    if (s.p !== lastPhase) {
+      const h = document.createElement("h3");
+      h.textContent = `${PHASES[s.p].name}`;
+      indexEl.appendChild(h);
+      ol = document.createElement("ol");
+      indexEl.appendChild(ol);
+      lastPhase = s.p;
+    }
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    const n = document.createElement("i");
+    n.textContent = String(i + 1).padStart(2, "0");
+    b.appendChild(n);
+    b.append(document.createTextNode(s.lbl));
+    b.addEventListener("click", () => { pause(); go(i); });
+    li.appendChild(b);
+    ol.appendChild(li);
+    idxBtns.push(b);
+  });
+
+  /* ── wire highlighter (single pass, no re-matching) ─────────── */
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const RE = new RegExp(
+    "(&lt;--[^\\n]*)" +                                   // 1 inline note
+    "|(^\\s*//[^\\n]*)" +                                 // 2 comment line
+    "|^(GET|POST|HTTP/1\\.1)\\b" +                        // 3 verb
+    "|(\\b(?:200 OK|201 Created|302 Found)\\b|\\bOK\\b)" + // 4 good
+    "|(\\b401 Unauthorized\\b)" +                          // 5 bad
+    '|("[a-zA-Z0-9_.\\-]+"(?=\\s*:))' +                    // 6 key
+    '|("[^"\\n]*")',                                       // 7 string
+    "gm"
+  );
+
+  function paint(raw) {
+    return esc(raw).replace(RE, (m, note, cmt, verb, good, bad, key, str) => {
+      if (note) return `<span class='w-note'>${note}</span>`;
+      if (cmt) return `<span class='w-note'>${cmt}</span>`;
+      if (verb) return `<span class='w-verb'>${verb}</span>`;
+      if (good) return `<span class='w-ok'>${good}</span>`;
+      if (bad) return `<span class='w-bad'>${bad}</span>`;
+      if (key) return `<span class='w-key'>${key}</span>`;
+      if (str) return `<span class='w-str'>${str}</span>`;
+      return m;
+    });
+  }
+
+  /* ── playback ───────────────────────────────────────────────── */
+  const stage = document.getElementById("stage");
+  const dNo = document.getElementById("d-no");
+  const dChip = document.getElementById("d-chip");
+  const dTitle = document.getElementById("d-title");
+  const dWhy = document.getElementById("d-why");
+  const dWire = document.getElementById("d-wire");
+  const detail = document.getElementById("detail");
+  const counter = document.getElementById("counter");
+  const bar = document.getElementById("bar");
+  const playBtn = document.getElementById("play");
+  const speedBtn = document.getElementById("speed");
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const SPEEDS = [1, 2, 0.5];
+  let speedIdx = 0;
+  let cur = -1;
+  let playing = false;
+  let timer = null;
+
+  function place(x, y, visible) {
+    packet.style.transform = `translate(${x}px, ${y}px)`;
+    packet.style.opacity = visible ? 1 : 0;
+  }
+
+  function go(i) {
+    if (i < 0 || i >= STEPS.length) return;
+    cur = i;
+    const s = STEPS[i];
+
+    /* svg states */
+    groups.forEach((g, k) => {
+      g.classList.toggle("done", k < i);
+      g.classList.toggle("live", k === i);
+      const st = STEPS[k];
+      if (st._kind === "arrow") {
+        st._line.style.strokeDashoffset = k <= i ? 0 : st._len;
+      }
+    });
+
+    /* packet */
+    packet.style.setProperty("--hue", s._hue);
+    if (s._kind === "arrow" && !reduced) {
+      place(s._sx, s._y, false);
+      requestAnimationFrame(() => {
+        place(s._sx, s._y, true);
+        requestAnimationFrame(() => place(s._ex, s._y, true));
+      });
+    } else {
+      /* self steps and reduced-motion: no travelling dot */
+      place(LANE_X[LI[s.to]], s._y, false);
+    }
+
+    /* lane chips */
+    chips.forEach((c, k) => {
+      c.classList.toggle("hot", k === LI[s.from] || k === LI[s.to]);
+    });
+
+    /* detail panel */
+    detail.style.setProperty("--hue", s._hue);
+    dNo.textContent = `STEP ${String(i + 1).padStart(2, "0")} — ${PHASES[s.p].name.toUpperCase()}`;
+    dChip.textContent = s.chip;
+    dTitle.textContent = s.title;
+    dWhy.innerHTML = esc(s.why).replace(
+      /\b(aud|iss|exp|resource|code_verifier|code_challenge|arguments|description|scope|sub)\b/g,
+      "<strong>$1</strong>"
+    );
+    dWire.innerHTML = paint(s.wire);
+    dWire.style.setProperty("--hue", s._hue);
+
+    /* index + tabs + progress */
+    idxBtns.forEach((b, k) => {
+      b.classList.toggle("now", k === i);
+      b.classList.toggle("seen", k < i);
+    });
+    idxBtns[i].scrollIntoView({ block: "nearest" });
+    tabs.forEach((t, k) => t.setAttribute("aria-selected", String(k === s.p)));
+    counter.textContent = `${String(i + 1).padStart(2, "0")} / ${STEPS.length}`;
+    bar.style.width = `${((i + 1) / STEPS.length) * 100}%`;
+
+    /* keep the live row centred in the area below the sticky lane bar */
+    const w = svg.getBoundingClientRect().width;
+    if (w > 0) {
+      const scale = w / 1000;
+      const target = s._y * scale - (stage.clientHeight - 46) / 2;
+      stage.scrollTop = Math.max(0, target);
+    }
+
+    if (playing) {
+      clearTimeout(timer);
+      const ms = (reduced ? 700 : 1500) / SPEEDS[speedIdx];
+      timer = setTimeout(() => {
+        if (cur >= STEPS.length - 1) { pause(); return; }
+        go(cur + 1);
+      }, ms);
+    }
+  }
+
+  function pause() {
+    playing = false;
+    clearTimeout(timer);
+    playBtn.textContent = "Play";
+  }
+
+  playBtn.addEventListener("click", () => {
+    if (playing) { pause(); return; }
+    playing = true;
+    playBtn.textContent = "Pause";
+    go(cur >= STEPS.length - 1 ? 0 : cur + 1);
+  });
+
+  document.getElementById("prev").addEventListener("click", () => { pause(); go(cur - 1); });
+  document.getElementById("next").addEventListener("click", () => { pause(); go(cur + 1); });
+  document.getElementById("reset").addEventListener("click", () => { pause(); go(0); });
+
+  speedBtn.addEventListener("click", () => {
+    speedIdx = (speedIdx + 1) % SPEEDS.length;
+    speedBtn.textContent = `${SPEEDS[speedIdx]}×`;
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+    if (typing) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); pause(); go(cur + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); pause(); go(cur - 1); }
+    else if (e.key === " " && e.target.tagName !== "BUTTON") {
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+
+  window.addEventListener("resize", () => { if (cur >= 0) go(cur); });
+
+  go(0);
+</script>
+
+</body>
+</html>
