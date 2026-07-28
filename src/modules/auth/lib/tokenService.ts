@@ -31,12 +31,18 @@ interface TokenPayload extends JwtPayload {
   jti: string;
   scopes?: string[];
   sid: string; // session id — every token we issue carries it (see TokenClaims)
+  gid?: string; // grant id — only on tokens issued to an OAuth client
 }
 
 // Input claims for token generation (jti is generated internally, not passed in).
 interface TokenClaims {
   sub: string; // user id
   sid: string; // session id — server-generated per login, survives token rotation; powers per-session WS disconnect
+  // Grant id — present only when this token was issued to an OAuth client under
+  // a user's consent. Absent on first-party session tokens. It is what makes
+  // revocation immediate: revoking the grant writes a Redis marker keyed by this
+  // id, and every request carrying the claim is checked against it.
+  gid?: string;
 }
 interface AccessTokenClaims extends TokenClaims {
   scopes?: string[];
@@ -68,6 +74,21 @@ function audienceConfig(audience: string): AudienceConfig {
       refreshExpiry: adminRefreshExpiry,
     };
   }
+
+  // MCP resource audience (RFC 8707). A token minted under an OAuth grant is
+  // still the same user's token, just delegated to a client, so it signs with
+  // userSecret and reuses the user lifetimes — a third secret would buy nothing
+  // while both sides run in this process. This is the branch that changes when
+  // the deferred jose/RS256 migration lands.
+  const { resourceUri } = getEnvConfig().mcp;
+  if (resourceUri && audience === resourceUri) {
+    return {
+      secret: userSecret,
+      accessExpiry: userAccessExpiry,
+      refreshExpiry: userRefreshExpiry,
+    };
+  }
+
   throw new Error(`Unknown JWT audience: ${audience}`);
 }
 
@@ -173,10 +194,14 @@ export async function storeRefreshToken(
   expiresAt: Date,
   accessJti: string,
   accessExp: Date,
+  // Set only for tokens issued to an OAuth client. Undefined stores NULL, which
+  // is what marks a row as a first-party session. The FK cascades, so deleting
+  // the grant deletes every refresh token issued under it, on every device.
+  grantId?: string,
 ): Promise<void> {
   await getDb()
     .insert(refreshTokens)
-    .values({ userId, jti, expiresAt, accessJti, accessExp });
+    .values({ userId, jti, expiresAt, accessJti, accessExp, grantId });
 }
 
 export async function revokeRefreshToken(jti: string): Promise<void> {

@@ -5,6 +5,7 @@ import { verifyToken } from "../modules/auth/index.js";
 import { HttpError } from "../shared/errors/HttpError.js";
 import { ERROR_MESSAGES } from "../shared/constants/errors.js";
 import { getEnvConfig } from "../config/env.js";
+import { getRedis } from "../lib/cache/redis/client.js";
 
 /**
  * Bearer auth for the MCP endpoint.
@@ -28,13 +29,14 @@ export function authenticateMcp(): RequestHandler {
   // here is deliberate: without a resource id there is nothing to validate `aud`
   // against, and silently skipping that check is the bug this whole file exists
   // to prevent.
-  const { mcp, apiBaseUrl } = getEnvConfig();
+  const { mcp, apiBaseUrl, redis } = getEnvConfig();
   if (!mcp.resourceUri) {
     throw new Error("MCP_RESOURCE_URI must be set when MCP_ENABLED=true");
   }
 
   const resourceUri = mcp.resourceUri;
   const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}`;
+  const grantRevokedKey = redis.keys.grantRevoked;
 
   return async (req, res, next) => {
     try {
@@ -59,6 +61,26 @@ export function authenticateMcp(): RequestHandler {
       // RFC 8707 binding: a token minted for a different resource must be
       // rejected here even when it is otherwise valid and unexpired.
       req.user = await verifyToken(token, resourceUri);
+
+      // A user who removes an app's access expects it to stop working now, not
+      // whenever the current access token happens to expire. Deleting the grant
+      // kills its refresh tokens immediately via the FK cascade, but an access
+      // token is a stateless JWT — this marker is what closes that window. Same
+      // single Redis lookup the jti blacklist already costs, and only for tokens
+      // that actually carry a grant.
+      if (req.user.grantId) {
+        const revoked = await getRedis().exists(
+          `${grantRevokedKey}${req.user.grantId}`,
+        );
+        if (revoked) {
+          throw new HttpError(
+            "GRANT_REVOKED",
+            StatusCodes.UNAUTHORIZED,
+            "Access for this application has been revoked",
+          );
+        }
+      }
+
       next();
     } catch (err) {
       // Only an auth failure earns the challenge header. A 500 from, say, the

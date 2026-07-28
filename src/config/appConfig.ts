@@ -13,6 +13,14 @@ export const REDIS_KEYS = {
   jobDone: "job:done:", // idempotency marker — a job that completed (dispatchJob)
   wsUser: "ws:user:", // per-user WebSocket pub/sub channel (cross-instance fan-out)
   wsRoom: "ws:room:", // per-room WebSocket pub/sub channel (cross-instance fan-out)
+  // Revoked OAuth grant. Written when a user removes an app's access, with TTL =
+  // access-token lifetime: deleting the grant kills its refresh tokens instantly
+  // via the FK cascade, but already-issued access tokens are stateless JWTs that
+  // would otherwise stay valid until they expire. Once the TTL passes no token
+  // from that grant can exist, so the key expires on its own.
+  grantRevoked: "oauth:grant:revoked:",
+  oauthCode: "oauth:code:", // authorization code — stored hashed, consumed atomically
+  oauthPending: "oauth:pending:", // /authorize request held between GET and POST
 } as const;
 
 export const REDIS = {
@@ -134,6 +142,25 @@ export const MCP = {
   // Tool results are fed into the model's context window, not shown to a person.
   // Cap them so one broad query can't burn the whole context.
   maxToolResultChars: 20_000,
+} as const;
+
+export const OAUTH = {
+  // Client-facing endpoint paths. Advertised verbatim in the authorization
+  // server metadata document, so changing one breaks every client that has
+  // already discovered it.
+  authorizePath: "/oauth/authorize",
+  tokenPath: "/oauth/token",
+  registerPath: "/oauth/register",
+  metadataPath: "/.well-known/oauth-authorization-server",
+
+  // Authorization codes are redeemed within seconds of issue — one redirect hop.
+  // OAuth 2.1 caps them at 10 minutes and says "as short as possible"; 60s is
+  // ample and keeps the replay window tiny.
+  authCodeTtlSec: 60,
+
+  // A user has to read the consent screen, and may have to log in first. Long
+  // enough for that, short enough that an abandoned authorization disappears.
+  pendingAuthTtlSec: 600,
 } as const;
 
 export const MQTT = {

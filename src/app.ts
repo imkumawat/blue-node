@@ -27,6 +27,7 @@ import {
   createMcpMetadataRouter,
   createMcpMiddleware,
 } from "./mcp/index.js";
+import { createOauthRouter } from "./modules/oauth/apis/routes.js";
 
 import { createSwaggerSpec } from "./config/swagger.js";
 import { getEnvConfig } from "./config/env.js";
@@ -102,6 +103,11 @@ export async function buildApp(): Promise<Express> {
     // because it has no token yet. Behind the auth guard it would be unreachable
     // and OAuth discovery could never start.
     app.use(createMcpMetadataRouter());
+
+    // Authorization server: /authorize, /token, /register and the RFC 8414
+    // metadata document. Mounted before the MCP endpoint and outside its auth
+    // guard — a client reaches these precisely because it has no token yet.
+    app.use(createOauthRouter());
 
     // app.all, not app.post: GET and DELETE have to reach the handler so it can
     // answer 405 itself, which the transport spec requires. With app.post they

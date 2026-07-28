@@ -18,6 +18,7 @@ import {
   GRAPHQL,
   WS,
   MCP,
+  OAUTH,
   MQTT,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
@@ -100,6 +101,7 @@ export type AppConfig = {
     resourceUri: string | undefined;
     authServerUrl: string | undefined;
   } & typeof MCP;
+  oauth: typeof OAUTH;
   mqtt: {
     url: string;
     username: string | undefined;
@@ -250,6 +252,7 @@ export default async function loadEnv(
       authServerUrl: e.MCP_AUTH_SERVER_URL,
       ...MCP,
     },
+    oauth: OAUTH,
     mqtt: {
       url: e.MQTT_URL,
       username: e.MQTT_USERNAME,

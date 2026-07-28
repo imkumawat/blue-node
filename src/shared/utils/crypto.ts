@@ -9,6 +9,14 @@ export function sha256(text: string): string {
 }
 
 /**
+ * SHA-256 base64url digest — the encoding OAuth and JOSE use, not hex.
+ * Use for: PKCE S256 code challenges (RFC 7636), JWK thumbprints.
+ */
+export function sha256Base64Url(text: string): string {
+  return crypto.createHash("sha256").update(text).digest("base64url");
+}
+
+/**
  * HMAC-SHA256 hex digest. Use for: webhook signatures, signed URLs, CSRF tokens.
  */
 export function hmacSha256(secret: string, message: string): string {
