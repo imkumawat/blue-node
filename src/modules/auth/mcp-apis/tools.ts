@@ -43,6 +43,8 @@ const getProfile = defineTool({
     return [
       `Email: ${user.email}`,
       `Status: ${user.status}`,
+      `First Name: ${user.firstName}`,
+      `Last Name: ${user.lastName}`,
       `Member since: ${user.createdAt.toISOString().slice(0, 10)}`,
     ].join("\n");
   },

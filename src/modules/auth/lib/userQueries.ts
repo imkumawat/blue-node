@@ -51,10 +51,18 @@ export async function createUser({
   email,
   passwordHash,
   status, // optional — omit → DB default "active"; registerUser passes "pending"
+  firstName,
+  lastName,
 }: NewUser): Promise<Pick<User, "id" | "email" | "status" | "createdAt">> {
   const [user] = await getDb()
     .insert(users)
-    .values({ email: email.toLowerCase(), passwordHash, status })
+    .values({
+      email: email.toLowerCase(),
+      passwordHash,
+      status,
+      firstName,
+      lastName,
+    })
     .returning({
       id: users.id,
       email: users.email,

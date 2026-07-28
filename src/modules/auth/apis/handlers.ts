@@ -24,7 +24,8 @@ import type {
 } from "../schemas.js";
 
 export async function signup(req: Request, res: Response): Promise<void> {
-  const { email, password, consents } = req.body as SignupInput;
+  const { email, password, consents, firstName, lastName } =
+    req.body as SignupInput;
 
   const consentMeta = {
     ipAddress: getClientIp(req),
@@ -37,6 +38,8 @@ export async function signup(req: Request, res: Response): Promise<void> {
     password,
     consents,
     consentMeta,
+    firstName,
+    lastName,
   });
 
   // No session yet — the user must verify their email (POST /v1/auth/verify-email)

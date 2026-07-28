@@ -65,6 +65,8 @@ export const authResolvers = {
       const validated = parseInput(signupSchema, input);
       const { user } = await registerUser({
         email: validated.email,
+        firstName: validated.firstName,
+        lastName: validated.lastName,
         password: validated.password,
         consents: validated.consents,
         consentMeta: {

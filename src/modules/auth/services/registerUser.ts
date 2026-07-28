@@ -26,6 +26,8 @@ interface ConsentMeta {
 
 interface RegisterInput {
   email: string;
+  firstName: string;
+  lastName: string;
   password: string;
   consents: ConsentType[];
   consentMeta: ConsentMeta;
@@ -40,12 +42,20 @@ export async function registerUser({
   password,
   consents,
   consentMeta,
+  firstName,
+  lastName,
 }: RegisterInput): Promise<RegisterResult> {
   const existing = await findUserByEmail(email);
   if (existing) throw new EmailAlreadyExistsError();
 
   const passwordHash = await hashPassword(password);
-  const user = await createUser({ email, passwordHash, status: "pending" });
+  const user = await createUser({
+    email,
+    passwordHash,
+    status: "pending",
+    firstName,
+    lastName,
+  });
 
   await grantScopes(user.id, [...DEFAULT_USER_SCOPES]);
 

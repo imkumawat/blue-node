@@ -24,6 +24,8 @@ export const authTypeDefs: string = `#graphql
     email: String!
     password: String!
     confirmPassword: String!
+    firstName: String!
+    lastName: String!
     consents: [String!]!
   }
 
