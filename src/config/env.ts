@@ -19,6 +19,7 @@ import {
   WS,
   MCP,
   OAUTH,
+  TOKENS,
   MQTT,
 } from "./appConfig.js";
 import { fetchSecrets } from "../lib/aws/secrets.js";
@@ -72,6 +73,7 @@ export type AppConfig = {
     adminAccessExpiry: number;
     adminRefreshExpiry: number;
   };
+  tokens: { pepper: string } & typeof TOKENS;
   swagger: { user: string | undefined; password: string | undefined };
   cors: { allowedOrigins: string };
   proxy: { hopCount: number };
@@ -219,6 +221,9 @@ export default async function loadEnv(
       issuer: e.JWT_ISSUER,
       ...JWT,
     },
+    // Separate group, not folded into `jwt`: this pepper has nothing to do with
+    // JWTs and will outlive them on the paths that go opaque.
+    tokens: { pepper: e.TOKEN_PEPPER, ...TOKENS },
     swagger: {
       user: e.SWAGGER_USER,
       password: e.SWAGGER_PASSWORD,

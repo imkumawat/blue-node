@@ -21,6 +21,11 @@ export const REDIS_KEYS = {
   grantRevoked: "oauth:grant:revoked:",
   oauthCode: "oauth:code:", // authorization code — stored hashed, consumed atomically
   oauthPending: "oauth:pending:", // /authorize request held between GET and POST
+  // Opaque access token, keyed by SESSION id rather than by a hash of the token.
+  // tokenStore.ts explains the choice: revoking a device has to address its
+  // session directly, and a key derived from a token we never kept cannot be
+  // rebuilt from a session id alone.
+  accessToken: "at:",
 } as const;
 
 export const REDIS = {
@@ -142,6 +147,23 @@ export const MCP = {
   // Tool results are fed into the model's context window, not shown to a person.
   // Cap them so one broad query can't burn the whole context.
   maxToolResultChars: 20_000,
+} as const;
+
+export const TOKENS = {
+  // Visible prefixes, Stripe/GitHub style (sk_live_, ghp_). They carry no secret;
+  // the value is that a leaked token is greppable in logs and recognisable by
+  // shape without a lookup.
+  //
+  // A PUBLIC CONTRACT: changing one invalidates every live token of that kind,
+  // the same way changing a Redis key prefix would.
+  accessPrefix: "nf_at_",
+  refreshPrefix: "nf_rt_",
+
+  // First-party session lifetimes. Kept here rather than under JWT because an
+  // opaque token has no signature and no claims — nothing about its lifetime is
+  // a JWT concern.
+  accessExpiry: 900, // 15 min — short window; rely on refresh rotation
+  refreshExpiry: 604800, // 7d — also how long a device session may live
 } as const;
 
 export const OAUTH = {

@@ -76,6 +76,13 @@ export const envSchema = z.object({
   JWT_ADMIN_SECRET: z.string().min(32),
   JWT_ISSUER: z.string().url(),
 
+  // Opaque tokens
+  // Pepper for access-token HMACs. Deliberately separate from the JWT secrets:
+  // it signs nothing, it only makes a stored digest useless on its own. Kept in
+  // config and never written to Redis, so a Redis dump alone cannot be used to
+  // verify guesses offline.
+  TOKEN_PEPPER: z.string().min(32),
+
   // Swagger
   SWAGGER_USER: z.string().min(1).optional(),
   SWAGGER_PASSWORD: z.string().min(8).optional(),
