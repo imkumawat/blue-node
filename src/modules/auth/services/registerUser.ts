@@ -6,7 +6,6 @@ import {
 } from "../constants.js";
 import { findUserByEmail, createUser } from "../lib/userQueries.js";
 import { hashPassword } from "../../../shared/utils/password.js";
-import { grantScopes } from "../lib/permissionQueries.js";
 import { logConsent } from "../lib/consentQueries.js";
 import { createEmailVerificationCode } from "../lib/emailVerification.js";
 import {
