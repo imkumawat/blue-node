@@ -37,12 +37,14 @@ function escapeHtml(value: string): string {
  * consent screen.
  */
 const SCOPE_DESCRIPTIONS: Record<Scope, string> = {
-  [SCOPES.READ_PROFILE]: "View your email address and account status",
-  [SCOPES.WRITE_PROFILE]: "Update your profile",
-  [SCOPES.DELETE_ACCOUNT]: "Delete your account",
-  [SCOPES.READ_USERS]: "View other users",
-  [SCOPES.WRITE_USERS]: "Create and modify other users",
-  [SCOPES.DELETE_USERS]: "Delete other users",
+  [SCOPES.PROFILE_READ]: "View your email address and account status",
+  [SCOPES.PROFILE_WRITE]: "Update your profile",
+  [SCOPES.ACCOUNT_DELETE]: "Delete your account",
+  [SCOPES.USERS_READ]: "View other users",
+  [SCOPES.USERS_WRITE]: "Create and modify other users",
+  [SCOPES.USERS_DELETE]: "Delete other users",
+  [SCOPES.PERMISSIONS_READ]: "View what permissions a user holds",
+  [SCOPES.PERMISSIONS_WRITE]: "Grant and revoke permissions",
   [SCOPES.ADMIN_ACCESS]: "Full administrative access",
 };
 

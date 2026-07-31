@@ -19,7 +19,7 @@ const getProfile = defineTool({
     "Get the signed-in user's own account profile — email address, account " +
     "status, and when they joined. Call this when the user asks about their " +
     "own account, their email, or when they signed up.",
-  scope: SCOPES.READ_PROFILE,
+  scope: SCOPES.PROFILE_READ,
 
   // No arguments, deliberately. Identity comes from the access token, never from
   // the model: accepting a userId here would let a prompt-injected model read
