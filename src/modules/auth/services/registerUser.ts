@@ -1,5 +1,4 @@
 import { getEnvConfig } from "../../../config/env.js";
-import { DEFAULT_USER_SCOPES } from "../../../shared/constants/scopes.js";
 import {
   CONSENT_VERSIONS,
   DEFAULT_CONSENT_VERSION,
@@ -56,8 +55,6 @@ export async function registerUser({
     firstName,
     lastName,
   });
-
-  await grantScopes(user.id, [...DEFAULT_USER_SCOPES]);
 
   await Promise.all(
     consents.map((consentType) =>
