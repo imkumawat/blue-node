@@ -1,7 +1,7 @@
 import type { RequestHandler } from "express";
-import { verifyToken } from "../../modules/auth/index.js";
+import { verifySessionToken } from "../../modules/auth/index.js";
 
-export function optionalAuthenticate(audience: string): RequestHandler {
+export function optionalAuthenticate(): RequestHandler {
   return async (req, _res, next) => {
     const token = req.cookies?.access_token ?? null;
     if (!token) {
@@ -10,7 +10,7 @@ export function optionalAuthenticate(audience: string): RequestHandler {
     }
 
     try {
-      req.user = await verifyToken(token, audience);
+      req.user = await verifySessionToken(token);
     } catch {
       req.user = null;
     }

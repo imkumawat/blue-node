@@ -90,11 +90,7 @@ export async function buildApp(): Promise<Express> {
     swaggerUi.setup(createSwaggerSpec()),
   );
 
-  app.use(
-    "/api/graphql",
-    optionalAuthenticate(jwt.userAudience),
-    graphqlMiddleware,
-  );
+  app.use("/api/graphql", optionalAuthenticate(), graphqlMiddleware);
 
   // MCP transport. Flag-gated: with MCP_ENABLED=false nothing is mounted, and the
   // factory guards below (which throw on a missing MCP_RESOURCE_URI) never run.
