@@ -4,7 +4,7 @@ import { registerUser } from "../services/registerUser.js";
 import { verifyEmail as verifyEmailService } from "../services/verifyEmail.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
 import { assessLoginRisk } from "../services/assessLoginRisk.js";
-import { renewTokens } from "../services/refreshToken.js";
+import { renewSession } from "../services/renewSession.js";
 import { logoutUser } from "../services/logout.js";
 import { requestPasswordReset } from "../services/requestPasswordReset.js";
 import { resetPassword as resetPasswordService } from "../services/resetPassword.js";
@@ -163,13 +163,16 @@ export async function login(req: Request, res: Response): Promise<void> {
   });
 }
 
-export async function refresh(req: Request, res: Response): Promise<void> {
-  const { access, refresh } = await renewTokens(req.cookies.refresh_token);
+export async function refreshSession(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const credentials = await renewSession(req.cookies.refresh_token);
 
-  setAuthCookies(res, access.token, refresh.token);
+  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
   res
     .status(StatusCodes.OK)
-    .json({ success: true, message: "Token refreshed" });
+    .json({ success: true, message: "Session refreshed" });
 }
 
 export async function logout(req: Request, res: Response): Promise<void> {

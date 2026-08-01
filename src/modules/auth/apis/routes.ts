@@ -3,7 +3,7 @@ import {
   signup,
   verifyEmail,
   login,
-  refresh,
+  refreshSession,
   logout,
   loginPrecheck,
   forgotPassword,
@@ -58,7 +58,11 @@ export function createAuthRoutes(): Router {
     validate(changePasswordSchema),
     changePassword,
   );
-  router.post("/v1/auth/refresh", requireCookies("refresh_token"), refresh);
+  router.post(
+    "/v1/auth/refresh-session",
+    requireCookies("refresh_token"),
+    refreshSession,
+  );
   router.post(
     "/v1/auth/logout",
     authenticate(userAudience),
