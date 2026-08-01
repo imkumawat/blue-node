@@ -63,9 +63,14 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
   const { email, code } = req.body as VerifyEmailInput;
 
   // Code valid → account activated → issue tokens (first login) + set cookies.
-  const { user, access, refresh } = await verifyEmailService({ email, code });
+  const { user, credentials } = await verifyEmailService({
+    email,
+    code,
+    ipAddress: getClientIp(req),
+    userAgent: req.headers["user-agent"] ?? null,
+  });
 
-  setAuthCookies(res, access.token, refresh.token);
+  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
   res.status(StatusCodes.OK).json({
     success: true,
     data: {
