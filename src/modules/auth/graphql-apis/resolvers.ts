@@ -5,13 +5,14 @@ import { logoutUser } from "../services/logout.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { signupSchema, loginSchema, verifyEmailSchema } from "../schemas.js";
 import { InvalidRefreshTokenError, UserNotFoundError } from "../errors.js";
+
 import type { GraphQLContext } from "../../../graphql/buildContext.js";
-import type { IssuedToken } from "../lib/tokenService.js";
+import type { SessionCredentials } from "../services/createSession.js";
+import type { PublicUser } from "../types.js";
 
 interface AuthLikeResult {
-  user: { id: string; email: string; createdAt: Date };
-  access: IssuedToken;
-  refresh: IssuedToken;
+  user: PublicUser;
+  credentials: SessionCredentials;
 }
 
 interface RegisterArgs {
@@ -35,10 +36,13 @@ interface EchoArgs {
   limit: number;
 }
 
-function toAuthPayload({ user, access, refresh }: AuthLikeResult) {
+function toAuthPayload({ user, credentials }: AuthLikeResult) {
   return {
     user,
-    tokens: { accessToken: access.token, refreshToken: refresh.token },
+    tokens: {
+      accessToken: credentials.accessToken,
+      refreshToken: credentials.refreshToken,
+    },
   };
 }
 
@@ -82,10 +86,14 @@ export const authResolvers = {
     verifyEmail: async (
       _parent: unknown,
       { input }: VerifyEmailArgs,
-      _ctx: GraphQLContext,
+      ctx: GraphQLContext,
     ) => {
       const validated = parseInput(verifyEmailSchema, input);
-      const result = await verifyEmailService(validated);
+      const result = await verifyEmailService({
+        ...validated,
+        userAgent: ctx.userAgent,
+        ipAddress: ctx.ipAddress,
+      });
       return toAuthPayload(result);
     },
 
@@ -98,6 +106,7 @@ export const authResolvers = {
       const result = await loginWithPassword({
         ...validated,
         ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
       });
       return toAuthPayload(result);
     },
