@@ -31,8 +31,4 @@ export interface AuthUser {
   sessionId: string;
   /** Unix seconds. The WS layer closes sockets once this passes. */
   exp: number;
-  /** A JWT's own id. NULL for opaque first-party tokens, which have none. */
-  jti: string | null;
-  /** OAuth grant id — set only on a token issued to a client under consent. */
-  grantId: string | null;
 }

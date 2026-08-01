@@ -3,6 +3,7 @@
 // change without breaking consumers. Keep this curated (no `export *`): only
 // the symbols other modules genuinely need.
 export { verifyToken } from "./services/verifyToken.js";
+export { verifySessionToken } from "./services/verifySessionToken.js";
 export type { AuthUser } from "./services/verifyToken.js";
 export { InvalidTokenError } from "./errors.js";
 // Token minting for an OAuth grant. Deliberately narrow: modules/oauth needs
