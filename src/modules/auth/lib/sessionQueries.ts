@@ -130,9 +130,22 @@ export async function deleteSession(
   return deleted.length > 0;
 }
 
-/** Sign out everywhere. */
-export async function deleteAllSessions(userId: string): Promise<void> {
-  await getDb().delete(sessions).where(eq(sessions.userId, userId));
+/**
+ * Sign out everywhere. Returns the ids that were actually deleted, so the caller
+ * can clear their Redis access-token keys.
+ *
+ * The ids come from the DELETE itself rather than a SELECT beforehand: a login
+ * landing between the two would have its row deleted here while its `at:<sid>`
+ * key survived, and nothing on the read path consults this table — so that orphan
+ * token would keep working until its TTL ran out. Same reasoning as touchSession.
+ */
+export async function deleteAllSessions(userId: string): Promise<string[]> {
+  const deleted = await getDb()
+    .delete(sessions)
+    .where(eq(sessions.userId, userId))
+    .returning({ id: sessions.id });
+
+  return deleted.map((row) => row.id);
 }
 
 /**

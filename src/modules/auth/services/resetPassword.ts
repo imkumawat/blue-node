@@ -1,6 +1,6 @@
 import { findUserByEmail, updateUserPassword } from "../lib/userQueries.js";
+import { deleteAllSessions } from "../lib/sessionQueries.js";
 import { verifyPasswordResetCode } from "../lib/passwordReset.js";
-import { revokeAllRefreshTokensForUser } from "../lib/tokenService.js";
 import { hashPassword } from "../../../shared/utils/password.js";
 import {
   enqueueEmail,
@@ -8,6 +8,7 @@ import {
 } from "../../notifications/jobs/sendEmail.js";
 import { changePasswordEmail } from "../emails/changePasswordEmail.js";
 import { InvalidVerificationCodeError } from "../errors.js";
+import { revokeAccessTokens } from "../lib/tokenStore.js";
 
 interface ResetPasswordInput {
   email: string;
@@ -37,7 +38,10 @@ export async function resetPassword({
   await updateUserPassword(user.id, passwordHash);
 
   // Revoke every refresh token — old sessions can no longer be renewed.
-  await revokeAllRefreshTokensForUser(user.id);
+  const sessionIds = await deleteAllSessions(user.id);
+  await revokeAccessTokens(sessionIds);
+
+  //await revokeAllRefreshTokensForUser(user.id);
 
   await enqueueEmail(
     { to: user.email, ...changePasswordEmail() },

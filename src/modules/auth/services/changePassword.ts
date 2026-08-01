@@ -3,7 +3,8 @@ import {
   verifyPassword,
   hashPassword,
 } from "../../../shared/utils/password.js";
-import { revokeAllRefreshTokensForUser } from "../lib/tokenService.js";
+import { deleteAllSessions } from "../lib/sessionQueries.js";
+import { revokeAccessTokens } from "../lib/tokenStore.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,
@@ -38,7 +39,11 @@ export async function changePassword({
   const passwordHash = await hashPassword(newPassword);
   await updateUserPassword(user.id, passwordHash);
 
-  await revokeAllRefreshTokensForUser(user.id);
+  // Revoke every refresh token — old sessions can no longer be renewed.
+  const sessionIds = await deleteAllSessions(user.id);
+  await revokeAccessTokens(sessionIds);
+
+  // await revokeAllRefreshTokensForUser(user.id);
 
   // Close all of this user's live sockets across instances — every session is
   // now invalid. Non-fatal (unlike logout): the password and token revocation
