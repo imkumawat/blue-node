@@ -4,7 +4,7 @@
 // the symbols other modules genuinely need.
 export { verifyToken } from "./services/verifyToken.js";
 export { verifySessionToken } from "./services/verifySessionToken.js";
-export type { AuthUser } from "./services/verifyToken.js";
+export type { AuthUser } from "./types.js";
 export { InvalidTokenError } from "./errors.js";
 // Token minting for an OAuth grant. Deliberately narrow: modules/oauth needs
 // credentials issued, not access to the refresh-token table or the rotation

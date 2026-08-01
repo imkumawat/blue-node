@@ -23,10 +23,8 @@ import { validate } from "../../../shared/middlewares/validate.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
 import { requireCookies } from "../../../shared/middlewares/requireCookies.js";
 import { createRateLimiters } from "../../../shared/middlewares/rateLimiter.js";
-import { getEnvConfig } from "../../../config/env.js";
 
 export function createAuthRoutes(): Router {
-  const { userAudience } = getEnvConfig().jwt;
   const { authLimiter } = createRateLimiters();
   const router = Router();
 
@@ -41,7 +39,7 @@ export function createAuthRoutes(): Router {
   );
   router.post("/v1/auth/login", authLimiter, validate(loginSchema), login);
 
-  router.get("/v1/user/me", authenticate(userAudience), getCurrentUser);
+  router.get("/v1/user/me", authenticate(), getCurrentUser);
 
   router.post(
     "/v1/auth/forgot-password",
@@ -57,7 +55,7 @@ export function createAuthRoutes(): Router {
   );
   router.post(
     "/v1/auth/change-password",
-    authenticate(userAudience),
+    authenticate(),
     authLimiter,
     validate(changePasswordSchema),
     changePassword,
@@ -69,7 +67,7 @@ export function createAuthRoutes(): Router {
   );
   router.post(
     "/v1/auth/logout",
-    authenticate(userAudience),
+    authenticate(),
     requireCookies("refresh_token"),
     logout,
   );
