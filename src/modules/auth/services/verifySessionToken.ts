@@ -1,5 +1,4 @@
 import { verifyAccessToken } from "../lib/tokenStore.js";
-import { InvalidTokenError } from "../errors.js";
 import type { AuthUser } from "../types.js";
 
 /**
@@ -14,9 +13,11 @@ import type { AuthUser } from "../types.js";
  * Throws rather than returning null: every caller treats an unusable token as a
  * rejected request, and a throw makes that impossible to forget.
  */
-export async function verifySessionToken(rawToken: string): Promise<AuthUser> {
+export async function verifySessionToken(
+  rawToken: string,
+): Promise<AuthUser | null> {
   const record = await verifyAccessToken(rawToken);
-  if (!record) throw new InvalidTokenError();
+  if (!record) return null;
 
   return {
     id: record.userId,

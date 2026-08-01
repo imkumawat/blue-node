@@ -6,14 +6,14 @@ import {
 
 export function authenticate(): RequestHandler {
   return async (req, _res, next) => {
-    try {
-      const token = req.cookies?.access_token ?? null;
-      if (!token) return next(new InvalidTokenError());
+    const token = req.cookies?.access_token ?? null;
+    if (!token) return next(new InvalidTokenError());
 
-      req.user = await verifySessionToken(token);
-      next();
-    } catch (err) {
-      next(err);
-    }
+    const user = await verifySessionToken(token);
+
+    if (!user) return next(new InvalidTokenError());
+
+    req.user = user;
+    next();
   };
 }
