@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, lt } from "drizzle-orm";
+import { and, desc, eq, gt, lt, isNull } from "drizzle-orm";
 import { getDb } from "../../../lib/db/postgres/client.js";
 import { sessions } from "../../../models/postgres/user/session.js";
 import type { Session } from "../../../models/postgres/user/session.js";
@@ -13,6 +13,7 @@ import type { Session } from "../../../models/postgres/user/session.js";
 
 export interface InsertSessionInput {
   userId: string;
+  tokenHash: string;
   deviceLabel: string | null;
   userAgent: string | null;
   ipAddress: string | null;
@@ -82,15 +83,31 @@ export async function listSessionIds(userId: string): Promise<string[]> {
  */
 export async function touchSession(
   id: string,
+  tokenHash: string,
   expiresAt: Date,
 ): Promise<Session | null> {
   const [row] = await getDb()
     .update(sessions)
-    .set({ lastUsedAt: new Date(), expiresAt })
+    .set({ tokenHash, lastUsedAt: new Date(), expiresAt })
     .where(and(eq(sessions.id, id), gt(sessions.expiresAt, new Date())))
     .returning();
 
   return row ?? null;
+}
+
+export async function rotateSession(hash: string): Promise<Session | null> {
+  const [rotated] = await getDb()
+    .update(sessions)
+    .set({ rotatedAt: new Date() })
+    .where(
+      and(
+        eq(sessions.tokenHash, hash),
+        isNull(sessions.rotatedAt),
+        gt(sessions.expiresAt, new Date()),
+      ),
+    )
+    .returning();
+  return rotated ?? null;
 }
 
 /**
