@@ -30,12 +30,9 @@ export function authenticateMcp(): RequestHandler {
   // against, and silently skipping that check is the bug this whole file exists
   // to prevent.
   const { mcp, apiBaseUrl, redis } = getEnvConfig();
-  if (!mcp.resourceUri) {
-    throw new Error("MCP_RESOURCE_URI must be set when MCP_ENABLED=true");
-  }
 
   const resourceUri = mcp.resourceUri;
-  const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}`;
+  const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}/mcp`;
   const grantRevokedKey = redis.keys.grantRevoked;
 
   return async (req, res, next) => {

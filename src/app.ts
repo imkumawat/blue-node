@@ -92,28 +92,24 @@ export async function buildApp(): Promise<Express> {
 
   app.use("/api/graphql", optionalAuthenticate(), graphqlMiddleware);
 
-  // MCP transport. Flag-gated: with MCP_ENABLED=false nothing is mounted, and the
-  // factory guards below (which throw on a missing MCP_RESOURCE_URI) never run.
-  if (mcp.enabled) {
-    // Metadata first, and deliberately public — a client fetches it precisely
-    // because it has no token yet. Behind the auth guard it would be unreachable
-    // and OAuth discovery could never start.
-    app.use(createMcpMetadataRouter());
+  // Metadata first, and deliberately public — a client fetches it precisely
+  // because it has no token yet. Behind the auth guard it would be unreachable
+  // and OAuth discovery could never start.
+  app.use(createMcpMetadataRouter());
 
-    // Authorization server: /authorize, /token, /register and the RFC 8414
-    // metadata document. Mounted before the MCP endpoint and outside its auth
-    // guard — a client reaches these precisely because it has no token yet.
-    app.use(createOauthRouter());
+  // Authorization server: /authorize, /token, /register and the RFC 8414
+  // metadata document. Mounted before the MCP endpoint and outside its auth
+  // guard — a client reaches these precisely because it has no token yet.
+  app.use(createOauthRouter());
 
-    // app.all, not app.post: GET and DELETE have to reach the handler so it can
-    // answer 405 itself, which the transport spec requires. With app.post they
-    // would fall through to the catch-all 404 instead.
-    //
-    // TODO(rate limit): no per-user limiter here yet — a dedicated mcpLimiter is
-    // planned. The global ipLimiter above still applies, so the spec's "rate
-    // limit tool invocations" is only partly satisfied until then.
-    app.all(mcp.path, authenticateMcp(), createMcpMiddleware());
-  }
+  // app.all, not app.post: GET and DELETE have to reach the handler so it can
+  // answer 405 itself, which the transport spec requires. With app.post they
+  // would fall through to the catch-all 404 instead.
+  //
+  // TODO(rate limit): no per-user limiter here yet — a dedicated mcpLimiter is
+  // planned. The global ipLimiter above still applies, so the spec's "rate
+  // limit tool invocations" is only partly satisfied until then.
+  app.all(mcp.path, authenticateMcp(), createMcpMiddleware());
 
   // Master Routes Registry
   app.use("/api", createMasterRouter());
