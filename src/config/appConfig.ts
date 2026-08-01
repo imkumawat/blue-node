@@ -153,7 +153,7 @@ export const MCP = {
   // Single source of truth for the two client-facing paths. Both are a public
   // contract: changing either breaks every connector a user has already added.
   path: "/mcp",
-  wellKnownPath: "/.well-known/oauth-protected-resource",
+  wellKnownPath: "/.well-known/oauth-protected-resource/mcp",
 
   // Identity advertised in `initialize` → result.serverInfo.
   serverName: "blue-node",

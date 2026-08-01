@@ -32,7 +32,7 @@ export function createMcpMetadataRouter(): ExpressRouter {
 
   // Built once above, served as-is: the document is derived purely from config
   // and the registered tools, neither of which changes at runtime.
-  router.get(`${mcp.wellKnownPath}/mcp`, (_req, res) => {
+  router.get(`${mcp.wellKnownPath}`, (_req, res) => {
     res.json(document);
   });
 

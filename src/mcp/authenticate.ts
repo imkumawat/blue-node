@@ -32,7 +32,7 @@ export function authenticateMcp(): RequestHandler {
   const { mcp, apiBaseUrl, redis } = getEnvConfig();
 
   const resourceUri = mcp.resourceUri;
-  const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}/mcp`;
+  const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}`;
   const grantRevokedKey = redis.keys.grantRevoked;
 
   return async (req, res, next) => {
