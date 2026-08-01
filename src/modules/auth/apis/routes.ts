@@ -9,6 +9,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  getCurrentUser,
 } from "./handlers.js";
 import {
   signupSchema,
@@ -39,6 +40,9 @@ export function createAuthRoutes(): Router {
     verifyEmail,
   );
   router.post("/v1/auth/login", authLimiter, validate(loginSchema), login);
+
+  router.get("/v1/user/me", authenticate(userAudience), getCurrentUser);
+
   router.post(
     "/v1/auth/forgot-password",
     authLimiter,

@@ -9,6 +9,7 @@ import { logoutUser } from "../services/logout.js";
 import { requestPasswordReset } from "../services/requestPasswordReset.js";
 import { resetPassword as resetPasswordService } from "../services/resetPassword.js";
 import { changePassword as changePasswordService } from "../services/changePassword.js";
+import { getUserById } from "../services/getUserById.js";
 import {
   setAuthCookies,
   clearAuthCookies,
@@ -189,4 +190,17 @@ export async function logout(req: Request, res: Response): Promise<void> {
   res
     .status(StatusCodes.OK)
     .json({ success: true, message: "Logged out successfully" });
+}
+
+export async function getCurrentUser(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const userId = req.user!.id;
+  const user = await getUserById(userId);
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: user,
+  });
 }
