@@ -33,7 +33,7 @@ import { createSwaggerSpec } from "./config/swagger.js";
 import { getEnvConfig } from "./config/env.js";
 
 export async function buildApp(): Promise<Express> {
-  const { proxy, jwt, env, mcp } = getEnvConfig();
+  const { proxy, env, mcp } = getEnvConfig();
   const isProd = env === "production";
   const graphqlMiddleware = await createGraphQLMiddleware();
   const { ipLimiter } = createRateLimiters();
