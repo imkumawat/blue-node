@@ -1,4 +1,3 @@
-import { v7 as uuidv7 } from "uuid";
 import { getEnvConfig } from "../../../config/env.js";
 import { getRedis } from "../../../lib/cache/redis/client.js";
 import logger from "../../../utils/logger.js";
@@ -6,12 +5,7 @@ import { sha256 } from "../../../shared/utils/crypto.js";
 import { findUserByEmail } from "../lib/userQueries.js";
 import { verifyPassword } from "../../../shared/utils/password.js";
 import { getScopes } from "../lib/permissionQueries.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  storeRefreshToken,
-} from "../lib/tokenService.js";
-import type { IssuedToken } from "../lib/tokenService.js";
+
 import {
   InvalidCredentialsError,
   EmailNotVerifiedError,
@@ -23,6 +17,8 @@ import {
 import { assessLoginRisk } from "./assessLoginRisk.js";
 import { verifyCaptcha } from "../../../lib/captcha/index.js";
 import type { User } from "../../../models/postgres/user/user.js";
+import { createSession } from "./createSession.js";
+import type { SessionCredentials } from "./createSession.js";
 
 // Pre-computed bcrypt hash (cost 12) — running a dummy compare when the user
 // is not found ensures both "email not found" and "wrong password" paths take
@@ -34,13 +30,14 @@ interface LoginInput {
   email: string;
   password: string;
   ipAddress: string;
+  /** Recorded on the session so a person can recognise the device in a list. */
+  userAgent: string | null;
   captchaToken?: string;
 }
 
 interface LoginResult {
   user: User;
-  access: IssuedToken;
-  refresh: IssuedToken;
+  credentials: SessionCredentials;
 }
 
 /**
@@ -142,10 +139,9 @@ export async function loginWithPassword({
   email,
   password,
   ipAddress,
+  userAgent,
   captchaToken,
 }: LoginInput): Promise<LoginResult> {
-  const { userAudience } = getEnvConfig().jwt;
-
   // 1. Pre-check lockout + CAPTCHA gate BEFORE expensive bcrypt — fail fast
   await assertAccNotLocked(email, ipAddress, captchaToken);
 
@@ -179,24 +175,12 @@ export async function loginWithPassword({
   // surveillance signal.
   await clearFailedAttempts(email, ipAddress);
 
-  const scopes = await getScopes(user.id);
-  const sessionId = uuidv7();
-  const access = generateAccessToken(userAudience, {
-    sub: user.id,
-    scopes,
-    sid: sessionId,
-  });
-  const refresh = generateRefreshToken(userAudience, {
-    sub: user.id,
-    sid: sessionId,
-  });
-  await storeRefreshToken(
-    user.id,
-    refresh.jti,
-    refresh.expiresAt,
-    access.jti,
-    access.expiresAt,
-  );
+  const credentials = await createSession({
+    userId: user.id,
 
-  return { user, access, refresh };
+    userAgent,
+    ipAddress,
+  });
+
+  return { user, credentials };
 }

@@ -49,7 +49,7 @@ export interface CreateSessionParams {
  * The session tracks the REFRESH lifetime, not the access one: it is how long the
  * device may stay signed in, not how long one credential lives.
  */
-export async function createNewSession(
+export async function createSession(
   params: CreateSessionParams,
 ): Promise<SessionCredentials> {
   const { accessExpiry, refreshExpiry, refreshPrefix, pepper } =

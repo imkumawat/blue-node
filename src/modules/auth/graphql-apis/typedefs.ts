@@ -2,6 +2,9 @@ export const authTypeDefs: string = `#graphql
   type User {
     id: ID!
     email: String!
+    firstName: String!
+    lastName: String!
+    status: String!
     createdAt: String!
   }
 

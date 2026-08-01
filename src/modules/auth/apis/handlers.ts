@@ -143,14 +143,15 @@ export async function loginPrecheck(
 export async function login(req: Request, res: Response): Promise<void> {
   const { email, password, captchaToken } = req.body as LoginInput;
 
-  const { user, access, refresh } = await loginWithPassword({
+  const { user, credentials } = await loginWithPassword({
     email,
     password,
     ipAddress: getClientIp(req),
+    userAgent: req.headers["user-agent"] ?? null,
     captchaToken,
   });
 
-  setAuthCookies(res, access.token, refresh.token);
+  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
   res.status(StatusCodes.OK).json({
     success: true,
     data: {
