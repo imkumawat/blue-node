@@ -362,19 +362,23 @@ export async function postAuthorize(
     let session: Session;
     try {
       const { jwt } = getEnvConfig();
-      const { user, access, refresh } = await loginWithPassword({
+      const { user, credentials } = await loginWithPassword({
         email,
         password,
         ipAddress: getClientIp(req),
+        userAgent: req.headers["user-agent"] ?? null,
       });
 
       // The browser session is established for real, not just for this hop — so
       // the next app, or this one again, skips the login step entirely.
-      setAuthCookies(res, access.token, refresh.token);
+      setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
 
       // Scopes come from the token just minted rather than a second permission
       // lookup: it is the authoritative statement of what this session carries.
-      const authUser = await verifyToken(access.token, jwt.userAudience);
+      const authUser = await verifyToken(
+        credentials.accessToken,
+        jwt.userAudience,
+      );
       session = {
         userId: user.id,
         userEmail: user.email,
