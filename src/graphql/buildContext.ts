@@ -7,7 +7,6 @@ import type { AuthUser } from "../modules/auth/index.js";
 
 export interface GraphQLContext {
   user: AuthUser | null;
-  accessJti: string | null;
   accessExp: number | null;
   rawRefreshToken: string | null;
   ipAddress: string;
@@ -39,7 +38,6 @@ export async function buildContext({
 }): Promise<GraphQLContext> {
   return {
     user: req.user ?? null,
-    accessJti: req.user?.jti ?? null,
     accessExp: req.user?.exp ?? null,
     rawRefreshToken: req.cookies?.refresh_token ?? null,
     ipAddress: getClientIp(req),

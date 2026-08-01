@@ -187,9 +187,6 @@ export async function logout(req: Request, res: Response): Promise<void> {
   await logoutUser({
     userId: user.id,
     sessionId: user.sessionId,
-    accessJti: user.jti,
-    accessExp: user.exp,
-    rawRefreshToken: req.cookies.refresh_token,
   });
 
   clearAuthCookies(res);

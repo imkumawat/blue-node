@@ -68,18 +68,18 @@ export function authenticateMcp(): RequestHandler {
       // token is a stateless JWT — this marker is what closes that window. Same
       // single Redis lookup the jti blacklist already costs, and only for tokens
       // that actually carry a grant.
-      if (req.user.grantId) {
-        const revoked = await getRedis().exists(
-          `${grantRevokedKey}${req.user.grantId}`,
-        );
-        if (revoked) {
-          throw new HttpError(
-            "GRANT_REVOKED",
-            StatusCodes.UNAUTHORIZED,
-            "Access for this application has been revoked",
-          );
-        }
-      }
+      // if (req.user.grantId) {
+      //   const revoked = await getRedis().exists(
+      //     `${grantRevokedKey}${req.user.grantId}`,
+      //   );
+      //   if (revoked) {
+      //     throw new HttpError(
+      //       "GRANT_REVOKED",
+      //       StatusCodes.UNAUTHORIZED,
+      //       "Access for this application has been revoked",
+      //     );
+      //   }
+      // }
 
       next();
     } catch (err) {

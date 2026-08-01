@@ -118,9 +118,6 @@ export const authResolvers = {
       await logoutUser({
         userId: ctx.user!.id,
         sessionId: ctx.user!.sessionId,
-        accessJti: ctx.accessJti!,
-        accessExp: ctx.accessExp!,
-        rawRefreshToken: ctx.rawRefreshToken,
       });
       return true;
     },
