@@ -88,7 +88,7 @@ export async function touchSession(
 ): Promise<Session | null> {
   const [row] = await getDb()
     .update(sessions)
-    .set({ tokenHash, lastUsedAt: new Date(), expiresAt })
+    .set({ tokenHash, rotatedAt: null, lastUsedAt: new Date(), expiresAt })
     .where(and(eq(sessions.id, id), gt(sessions.expiresAt, new Date())))
     .returning();
 
