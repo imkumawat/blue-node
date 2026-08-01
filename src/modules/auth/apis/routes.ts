@@ -66,7 +66,7 @@ export function createAuthRoutes(): Router {
     refreshSession,
   );
   router.post(
-    "/v1/auth/logout",
+    "/v1/auth/logout-session",
     authenticate(),
     requireCookies("refresh_token"),
     logout,
