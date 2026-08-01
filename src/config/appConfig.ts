@@ -76,6 +76,30 @@ export const JWT = {
   userRefreshExpiry: 604800, // 7d
   adminAccessExpiry: 3600, // 1h
   adminRefreshExpiry: 7200, // 2h
+
+  // Asymmetric signing, for tokens a party other than us has to verify.
+  // Kept in this block rather than a "jose" one on purpose: naming a config
+  // group after the library would make the name a lie the day the library
+  // changes.
+  //
+  // `alg` is a constant, not an env var: it has to move in lockstep with the key
+  // material (an RSA key cannot sign ES256), so an independent switch would only
+  // ever let the two drift apart.
+  alg: "RS256",
+
+  // Seconds of clock skew tolerated on verify. Fleets drift; 0 produces 401s
+  // that reproduce nowhere.
+  clockToleranceSec: 5,
+
+  // Where the public keys are served. A PUBLIC CONTRACT once it is advertised
+  // as `jwks_uri` in the authorization server metadata document.
+  jwksPath: "/.well-known/jwks.json",
+
+  // How long a verifier may cache the JWKS. This value sets the floor on a key
+  // rotation: after publishing a new key you must wait at least this long before
+  // signing with it, or a verifier holding a stale copy sees an unknown `kid`.
+  // Kept short for that reason — the cost is one small fetch every few minutes.
+  jwksCacheMaxAgeSec: 300, // 5 min
 } as const;
 
 export const AUTH = {

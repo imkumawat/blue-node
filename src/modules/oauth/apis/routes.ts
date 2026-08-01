@@ -4,6 +4,7 @@ import { getEnvConfig } from "../../../config/env.js";
 import {
   getAuthServerMetadata,
   getAuthorize,
+  getJwks,
   postAuthorize,
   postRegister,
   postToken,
@@ -18,7 +19,7 @@ import {
  * discovery document lie the moment a v2 appeared.
  */
 export function createOauthRouter(): Router {
-  const { oauth } = getEnvConfig();
+  const { jwt, oauth } = getEnvConfig();
   const router = Router();
 
   // The app-wide body parser is application/json ONLY. An HTML form submission
@@ -28,6 +29,11 @@ export function createOauthRouter(): Router {
   const form = express.urlencoded({ extended: false });
 
   router.get(oauth.metadataPath, getAuthServerMetadata);
+
+  // The signing keys belong to the authorization server, so they are served
+  // here rather than from a router of their own. Public and unguarded, like the
+  // metadata document above.
+  router.get(jwt.jwksPath, getJwks);
 
   router.get(oauth.authorizePath, getAuthorize);
   router.post(oauth.authorizePath, form, postAuthorize);

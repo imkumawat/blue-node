@@ -1,5 +1,6 @@
 import { envSchema } from "./schema.js";
 import type { EnvConfig } from "./schema.js";
+import type { JWK } from "jose";
 import logger from "../utils/logger.js";
 import {
   JWT,
@@ -62,17 +63,17 @@ export type AppConfig = {
     db: string;
     options: typeof MONGO;
   };
+  // `& typeof JWT` rather than re-listing the appConfig fields: the block is
+  // spread in below, so restating its shape here only creates a second place to
+  // forget. Same pattern as `tokens` and `mongo.options`.
   jwt: {
     userSecret: string;
     adminSecret: string;
     issuer: string;
-    adminAudience: string;
-    userAudience: string;
-    userAccessExpiry: number;
-    userRefreshExpiry: number;
-    adminAccessExpiry: number;
-    adminRefreshExpiry: number;
-  };
+    // Newest first — signingKeys[0] is the active signer, the rest are kept so
+    // tokens issued before the last rotation still verify.
+    signingKeys: JWK[];
+  } & typeof JWT;
   tokens: { pepper: string } & typeof TOKENS;
   swagger: { user: string | undefined; password: string | undefined };
   cors: { allowedOrigins: string };
@@ -99,11 +100,9 @@ export type AppConfig = {
   routes: typeof ROUTES;
   ws: typeof WS;
   mcp: {
-    enabled: boolean;
-    resourceUri: string | undefined;
-    authServerUrl: string | undefined;
+    resourceUri: string;
   } & typeof MCP;
-  oauth: typeof OAUTH;
+  oauth: { oauthServerUrl: string } & typeof OAUTH;
   mqtt: {
     url: string;
     username: string | undefined;
@@ -219,6 +218,7 @@ export default async function loadEnv(
       userSecret: e.JWT_USER_SECRET,
       adminSecret: e.JWT_ADMIN_SECRET,
       issuer: e.JWT_ISSUER,
+      signingKeys: e.JWT_SIGNING_KEYS,
       ...JWT,
     },
     // Separate group, not folded into `jwt`: this pepper has nothing to do with
@@ -252,12 +252,11 @@ export default async function loadEnv(
     routes: ROUTES,
     ws: WS,
     mcp: {
-      enabled: e.MCP_ENABLED === "true",
       resourceUri: e.MCP_RESOURCE_URI,
-      authServerUrl: e.MCP_AUTH_SERVER_URL,
+
       ...MCP,
     },
-    oauth: OAUTH,
+    oauth: { oauthServerUrl: e.OAUTH_SERVER_URL, ...OAUTH },
     mqtt: {
       url: e.MQTT_URL,
       username: e.MQTT_USERNAME,

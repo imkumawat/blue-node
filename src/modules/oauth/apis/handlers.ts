@@ -7,6 +7,7 @@ import { setAuthCookies } from "../../../shared/utils/cookies.js";
 import { SCOPES } from "../../../shared/constants/scopes.js";
 import type { Scope } from "../../../shared/constants/scopes.js";
 import { HttpError } from "../../../shared/errors/HttpError.js";
+import { getPublicJwks } from "../../../shared/utils/jose.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
 import {
   getUserById,
@@ -599,14 +600,37 @@ export async function postRegister(req: Request, res: Response): Promise<void> {
  * grant_types_supported lists both grants now that the refresh flow exists —
  * advertising one that isn't implemented is worse than omitting it.
  */
+/**
+ * JWKS — the public half of every key we sign with (RFC 7517).
+ *
+ * Public and unauthenticated by necessity: a verifier fetches this precisely
+ * because it holds nothing but a token. Only public members are served; the
+ * private ones are stripped when the keys are loaded, not here, so there is no
+ * way for this handler to leak one by accident.
+ *
+ * ALL loaded keys are published, not just the active signer. A verifier holding
+ * a token signed before the last rotation must still be able to find its `kid`.
+ *
+ * Cache-Control is not decoration: it is the contract that makes rotation safe.
+ * A verifier caches this document, so a newly published key is only reliably
+ * known to everyone after the max-age has passed — which is why signing with a
+ * new key has to wait that long.
+ */
+export function getJwks(_req: Request, res: Response): void {
+  const { jwt } = getEnvConfig();
+
+  res.set("Cache-Control", `public, max-age=${jwt.jwksCacheMaxAgeSec}`);
+  res.json(getPublicJwks());
+}
+
 export function getAuthServerMetadata(_req: Request, res: Response): void {
-  const { jwt, oauth } = getEnvConfig();
+  const { oauth } = getEnvConfig();
 
   res.json({
-    issuer: jwt.issuer,
-    authorization_endpoint: `${jwt.issuer}${oauth.authorizePath}`,
-    token_endpoint: `${jwt.issuer}${oauth.tokenPath}`,
-    registration_endpoint: `${jwt.issuer}${oauth.registerPath}`,
+    issuer: oauth.oauthServerUrl,
+    authorization_endpoint: `${oauth.oauthServerUrl}${oauth.authorizePath}`,
+    token_endpoint: `${oauth.oauthServerUrl}${oauth.tokenPath}`,
+    registration_endpoint: `${oauth.oauthServerUrl}${oauth.registerPath}`,
     scopes_supported: Object.values(SCOPES),
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
