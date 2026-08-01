@@ -1,6 +1,7 @@
 import {
   pgTable,
   uuid,
+  char,
   varchar,
   text,
   timestamp,
@@ -33,6 +34,8 @@ export const sessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+
+    tokenHash: char("token_hash", { length: 64 }).unique(),
 
     // No portal/audience column, deliberately. An "admin" here is not a separate
     // population — there is one users table, and admin_access is a SCOPE. So a
@@ -67,6 +70,11 @@ export const sessions = pgTable(
       .defaultNow()
       .notNull(),
 
+    // NULL = live and never used. Set = this jti was consumed by a rotation;
+    // any later presentation is reuse and must trip the family revoke. The row
+    // is the sole source of truth for rotation state (no companion Redis key).
+    rotatedAt: timestamp("rotated_at", { withTimezone: true }),
+
     // Tracks the refresh-token lifetime and slides forward on each refresh: this
     // is how long the DEVICE may stay signed in, not how long one credential
     // lives. No default — the caller derives it from the configured refresh
@@ -97,10 +105,12 @@ export type NewSession = typeof sessions.$inferInsert;
   CREATE TABLE sessions (
     id            UUID PRIMARY KEY,
     user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  CHAR(64) UNIQUE,             -- opaque rows: the credential's HMAC
     device_label  VARCHAR(120),
     user_agent    TEXT,
     ip_address    VARCHAR(45),
     last_used_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+     rotated_at  TIMESTAMPTZ,                       -- NULL = live; set = already rotated
     expires_at    TIMESTAMPTZ NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
