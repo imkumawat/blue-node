@@ -1,23 +1,24 @@
 import { Router } from "express";
+
 import {
+  loginPrecheck,
   signup,
   verifyEmail,
   login,
+  getCurrentUser,
   refreshSession,
   logout,
-  loginPrecheck,
+  changePassword,
   forgotPassword,
   resetPassword,
-  changePassword,
-  getCurrentUser,
 } from "./handlers.js";
 import {
   signupSchema,
-  loginSchema,
   verifyEmailSchema,
+  loginSchema,
+  changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  changePasswordSchema,
 } from "../schemas.js";
 import { validate } from "../../../shared/middlewares/validate.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
@@ -28,31 +29,42 @@ export function createAuthRoutes(): Router {
   const { authLimiter } = createRateLimiters();
   const router = Router();
 
-  // Pre-login risk check (IP-based) — FE calls before login to decide CAPTCHA
+  // auth routes risk detection
   router.post("/v1/auth/precheck", loginPrecheck);
+
+  // sign up api
   router.post("/v1/auth/signup", authLimiter, validate(signupSchema), signup);
+
+  // email verification post sign up
   router.post(
     "/v1/auth/verify-email",
     authLimiter,
     validate(verifyEmailSchema),
     verifyEmail,
   );
+
+  // password based login
   router.post("/v1/auth/login", authLimiter, validate(loginSchema), login);
 
+  // get profile
   router.get("/v1/user/me", authenticate(), getCurrentUser);
 
+  // reshes auth session
   router.post(
-    "/v1/auth/forgot-password",
-    authLimiter,
-    validate(forgotPasswordSchema),
-    forgotPassword,
+    "/v1/auth/refresh-session",
+    requireCookies("refresh_token"),
+    refreshSession,
   );
+
+  // logout session
   router.post(
-    "/v1/auth/reset-password",
-    authLimiter,
-    validate(resetPasswordSchema),
-    resetPassword,
+    "/v1/auth/logout-session",
+    authenticate(),
+    requireCookies("refresh_token"),
+    logout,
   );
+
+  // change current password
   router.post(
     "/v1/auth/change-password",
     authenticate(),
@@ -60,16 +72,21 @@ export function createAuthRoutes(): Router {
     validate(changePasswordSchema),
     changePassword,
   );
+
+  // forget password
   router.post(
-    "/v1/auth/refresh-session",
-    requireCookies("refresh_token"),
-    refreshSession,
+    "/v1/auth/forgot-password",
+    authLimiter,
+    validate(forgotPasswordSchema),
+    forgotPassword,
   );
+
+  // account password hard reset
   router.post(
-    "/v1/auth/logout-session",
-    authenticate(),
-    requireCookies("refresh_token"),
-    logout,
+    "/v1/auth/reset-password",
+    authLimiter,
+    validate(resetPasswordSchema),
+    resetPassword,
   );
 
   return router;
