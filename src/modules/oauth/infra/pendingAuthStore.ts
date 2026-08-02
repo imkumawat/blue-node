@@ -14,7 +14,7 @@ export interface PendingAuthorization {
   codeChallengeMethod: "S256";
   resource: string;
   state: string | null;
-  session: AuthSession | null;
+  authSession: AuthSession | null;
 }
 
 function key(ticket: string): string {

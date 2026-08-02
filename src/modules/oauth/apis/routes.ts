@@ -1,5 +1,7 @@
 import express, { Router } from "express";
 
+import { registerClientInput } from "../schemas.js";
+import { validate } from "../../../shared/middlewares/validate.js";
 import { getEnvConfig } from "../../../config/env.js";
 import {
   getAuthServerMetadata,
@@ -28,7 +30,7 @@ export function createOauthRouter(): Router {
 
   router.get(jwt.jwksPath, getJwks);
 
-  router.post(oauth.registerPath, postRegister);
+  router.post(oauth.registerPath, validate(registerClientInput), postRegister);
 
   router.get(oauth.authorizePath, getAuthorize);
   router.post(oauth.authorizePath, form, postAuthorize);

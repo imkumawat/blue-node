@@ -1,6 +1,9 @@
-import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
+import {
+  redirectWithAuthorizationCode,
+  redirectWithAuthorizationError,
+} from "../../../utils/redirectWith.js";
 import { getEnvConfig } from "../../../config/env.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { setAuthCookies } from "../../../shared/utils/cookies.js";
@@ -10,14 +13,7 @@ import { getPublicJwks } from "../../../shared/utils/jose.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
 import { loginWithPassword, verifySessionToken } from "../../auth/index.js";
 
-import type { AuthSession } from "../../auth/index.js";
-
-import {
-  authorizeInput,
-  refreshTokenInput,
-  registerClientInput,
-  tokenInput,
-} from "../schemas.js";
+import { authorizeInput, refreshTokenInput, tokenInput } from "../schemas.js";
 import {
   AuthorizeRedirectError,
   InvalidRedirectUriError,
@@ -38,41 +34,11 @@ import { completeAuthorization } from "../services/completeAuthorization.js";
 import { exchangeCode } from "../services/exchangeCode.js";
 import { refreshGrantTokens } from "../services/refreshGrantTokens.js";
 import { registerClient } from "../services/registerClient.js";
+import { resolveSession } from "../services/resolveSession.js";
 
-function redirectWithCode(
-  res: Response,
-  redirectUri: string,
-  state: string | null,
-  code: string,
-): void {
-  const url = new URL(redirectUri);
-  url.searchParams.set("code", code);
-  if (state) url.searchParams.set("state", state);
-  res.redirect(url.toString());
-}
-
-function redirectWithError(
-  res: Response,
-  redirectUri: string,
-  state: string | null,
-  error: string,
-  description: string,
-): void {
-  const url = new URL(redirectUri);
-  url.searchParams.set("error", error);
-  url.searchParams.set("error_description", description);
-  if (state) url.searchParams.set("state", state);
-  res.redirect(url.toString());
-}
-
-async function resolveSession(req: Request): Promise<AuthSession | null> {
-  const token = req.cookies?.access_token as string | undefined;
-  if (!token) return null;
-
-  const record = await verifySessionToken(token);
-  if (!record) return null;
-  return record;
-}
+import type { Request, Response } from "express";
+import type { AuthSession } from "../../auth/index.js";
+import type { RegisterClientInput } from "../schemas.js";
 
 export function getAuthServerMetadata(_req: Request, res: Response): void {
   const { oauth } = getEnvConfig();
@@ -98,9 +64,7 @@ export function getJwks(_req: Request, res: Response): void {
 }
 
 export async function postRegister(req: Request, res: Response): Promise<void> {
-  const client = await registerClient(
-    parseInput(registerClientInput, req.body),
-  );
+  const client = await registerClient(req.body as RegisterClientInput);
 
   // RFC 7591 §3.2.1: client_id is required, and the server echoes back the
   // metadata it actually registered — which may differ from what was requested.
@@ -119,9 +83,9 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
   const input = parseInput(authorizeInput, req.query);
   try {
     const oAuthRequest = await validateAuthorizeRequest(input);
-    const session = await resolveSession(req);
+    const authSession = await resolveSession(req);
 
-    if (!session) {
+    if (!authSession) {
       // storing in flight is the only way to get back here after login,
       const ticket = await createPending(JSON.stringify(oAuthRequest));
       res
@@ -131,14 +95,14 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
     }
 
     const decision = await resolveGrant({
-      userId: session.userId,
+      userId: authSession.userId,
       clientId: oAuthRequest.client.id,
       requestedScopes: oAuthRequest.scopes,
     });
 
     if (!decision.needsConsent) {
       const code = await completeAuthorization({
-        userId: session.userId,
+        userId: authSession.userId,
         clientId: oAuthRequest.client.id,
         redirectUri: oAuthRequest.redirectUri,
         scopes: oAuthRequest.scopes,
@@ -146,13 +110,17 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
         codeChallengeMethod: oAuthRequest.codeChallengeMethod,
         resource: oAuthRequest.resource,
       });
-      redirectWithCode(res, oAuthRequest.redirectUri, oAuthRequest.state, code);
+
+      redirectWithAuthorizationCode(res, oAuthRequest.redirectUri, {
+        state: oAuthRequest.state,
+        code,
+      });
       return;
     }
 
     // storing in flight is the only way to get back here after login,
     const ticket = await createPending(
-      JSON.stringify({ ...oAuthRequest, session: session }),
+      JSON.stringify({ ...oAuthRequest, authSession: authSession }),
     );
     res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
@@ -166,13 +134,11 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
     // against the client's registered list, so sending the user there is safe by
     // construction. input.redirect_uri is the verified value.
     if (err instanceof AuthorizeRedirectError) {
-      redirectWithError(
-        res,
-        input.redirect_uri,
-        input.state ?? null,
-        err.code,
-        err.message,
-      );
+      redirectWithAuthorizationError(res, input.redirect_uri, {
+        state: input.state ?? null,
+        error: err.code,
+        error_description: err.message,
+      });
 
       return;
     }
@@ -221,7 +187,7 @@ export async function postAuthorize(
   }
 
   // ── login stage ───────────────────────────────────────────────────────────
-  if (pending.session === null) {
+  if (pending.authSession === null) {
     if (!email || !password) {
       res.status(StatusCodes.BAD_REQUEST).json({
         message: "Enter your email and password.",
@@ -229,7 +195,7 @@ export async function postAuthorize(
       return;
     }
 
-    let session: AuthSession | null;
+    let authSession: AuthSession | null;
     try {
       const { credentials } = await loginWithPassword({
         email,
@@ -245,8 +211,8 @@ export async function postAuthorize(
 
       const record = await verifySessionToken(credentials.accessToken);
 
-      session = record;
-      pending.session = record;
+      authSession = record;
+      pending.authSession = record;
     } catch (err) {
       // Wrong credentials, lockout and the CAPTCHA gate all land here. The
       // message is whatever the auth module already decided is safe to show.
@@ -261,7 +227,7 @@ export async function postAuthorize(
     }
 
     const decision = await resolveGrant({
-      userId: session!.userId,
+      userId: authSession!.userId,
       clientId: pending.client.id,
       requestedScopes: pending.scopes,
     });
@@ -278,7 +244,7 @@ export async function postAuthorize(
       }
 
       const code = await completeAuthorization({
-        userId: session!.userId,
+        userId: authSession!.userId,
         clientId: consumed.client.id,
         redirectUri: consumed.redirectUri,
         scopes: consumed.scopes,
@@ -286,11 +252,17 @@ export async function postAuthorize(
         codeChallengeMethod: consumed.codeChallengeMethod,
         resource: consumed.resource,
       });
-      redirectWithCode(res, consumed.redirectUri, consumed.state, code);
+      redirectWithAuthorizationCode(res, consumed.redirectUri, {
+        state: consumed.state,
+        code,
+      });
       return;
     }
 
-    await attachUser(ticket, JSON.stringify({ ...pending, session: session }));
+    await attachUser(
+      ticket,
+      JSON.stringify({ ...pending, authSession: authSession }),
+    );
     res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
       clientName: pending.client.clientName,
@@ -314,18 +286,17 @@ export async function postAuthorize(
   if (decision !== "allow") {
     // Deny goes BACK to the client rather than to an error page: the redirect URI
     // is verified by now, and the app is entitled to know it was refused.
-    redirectWithError(
-      res,
-      consumed.redirectUri,
-      consumed.state,
-      "access_denied",
-      "The user denied the request",
-    );
+
+    redirectWithAuthorizationError(res, consumed.redirectUri, {
+      state: consumed.state,
+      error: "access_denied",
+      error_description: "The user denied the request",
+    });
     return;
   }
 
   const code = await completeAuthorization({
-    userId: consumed.session!.userId,
+    userId: consumed.authSession!.userId,
     clientId: consumed.client.id,
     redirectUri: consumed.redirectUri,
     scopes: consumed.scopes,
@@ -333,7 +304,10 @@ export async function postAuthorize(
     codeChallengeMethod: consumed.codeChallengeMethod,
     resource: consumed.resource,
   });
-  redirectWithCode(res, consumed.redirectUri, consumed.state, code);
+  redirectWithAuthorizationCode(res, consumed.redirectUri, {
+    state: consumed.state,
+    code,
+  });
   return;
 }
 
