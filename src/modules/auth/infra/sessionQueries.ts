@@ -37,13 +37,6 @@ export async function findSession(id: string): Promise<Session | null> {
   return row ?? null;
 }
 
-/**
- * Powers the "where you're logged in" screen. Most recently active first.
- *
- * Expired rows are excluded rather than left to the sweep: a session past its
- * expiry is already dead, and showing it would tell someone they are signed in
- * on a device where they are not.
- */
 export async function listSessions(userId: string): Promise<Session[]> {
   return getDb()
     .select()
@@ -52,12 +45,6 @@ export async function listSessions(userId: string): Promise<Session[]> {
     .orderBy(desc(sessions.lastUsedAt));
 }
 
-/**
- * Ids only — what revoke-all needs to build its Redis DEL.
- *
- * Expired rows are INCLUDED here, unlike listSessions: their access-token keys
- * may still be live in Redis, and deleting an already-absent key is free.
- */
 export async function listSessionIds(userId: string): Promise<string[]> {
   const rows = await getDb()
     .select({ id: sessions.id })
@@ -67,20 +54,6 @@ export async function listSessionIds(userId: string): Promise<string[]> {
   return rows.map((row) => row.id);
 }
 
-/**
- * Slides the session forward and stamps activity — and doubles as the existence
- * check for the refresh path.
- *
- * Returns null when no live session matched, and callers MUST treat that as a
- * refusal to mint. The reason is a race that a read-then-write cannot close: a
- * refresh reads the session, the user signs that device out in another tab, and
- * the refresh then writes an access token into Redis under a session id that no
- * longer exists. Nothing on the read path consults this table, so that orphan
- * token would keep working until its TTL ran out.
- *
- * Making the UPDATE itself conditional on `expires_at > now()` collapses exists,
- * not-expired and slide into one atomic statement, so there is no window to lose.
- */
 export async function touchSession(
   id: string,
   tokenHash: string,
@@ -110,14 +83,6 @@ export async function rotateSession(hash: string): Promise<Session | null> {
   return rotated ?? null;
 }
 
-/**
- * Ends one session. Returns false when nothing matched, so a caller can answer
- * 404 rather than a misleading success.
- *
- * Scoped by user_id as well as id: a session id is not a capability — it travels
- * in plain sight inside every access token — so without this scope anyone
- * holding another user's id could end their session.
- */
 export async function deleteSession(
   id: string,
   userId: string,
@@ -130,15 +95,6 @@ export async function deleteSession(
   return deleted.length > 0;
 }
 
-/**
- * Sign out everywhere. Returns the ids that were actually deleted, so the caller
- * can clear their Redis access-token keys.
- *
- * The ids come from the DELETE itself rather than a SELECT beforehand: a login
- * landing between the two would have its row deleted here while its `at:<sid>`
- * key survived, and nothing on the read path consults this table — so that orphan
- * token would keep working until its TTL ran out. Same reasoning as touchSession.
- */
 export async function deleteAllSessions(userId: string): Promise<string[]> {
   const deleted = await getDb()
     .delete(sessions)
@@ -148,10 +104,6 @@ export async function deleteAllSessions(userId: string): Promise<string[]> {
   return deleted.map((row) => row.id);
 }
 
-/**
- * The expiry sweep, for a scheduled job. Cheap because of
- * sessions_expires_at_idx; returns the count so the job has something to log.
- */
 export async function pruneExpiredSessions(): Promise<number> {
   const deleted = await getDb()
     .delete(sessions)
