@@ -1,28 +1,41 @@
-import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
+
+import { assessLoginRisk } from "../services/assessLoginRisk.js";
 import { registerUser } from "../services/registerUser.js";
 import { verifyEmail as verifyEmailService } from "../services/verifyEmail.js";
 import { loginWithPassword } from "../services/loginWithPassword.js";
-import { assessLoginRisk } from "../services/assessLoginRisk.js";
+import { getUserById } from "../services/getUserById.js";
 import { renewSession } from "../services/renewSession.js";
 import { logoutUser } from "../services/logout.js";
+import { changePassword as changePasswordService } from "../services/changePassword.js";
 import { requestPasswordReset } from "../services/requestPasswordReset.js";
 import { resetPassword as resetPasswordService } from "../services/resetPassword.js";
-import { changePassword as changePasswordService } from "../services/changePassword.js";
-import { getUserById } from "../services/getUserById.js";
+
 import {
   setAuthCookies,
   clearAuthCookies,
 } from "../../../shared/utils/cookies.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
+
+import type { Request, Response } from "express";
 import type {
   SignupInput,
-  LoginInput,
   VerifyEmailInput,
+  LoginInput,
+  ChangePasswordInput,
   ForgotPasswordInput,
   ResetPasswordInput,
-  ChangePasswordInput,
 } from "../schemas.js";
+
+export async function loginPrecheck(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  // Pre-login risk check (CLIENT/IP-based) — FE calls this before showing the
+  // login form to decide whether to render a CAPTCHA. Not account-gated.
+  const risk = await assessLoginRisk(getClientIp(req));
+  res.status(StatusCodes.OK).json({ success: true, data: risk });
+}
 
 export async function signup(req: Request, res: Response): Promise<void> {
   const { email, password, consents, firstName, lastName } =
@@ -67,6 +80,90 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
   });
 }
 
+export async function login(req: Request, res: Response): Promise<void> {
+  const { email, password, captchaToken } = req.body as LoginInput;
+
+  const { user, credentials } = await loginWithPassword({
+    email,
+    password,
+    ipAddress: getClientIp(req),
+    userAgent: req.headers["user-agent"] ?? null,
+    captchaToken,
+  });
+
+  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        status: user.status,
+        createdAt: user.createdAt,
+      },
+    },
+  });
+}
+
+export async function getCurrentUser(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const userId = req.session!.userId;
+  const user = await getUserById(userId);
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    data: { user },
+  });
+}
+
+export async function refreshSession(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const credentials = await renewSession(req.cookies.refresh_token);
+
+  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
+  res
+    .status(StatusCodes.OK)
+    .json({ success: true, message: "Session refreshed" });
+}
+
+export async function logout(req: Request, res: Response): Promise<void> {
+  const user = req.session!;
+  await logoutUser({
+    userId: user.userId,
+    sessionId: user.sessionId,
+  });
+
+  clearAuthCookies(res);
+  res
+    .status(StatusCodes.OK)
+    .json({ success: true, message: "Logged out successfully" });
+}
+
+export async function changePassword(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { currentPassword, newPassword } = req.body as ChangePasswordInput;
+
+  await changePasswordService({
+    userId: req.session!.userId,
+    currentPassword,
+    newPassword,
+  });
+
+  // All sessions were revoked — clear this client's cookies too so the FE
+  // re-authenticates with the new password.
+  clearAuthCookies(res);
+  res.status(StatusCodes.OK).json({
+    success: true,
+    message: "Password changed. Please log in again.",
+  });
+}
+
 export async function forgotPassword(
   req: Request,
   res: Response,
@@ -96,99 +193,5 @@ export async function resetPassword(
   res.status(StatusCodes.OK).json({
     success: true,
     message: "Password reset successful. Please log in.",
-  });
-}
-
-export async function changePassword(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const { currentPassword, newPassword } = req.body as ChangePasswordInput;
-
-  await changePasswordService({
-    userId: req.session!.userId,
-    currentPassword,
-    newPassword,
-  });
-
-  // All sessions were revoked — clear this client's cookies too so the FE
-  // re-authenticates with the new password.
-  clearAuthCookies(res);
-  res.status(StatusCodes.OK).json({
-    success: true,
-    message: "Password changed. Please log in again.",
-  });
-}
-
-export async function loginPrecheck(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  // Pre-login risk check (CLIENT/IP-based) — FE calls this before showing the
-  // login form to decide whether to render a CAPTCHA. Not account-gated.
-  const risk = await assessLoginRisk(getClientIp(req));
-  res.status(StatusCodes.OK).json({ success: true, data: risk });
-}
-
-export async function login(req: Request, res: Response): Promise<void> {
-  const { email, password, captchaToken } = req.body as LoginInput;
-
-  const { user, credentials } = await loginWithPassword({
-    email,
-    password,
-    ipAddress: getClientIp(req),
-    userAgent: req.headers["user-agent"] ?? null,
-    captchaToken,
-  });
-
-  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
-  res.status(StatusCodes.OK).json({
-    success: true,
-    data: {
-      user: {
-        id: user.id,
-        email: user.email,
-        status: user.status,
-        createdAt: user.createdAt,
-      },
-    },
-  });
-}
-
-export async function refreshSession(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const credentials = await renewSession(req.cookies.refresh_token);
-
-  setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
-  res
-    .status(StatusCodes.OK)
-    .json({ success: true, message: "Session refreshed" });
-}
-
-export async function logout(req: Request, res: Response): Promise<void> {
-  const user = req.session!;
-  await logoutUser({
-    userId: user.userId,
-    sessionId: user.sessionId,
-  });
-
-  clearAuthCookies(res);
-  res
-    .status(StatusCodes.OK)
-    .json({ success: true, message: "Logged out successfully" });
-}
-
-export async function getCurrentUser(
-  req: Request,
-  res: Response,
-): Promise<void> {
-  const userId = req.session!.userId;
-  const user = await getUserById(userId);
-
-  res.status(StatusCodes.OK).json({
-    success: true,
-    data: user,
   });
 }

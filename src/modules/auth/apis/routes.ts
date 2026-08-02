@@ -20,6 +20,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "../schemas.js";
+
 import { validate } from "../../../shared/middlewares/validate.js";
 import { authenticate } from "../../../shared/middlewares/authenticate.js";
 import { requireCookies } from "../../../shared/middlewares/requireCookies.js";
