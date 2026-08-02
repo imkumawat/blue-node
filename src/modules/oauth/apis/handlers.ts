@@ -20,12 +20,13 @@ import {
   TokenRequestError,
   UnknownClientError,
 } from "../errors.js";
+
 import {
-  attachUser,
-  consumePending,
-  createPending,
-  readPending,
-} from "../infra/pendingAuthStore.js";
+  createPendingAuthorizationRequest,
+  readPendingAuthorizationRequest,
+  updatePendingAuthorizationRequest,
+  consumePendingAuthorizationRequest,
+} from "../infra/oauthTokenStore.js";
 import {
   resolveGrant,
   validateAuthorizeRequest,
@@ -86,11 +87,13 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
     const authSession = await resolveSession(req);
 
     if (!authSession) {
-      // storing in flight is the only way to get back here after login,
-      const ticket = await createPending(JSON.stringify(oAuthRequest));
+      const ticket = await createPendingAuthorizationRequest({
+        ...oAuthRequest,
+        authSession: null,
+      });
       res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ ticket, message: "ShowLoginScreen" });
+        .json({ ticket, oAuthRequest, message: "ShowLoginScreen" });
       return;
     }
 
@@ -119,12 +122,13 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
     }
 
     // storing in flight is the only way to get back here after login,
-    const ticket = await createPending(
-      JSON.stringify({ ...oAuthRequest, authSession: authSession }),
-    );
+    const ticket = await createPendingAuthorizationRequest({
+      ...oAuthRequest,
+      authSession: authSession,
+    });
     res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
-      clientName: oAuthRequest.client.clientName,
+      oAuthRequest,
       message: "ShowConsentScreen",
       requiredGrants: decision.requiredGrants,
     });
@@ -176,7 +180,7 @@ export async function postAuthorize(
     return;
   }
 
-  const pending = await readPending(ticket);
+  const pending = await readPendingAuthorizationRequest(ticket);
   if (!pending) {
     res.status(StatusCodes.BAD_REQUEST).json({
       message: "This request expired",
@@ -209,17 +213,14 @@ export async function postAuthorize(
       // the next app, or this one again, skips the login step entirely.
       setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
 
-      const record = await verifySessionToken(credentials.accessToken);
-
-      authSession = record;
-      pending.authSession = record;
+      authSession = await verifySessionToken(credentials.accessToken);
+      pending.authSession = authSession;
     } catch (err) {
       // Wrong credentials, lockout and the CAPTCHA gate all land here. The
       // message is whatever the auth module already decided is safe to show.
       res.status(StatusCodes.UNAUTHORIZED).json({
-        clientName: pending.client.clientName,
+        oAuthRequest: pending,
         ticket,
-        formAction: oauth.authorizePath,
         message: err instanceof HttpError ? err.message : "Sign in failed.",
       });
 
@@ -227,14 +228,14 @@ export async function postAuthorize(
     }
 
     const decision = await resolveGrant({
-      userId: authSession!.userId,
+      userId: pending.authSession!.userId,
       clientId: pending.client.id,
       requestedScopes: pending.scopes,
     });
 
     if (!decision.needsConsent) {
       // An earlier grant already covers everything asked for — no second screen.
-      const consumed = await consumePending(ticket);
+      const consumed = await consumePendingAuthorizationRequest(ticket);
       if (!consumed) {
         res.status(StatusCodes.BAD_REQUEST).json({
           message: "This request expired",
@@ -244,7 +245,7 @@ export async function postAuthorize(
       }
 
       const code = await completeAuthorization({
-        userId: authSession!.userId,
+        userId: pending.authSession!.userId,
         clientId: consumed.client.id,
         redirectUri: consumed.redirectUri,
         scopes: consumed.scopes,
@@ -259,13 +260,13 @@ export async function postAuthorize(
       return;
     }
 
-    await attachUser(
-      ticket,
-      JSON.stringify({ ...pending, authSession: authSession }),
-    );
+    await updatePendingAuthorizationRequest(ticket, {
+      ...pending,
+      authSession: authSession,
+    });
     res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
-      clientName: pending.client.clientName,
+      oAuthRequest: pending,
       message: "ShowConsentScreen",
       requiredGrants: decision.requiredGrants,
     });
@@ -274,7 +275,7 @@ export async function postAuthorize(
   }
 
   // ── consent stage ─────────────────────────────────────────────────────────
-  const consumed = await consumePending(ticket);
+  const consumed = await consumePendingAuthorizationRequest(ticket);
   if (!consumed) {
     res.status(StatusCodes.BAD_REQUEST).json({
       message: "This request expired",
