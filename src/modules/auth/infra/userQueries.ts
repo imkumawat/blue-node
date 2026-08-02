@@ -63,11 +63,25 @@ export async function findUsersByIds(
   return ids.map((id) => byId.get(id) ?? null);
 }
 
-export async function updateUser(
+export async function updateUserProfile(
   userId: string,
   data: Partial<User>,
 ): Promise<void> {
   await getDb().update(users).set(data).where(eq(users.id, userId));
+}
+
+export async function updateUserStatus(
+  userId: string,
+  status: User["status"],
+): Promise<void> {
+  await getDb().update(users).set({ status }).where(eq(users.id, userId));
+}
+
+export async function updateUserPassword(
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  await getDb().update(users).set({ passwordHash }).where(eq(users.id, userId));
 }
 
 export async function deleteUser(userId: string): Promise<void> {
