@@ -38,7 +38,6 @@ import { registerClient } from "../services/registerClient.js";
 import { resolveSession } from "../services/resolveSession.js";
 
 import type { Request, Response } from "express";
-import type { AuthSession } from "../../auth/index.js";
 import type { RegisterClientInput } from "../schemas.js";
 
 export function getAuthServerMetadata(_req: Request, res: Response): void {
