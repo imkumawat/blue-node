@@ -168,6 +168,7 @@ export async function postAuthorize(
   req: Request,
   res: Response,
 ): Promise<void> {
+  const currentAuthSession = await resolveSession(req);
   const { ticket, decision, email, password, captchaToken } =
     req.body as Record<string, string | undefined>;
 
@@ -279,6 +280,17 @@ export async function postAuthorize(
     res.status(StatusCodes.BAD_REQUEST).json({
       message: "This request expired",
       error: "Start again from the app.",
+    });
+    return;
+  }
+
+  if (
+    currentAuthSession &&
+    currentAuthSession.userId !== consumed.authSession!.userId
+  ) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Account Mismatch",
+      error: "account_mismatch",
     });
     return;
   }
