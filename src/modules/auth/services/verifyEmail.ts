@@ -1,7 +1,7 @@
 import { findUserByEmail, updateUserStatus } from "../infra/userQueries.js";
 import { createSession } from "./createSession.js";
 import type { SessionCredentials } from "./createSession.js";
-import { verifyEmailVerificationCode } from "../infra/emailVerification.js";
+import { verifyEmailVerificationCode } from "../infra/tokenStore.js";
 import { InvalidVerificationCodeError } from "../errors.js";
 import type { PublicUser } from "../types.js";
 

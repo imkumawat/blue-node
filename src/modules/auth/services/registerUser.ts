@@ -7,7 +7,7 @@ import {
 import { findUserByEmail, createUser } from "../infra/userQueries.js";
 import { hashPassword } from "../../../shared/utils/password.js";
 import { logConsent } from "../infra/consentQueries.js";
-import { createEmailVerificationCode } from "../infra/emailVerification.js";
+import { createEmailVerificationCode } from "../infra/tokenStore.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,

@@ -1,6 +1,6 @@
 import { findUserByEmail, updateUserPassword } from "../infra/userQueries.js";
 import { deleteAllSessions } from "../infra/sessionQueries.js";
-import { verifyPasswordResetCode } from "../infra/passwordReset.js";
+import { verifyPasswordResetCode } from "../infra/tokenStore.js";
 import { hashPassword } from "../../../shared/utils/password.js";
 import {
   enqueueEmail,
