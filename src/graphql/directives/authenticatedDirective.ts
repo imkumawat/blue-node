@@ -10,7 +10,7 @@ import type { GraphQLContext } from "../buildContext.js";
  *
  * At schema-build time, this walks every object field once. For each field
  * tagged with `@authenticated`, it wraps that field's resolver so the request
- * must carry a logged-in user (ctx.user) before the field resolves; otherwise
+ * must carry a logged-in user (ctx.session) before the field resolves; otherwise
  * it throws InvalidTokenError (a 401-style error).
  *
  * Type-aware by construction: `X.field` and `Y.field` are distinct fieldConfig
@@ -36,7 +36,7 @@ export function authenticatedDirectiveTransformer(
 
       fieldConfig.resolve = (source, args, ctx: GraphQLContext, info) => {
         // Before resolving: a logged-in user is required.
-        if (!ctx.user) {
+        if (!ctx.session) {
           throw new InvalidTokenError();
         }
         // Authenticated → run the original resolver as normal.

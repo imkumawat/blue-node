@@ -13,7 +13,7 @@ export interface McpContext {
    * tool. `user.scopes` carries what the token was granted — that is what
    * per-tool authorization reads.
    */
-  user: AuthSession;
+  session: AuthSession;
   ipAddress: string;
   requestId: string;
   logger: Logger;
@@ -43,7 +43,7 @@ export function buildContext(req: Request): McpContext {
   }
 
   return {
-    user: req.session,
+    session: req.session,
     ipAddress: getClientIp(req),
     requestId: req.requestId!, // set by the requestId middleware, mounted app-wide
     logger: req.logger,

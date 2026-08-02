@@ -49,9 +49,9 @@ function toAuthPayload({ user, credentials }: AuthLikeResult) {
 export const authResolvers = {
   Query: {
     me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-      if (!ctx.user) return null;
+      if (!ctx.session) return null;
       // Load via the per-request DataLoader (batches + caches within the request).
-      const user = await ctx.loaders.userById.load(ctx.user.userId);
+      const user = await ctx.loaders.userById.load(ctx.session.userId);
       if (!user) throw new UserNotFoundError();
       return user;
     },
@@ -112,12 +112,12 @@ export const authResolvers = {
     },
 
     logout: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-      // @authenticated directive guarantees ctx.user (thus accessJti/accessExp
+      // @authenticated directive guarantees ctx.session (thus accessJti/accessExp
       // — same JWT). Refresh cookie is independent — validate explicitly.
       if (!ctx.rawRefreshToken) throw new InvalidRefreshTokenError();
       await logoutUser({
-        userId: ctx.user!.userId,
-        sessionId: ctx.user!.sessionId,
+        userId: ctx.session!.userId,
+        sessionId: ctx.session!.sessionId,
       });
       return true;
     },

@@ -33,11 +33,11 @@ export function requireScopeDirectiveTransformer(
 
       fieldConfig.resolve = (source, args, ctx: GraphQLContext, info) => {
         // Step 1: must be authenticated (authorization implies authentication).
-        if (!ctx.user) {
+        if (!ctx.session) {
           throw new InvalidTokenError();
         }
         // Step 2: must hold the required scope.
-        const userScopes = ctx.user.scopes ?? [];
+        const userScopes = ctx.session.scopes ?? [];
         if (!userScopes.includes(requiredScope)) {
           throw new ForbiddenError(`Missing required scope: ${requiredScope}`);
         }

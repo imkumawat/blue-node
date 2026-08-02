@@ -67,9 +67,9 @@ export function assertUniqueToolNames(): void {
  * back forbidden.
  */
 export function listToolsFor(ctx: McpContext): McpToolDescriptor[] {
-  return ALL_TOOLS.filter((tool) => ctx.user.scopes.includes(tool.scope)).map(
-    (tool) => tool.descriptor,
-  );
+  return ALL_TOOLS.filter((tool) =>
+    ctx.session.scopes.includes(tool.scope),
+  ).map((tool) => tool.descriptor);
 }
 
 export function findTool(name: string): McpTool | undefined {

@@ -73,7 +73,7 @@ export function defineTool<TInput extends z.ZodObject>(
       // Authorization first: cheapest check, and an unauthorized caller should
       // learn nothing about the argument shape. tools/list already hides tools
       // the token can't use — this is the enforcement, not a duplicate of it.
-      if (!ctx.user.scopes.includes(spec.scope)) {
+      if (!ctx.session.scopes.includes(spec.scope)) {
         throw new ForbiddenError(
           `Tool "${spec.name}" requires the "${spec.scope}" scope`,
         );

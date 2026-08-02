@@ -24,7 +24,7 @@ const getProfile = defineTool({
   // No arguments, deliberately. Identity comes from the access token, never from
   // the model: accepting a userId here would let a prompt-injected model read
   // somebody else's profile. Any tool acting "on me" must take the subject from
-  // ctx.user, not from its input.
+  // ctx.session, not from its input.
   input: z.object({}),
 
   annotations: {
@@ -34,7 +34,7 @@ const getProfile = defineTool({
   },
 
   handler: async (_input, ctx) => {
-    const user = await getUserById(ctx.user.userId);
+    const user = await getUserById(ctx.session.userId);
 
     // Pick fields explicitly. getUserById returns the raw `users` row, which
     // includes passwordHash — spreading it or JSON.stringify-ing it would hand
