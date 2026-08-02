@@ -1,14 +1,6 @@
 import { verifyAccessToken } from "../lib/tokenService.js";
 
-export interface AuthUser {
-  userId: string;
-  scopes: string[];
-  exp: number;
-  sessionId: string; // from token `sid` claim — server-generated per login
-  // From the token `gid` claim. Non-null only when this token was issued to an
-  // OAuth client under the user's grant; null for a first-party session. The MCP
-  // auth guard uses it to check whether that grant has since been revoked.
-}
+import type { AuthUser } from "../types.js";
 
 /**
  * Verifies a JWT and returns the auth-context shape used everywhere

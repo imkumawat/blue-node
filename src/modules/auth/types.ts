@@ -33,3 +33,16 @@ export interface AuthUser {
   /** Unix seconds. The WS layer closes sockets once this passes. */
   exp: number;
 }
+
+/**
+ * The credential pair handed to an OAuth client.
+ *
+ * Declared here rather than beside issueGrantTokens because it leaves the module
+ * through index.ts. Anything in the public contract lives in one place, so a
+ * consumer never has to know which internal file happens to produce it.
+ */
+export interface GrantTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresInSec: number;
+}

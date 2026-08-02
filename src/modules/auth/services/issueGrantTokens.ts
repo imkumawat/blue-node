@@ -5,11 +5,7 @@ import {
   storeRefreshToken,
 } from "../lib/tokenService.js";
 
-export interface GrantTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresInSec: number;
-}
+import type { GrantTokens } from "../types.js";
 
 /**
  * Mints the token pair for an OAuth grant.

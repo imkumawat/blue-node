@@ -10,7 +10,7 @@ export { InvalidTokenError } from "./errors.js";
 // credentials issued, not access to the refresh-token table or the rotation
 // logic that guards it, both of which stay private to this module.
 export { issueGrantTokens } from "./services/issueGrantTokens.js";
-export type { GrantTokens } from "./services/issueGrantTokens.js";
+export type { GrantTokens } from "./types.js";
 // Needed by the OAuth authorization endpoint, which serves a browser login form
 // and so must go through the same lockout, CAPTCHA and account-status gating any
 // other login does — reimplementing that for a second surface is how the two
