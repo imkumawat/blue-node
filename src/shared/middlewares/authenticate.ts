@@ -9,11 +9,11 @@ export function authenticate(): RequestHandler {
     const token = req.cookies?.access_token ?? null;
     if (!token) return next(new InvalidTokenError());
 
-    const user = await verifySessionToken(token);
+    const record = await verifySessionToken(token);
 
-    if (!user) return next(new InvalidTokenError());
+    if (!record) return next(new InvalidTokenError());
 
-    req.user = user;
+    req.session = record;
     next();
   };
 }

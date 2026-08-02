@@ -5,7 +5,7 @@ import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import cookie from "cookie";
 import { v7 as uuidv7 } from "uuid";
-import { verifyToken } from "../modules/auth/index.js";
+import { verifySessionToken } from "../modules/auth/index.js";
 import type { AuthUser } from "../modules/auth/index.js";
 import {
   addUserConnection,
@@ -99,10 +99,10 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
         // allowed.
         if (viaCookie && !req.headers.origin) return rejectUpgrade(socket, 403);
 
-        const user = await verifyToken(accessToken, jwt.userAudience);
+        const session = await verifySessionToken(accessToken);
 
         wss.handleUpgrade(req, socket, head, (ws) => {
-          handleConnection(ws, user);
+          handleConnection(ws, session);
         });
       } else if (req.pathname === wsConfig.paths.public) {
         // Public WS: no authenticated user → pass null. handleConnection skips
@@ -126,22 +126,22 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
       // Authenticated: identity + cross-instance channel + token-expiry close.
       // Set identities BEFORE addUserConnection so a pub/sub message arriving the
       // instant we subscribe can already filter on sessionId.
-      ws.userId = user.id;
+      ws.userId = user.userId;
       ws.sessionId = user.sessionId;
       ws.userExp = user.exp;
 
-      const isFirstLocalSocket = !hasLocalUser(user.id);
-      addUserConnection(user.id, ws);
+      const isFirstLocalSocket = !hasLocalUser(user.userId);
+      addUserConnection(user.userId, ws);
       // Subscribe to this user's cross-instance channel on their first local
       // socket; the last socket's close unsubscribes (see ws "close" below).
       if (isFirstLocalSocket) {
-        void subscribeUser(user.id).catch((err) =>
-          logger.error({ err, userId: user.id }, "WS subscribe failed"),
+        void subscribeUser(user.userId).catch((err) =>
+          logger.error({ err, userId: user.userId }, "WS subscribe failed"),
         );
       }
       logger.info(
         {
-          userId: user.id,
+          userId: user.userId,
           sessionId: user.sessionId,
           connectionId: ws.connectionId,
         },
@@ -165,7 +165,10 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
           const msg = JSON.parse(raw.toString());
           await routeMessage(msg, user, ws);
         } catch (err) {
-          logger.warn({ err, userId: user?.id }, "WS message handling failed");
+          logger.warn(
+            { err, userId: user?.userId },
+            "WS message handling failed",
+          );
           sendToSocket(ws, { type: "error", data: { message: "Bad message" } });
         }
       })();
@@ -179,14 +182,14 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
         );
       }
       if (user) {
-        removeUserConnection(user.id, ws);
+        removeUserConnection(user.userId, ws);
         // Last local socket for this user gone → drop the channel subscription.
-        if (!hasLocalUser(user.id)) {
-          void unsubscribeUser(user.id).catch((err) =>
-            logger.error({ err, userId: user.id }, "WS unsubscribe failed"),
+        if (!hasLocalUser(user.userId)) {
+          void unsubscribeUser(user.userId).catch((err) =>
+            logger.error({ err, userId: user.userId }, "WS unsubscribe failed"),
           );
         }
-        logger.info({ userId: user.id }, "WS disconnected");
+        logger.info({ userId: user.userId }, "WS disconnected");
       } else {
         removePublicConnection(ws);
         logger.info(
@@ -197,7 +200,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     });
 
     ws.on("error", (err) => {
-      logger.error({ err, userId: user?.id }, "WS error");
+      logger.error({ err, userId: user?.userId }, "WS error");
     });
   }
 

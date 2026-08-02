@@ -19,14 +19,12 @@ export async function logConsent(
     platform,
   }: LogConsentPayload,
 ): Promise<void> {
-  await getDb()
-    .insert(consentLogs)
-    .values({
-      userId,
-      consentType,
-      consentVersion,
-      ipAddress,
-      userAgent: userAgent ?? null,
-      platform: platform ?? "web",
-    });
+  await getDb().insert(consentLogs).values({
+    userId,
+    consentType,
+    consentVersion,
+    ipAddress,
+    userAgent: userAgent,
+    platform: platform,
+  });
 }

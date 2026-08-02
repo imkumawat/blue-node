@@ -5,15 +5,12 @@ import { getEnvConfig } from "../../../config/env.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { setAuthCookies } from "../../../shared/utils/cookies.js";
 import { SCOPES } from "../../../shared/constants/scopes.js";
-import type { Scope } from "../../../shared/constants/scopes.js";
 import { HttpError } from "../../../shared/errors/HttpError.js";
 import { getPublicJwks } from "../../../shared/utils/jose.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
-import {
-  getUserById,
-  loginWithPassword,
-  verifyToken,
-} from "../../auth/index.js";
+import { loginWithPassword, verifySessionToken } from "../../auth/index.js";
+
+import type { AuthUser } from "../../auth/index.js";
 
 import {
   authorizeInput,
@@ -33,87 +30,14 @@ import {
   createPending,
   readPending,
 } from "../lib/pendingAuthStore.js";
-import type { PendingAuthorization } from "../lib/pendingAuthStore.js";
 import {
-  resolveConsent,
+  resolveGrant,
   validateAuthorizeRequest,
 } from "../services/authorizeRequest.js";
-import type { ValidatedAuthorizeRequest } from "../services/authorizeRequest.js";
 import { completeAuthorization } from "../services/completeAuthorization.js";
 import { exchangeCode } from "../services/exchangeCode.js";
 import { refreshGrantTokens } from "../services/refreshGrantTokens.js";
 import { registerClient } from "../services/registerClient.js";
-import {
-  renderConsentPage,
-  renderLoginPage,
-  renderMessagePage,
-} from "../views/pages.js";
-
-interface Session {
-  userId: string;
-  userEmail: string;
-  scopes: string[];
-}
-
-function sendHtml(
-  res: Response,
-  html: string,
-  status: number = StatusCodes.OK,
-): void {
-  res.status(status).type("html").send(html);
-}
-
-/**
- * A CSP source expression for one redirect URI.
- *
- * Non-special schemes — the private-use callbacks native apps register, like
- * com.example.app:/cb — have no origin, so `new URL(...).origin` is the string
- * "null". CSP accepts a bare scheme as a source, which is the right granularity
- * there anyway.
- */
-function cspSourceFor(redirectUri: string): string {
-  const url = new URL(redirectUri);
-  return url.origin === "null" ? url.protocol : url.origin;
-}
-
-/**
- * Sends a page that carries a form whose POST will end in a redirect to the
- * client.
- *
- * This needs its own CSP, and the reason is easy to miss: `form-action` governs
- * not only where a form may POST, but where that POST's response may REDIRECT to
- * — Chrome and Safari validate the whole redirect chain against it. The app-wide
- * policy is `form-action 'self'`, so the 302 that actually completes the OAuth
- * flow is blocked and the user is left looking at the page they just submitted,
- * with no error anywhere except the browser console.
- *
- * So the page naming the form also names the one extra source it must be allowed
- * to reach. Nothing is relaxed globally, and the allowance is exactly one origin
- * — one already matched against this client's registered redirect URIs.
- *
- * `script-src 'none'` because these pages genuinely have no script; it is tighter
- * than the global policy, not looser.
- */
-function sendAuthPage(
-  res: Response,
-  redirectUri: string,
-  html: string,
-  status: number = StatusCodes.OK,
-): void {
-  res.setHeader(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'none'",
-      "style-src 'self' 'unsafe-inline'",
-      `form-action 'self' ${cspSourceFor(redirectUri)}`,
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "object-src 'none'",
-    ].join("; "),
-  );
-  sendHtml(res, html, status);
-}
 
 function redirectWithCode(
   res: Response,
@@ -141,134 +65,61 @@ function redirectWithError(
   res.redirect(url.toString());
 }
 
-/**
- * Identifies the browser session behind an /authorize request.
- *
- * Reads the ordinary first-party access-token cookie, which is what lets an
- * already-signed-in user skip straight to consent. Any failure — no cookie, an
- * expired one, a user since deleted — is simply "no session"; none of them is an
- * error worth surfacing, because the answer in every case is "show the login
- * form".
- */
-async function resolveSession(req: Request): Promise<Session | null> {
+async function resolveSession(req: Request): Promise<AuthUser | null> {
   const token = req.cookies?.access_token as string | undefined;
   if (!token) return null;
 
-  try {
-    const { jwt } = getEnvConfig();
-    const authUser = await verifyToken(token, jwt.userAudience);
-    const user = await getUserById(authUser.id);
-    return {
-      userId: authUser.id,
-      userEmail: user.email,
-      scopes: authUser.scopes,
-    };
-  } catch {
-    return null;
-  }
+  const record = await verifySessionToken(token);
+  if (!record) return null;
+  return record;
 }
 
-/**
- * `scopes` is passed in rather than taken from the request: before login the only
- * honest value is what the client asked for, but once a user is known it must be
- * the narrowed set, so that what the consent screen shows is exactly what gets
- * granted.
- */
-function pendingFrom(
-  request: ValidatedAuthorizeRequest,
-  userId: string | null,
-  userEmail: string | null,
-  scopes: Scope[],
-): PendingAuthorization {
-  return {
-    clientId: request.client.id,
-    clientName: request.client.clientName,
-    redirectUri: request.redirectUri,
-    scopes,
-    codeChallenge: request.codeChallenge,
-    codeChallengeMethod: request.codeChallengeMethod,
-    resource: request.resource,
-    state: request.state,
-    userId,
-    userEmail,
-  };
-}
-
-/**
- * GET /oauth/authorize — three outcomes, not one.
- *
- *   already approved  → 302 straight to the client with a code, no screen
- *   approved-but-new  → consent screen
- *   no session        → login screen, then consent
- *
- * The first is what makes a returning app feel instant, and it is only safe
- * because resolveConsent checks the request is fully covered by an existing
- * grant rather than merely that a grant exists.
- */
 export async function getAuthorize(req: Request, res: Response): Promise<void> {
-  const { oauth } = getEnvConfig();
   const input = parseInput(authorizeInput, req.query);
-
   try {
-    const request = await validateAuthorizeRequest(input);
+    const oAuthRequest = await validateAuthorizeRequest(input);
     const session = await resolveSession(req);
 
     if (!session) {
-      const ticket = await createPending(
-        pendingFrom(request, null, null, request.scopes),
-      );
-      sendAuthPage(
-        res,
-        request.redirectUri,
-        renderLoginPage({
-          clientName: request.client.clientName,
-          ticket,
-          formAction: oauth.authorizePath,
-        }),
-      );
+      // storing in flight is the only way to get back here after login,
+      const ticket = await createPending(JSON.stringify(oAuthRequest));
+      res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ ticket, message: "ShowLoginScreen" });
       return;
     }
 
-    const decision = await resolveConsent({
+    const decision = await resolveGrant({
       userId: session.userId,
-      userScopes: session.scopes,
-      clientId: request.client.id,
-      requestedScopes: request.scopes,
+      clientId: oAuthRequest.client.id,
+      requestedScopes: oAuthRequest.scopes,
     });
 
     if (!decision.needsConsent) {
       const code = await completeAuthorization({
         userId: session.userId,
-        clientId: request.client.id,
-        redirectUri: request.redirectUri,
-        scopes: decision.grantable,
-        codeChallenge: request.codeChallenge,
-        codeChallengeMethod: request.codeChallengeMethod,
-        resource: request.resource,
+        clientId: oAuthRequest.client.id,
+        redirectUri: oAuthRequest.redirectUri,
+        scopes: oAuthRequest.scopes,
+        codeChallenge: oAuthRequest.codeChallenge,
+        codeChallengeMethod: oAuthRequest.codeChallengeMethod,
+        resource: oAuthRequest.resource,
       });
-      redirectWithCode(res, request.redirectUri, request.state, code);
+      redirectWithCode(res, oAuthRequest.redirectUri, oAuthRequest.state, code);
       return;
     }
 
+    // storing in flight is the only way to get back here after login,
     const ticket = await createPending(
-      pendingFrom(
-        request,
-        session.userId,
-        session.userEmail,
-        decision.grantable,
-      ),
+      JSON.stringify({ ...oAuthRequest, session: session }),
     );
-    sendAuthPage(
-      res,
-      request.redirectUri,
-      renderConsentPage({
-        clientName: request.client.clientName,
-        scopes: decision.grantable,
-        userEmail: session.userEmail,
-        ticket,
-        formAction: oauth.authorizePath,
-      }),
-    );
+    res.status(StatusCodes.UNAUTHORIZED).json({
+      ticket,
+      clientName: oAuthRequest.client.clientName,
+      message: "ShowConsentScreen",
+      requiredGrants: decision.requiredGrants,
+    });
+    return;
   } catch (err) {
     // A redirect error is only thrown AFTER the redirect URI has been matched
     // against the client's registered list, so sending the user there is safe by
@@ -281,6 +132,7 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
         err.code,
         err.message,
       );
+
       return;
     }
 
@@ -290,11 +142,10 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
       err instanceof UnknownClientError ||
       err instanceof InvalidRedirectUriError
     ) {
-      sendHtml(
-        res,
-        renderMessagePage("Cannot continue", err.message),
-        StatusCodes.BAD_REQUEST,
-      );
+      res.status(StatusCodes.BAD_REQUEST).json({
+        message: "Cannot continue",
+        error: err.message,
+      });
       return;
     }
 
@@ -302,153 +153,94 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
   }
 }
 
-/**
- * POST /oauth/authorize — two different forms arrive here.
- *
- * Which one is decided by the PENDING RECORD, never by the request body: a null
- * userId means login has not happened yet. Trusting the body to say which stage
- * we are in would let a submitted form claim to be past a step it never took.
- */
 export async function postAuthorize(
   req: Request,
   res: Response,
 ): Promise<void> {
   const { oauth } = getEnvConfig();
-  const { ticket, decision, email, password } = req.body as Record<
-    string,
-    string | undefined
-  >;
+  const { ticket, decision, email, password, captchaToken } =
+    req.body as Record<string, string | undefined>;
 
   if (!ticket) {
-    sendHtml(
-      res,
-      renderMessagePage(
-        "Something went wrong",
-        "Missing form token. Start again from the app.",
-      ),
-      StatusCodes.BAD_REQUEST,
-    );
+    res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Something went wrong",
+      error: "Missing form token. Start again from the app.",
+    });
     return;
   }
 
   const pending = await readPending(ticket);
   if (!pending) {
-    sendHtml(
-      res,
-      renderMessagePage(
-        "This request expired",
+    res.status(StatusCodes.BAD_REQUEST).json({
+      message: "This request expired",
+      error:
         "Authorization requests are short-lived. Start again from the app.",
-      ),
-      StatusCodes.BAD_REQUEST,
-    );
+    });
     return;
   }
 
   // ── login stage ───────────────────────────────────────────────────────────
-  if (pending.userId === null) {
+  if (pending.session === null) {
     if (!email || !password) {
-      sendAuthPage(
-        res,
-        pending.redirectUri,
-        renderLoginPage({
-          clientName: pending.clientName,
-          ticket,
-          formAction: oauth.authorizePath,
-          error: "Enter your email and password.",
-        }),
-      );
+      res.status(StatusCodes.BAD_REQUEST).json({
+        message: "Enter your email and password.",
+      });
       return;
     }
 
-    let session: Session;
+    let session: AuthUser | null;
     try {
-      const { jwt } = getEnvConfig();
-      const { user, credentials } = await loginWithPassword({
+      const { credentials } = await loginWithPassword({
         email,
         password,
         ipAddress: getClientIp(req),
         userAgent: req.headers["user-agent"] ?? null,
+        captchaToken,
       });
 
       // The browser session is established for real, not just for this hop — so
       // the next app, or this one again, skips the login step entirely.
       setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
 
-      // Scopes come from the token just minted rather than a second permission
-      // lookup: it is the authoritative statement of what this session carries.
-      const authUser = await verifyToken(
-        credentials.accessToken,
-        jwt.userAudience,
-      );
-      session = {
-        userId: user.id,
-        userEmail: user.email,
-        scopes: authUser.scopes,
-      };
+      const record = await verifySessionToken(credentials.accessToken);
+
+      session = record;
+      pending.session = record;
     } catch (err) {
       // Wrong credentials, lockout and the CAPTCHA gate all land here. The
       // message is whatever the auth module already decided is safe to show.
-      sendAuthPage(
-        res,
-        pending.redirectUri,
-        renderLoginPage({
-          clientName: pending.clientName,
-          ticket,
-          formAction: oauth.authorizePath,
-          error: err instanceof HttpError ? err.message : "Sign in failed.",
-        }),
-      );
+      res.status(StatusCodes.UNAUTHORIZED).json({
+        clientName: pending.client.clientName,
+        ticket,
+        formAction: oauth.authorizePath,
+        message: err instanceof HttpError ? err.message : "Sign in failed.",
+      });
+
       return;
     }
 
-    // Consent has to be re-evaluated now that we know who the user is. Rendering
-    // the screen unconditionally would ask for approval already given, and would
-    // carry the scopes as REQUESTED rather than narrowed to the ones this user
-    // actually holds.
-    let decision;
-    try {
-      decision = await resolveConsent({
-        userId: session.userId,
-        userScopes: session.scopes,
-        clientId: pending.clientId,
-        requestedScopes: pending.scopes,
-      });
-    } catch (err) {
-      // A pending record's redirect URI was validated before the record was
-      // written, so sending the user there is safe.
-      if (err instanceof AuthorizeRedirectError) {
-        redirectWithError(
-          res,
-          pending.redirectUri,
-          pending.state,
-          err.code,
-          err.message,
-        );
-        return;
-      }
-      throw err;
-    }
+    const decision = await resolveGrant({
+      userId: session!.userId,
+      clientId: pending.client.id,
+      requestedScopes: pending.scopes,
+    });
 
     if (!decision.needsConsent) {
       // An earlier grant already covers everything asked for — no second screen.
       const consumed = await consumePending(ticket);
       if (!consumed) {
-        sendHtml(
-          res,
-          renderMessagePage(
-            "This request expired",
-            "Start again from the app.",
-          ),
-          StatusCodes.BAD_REQUEST,
-        );
+        res.status(StatusCodes.BAD_REQUEST).json({
+          message: "This request expired",
+          error: "Start again from the app.",
+        });
         return;
       }
 
       const code = await completeAuthorization({
-        userId: session.userId,
-        clientId: consumed.clientId,
+        userId: session!.userId,
+        clientId: consumed.client.id,
         redirectUri: consumed.redirectUri,
-        scopes: decision.grantable,
+        scopes: consumed.scopes,
         codeChallenge: consumed.codeChallenge,
         codeChallengeMethod: consumed.codeChallengeMethod,
         resource: consumed.resource,
@@ -457,37 +249,24 @@ export async function postAuthorize(
       return;
     }
 
-    // Narrowed scopes are written back so the consent stage grants exactly what
-    // this screen is about to display.
-    await attachUser(
+    await attachUser(ticket, JSON.stringify({ ...pending, session: session }));
+    res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
-      session.userId,
-      session.userEmail,
-      decision.grantable,
-    );
+      clientName: pending.client.clientName,
+      message: "ShowConsentScreen",
+      requiredGrants: decision.requiredGrants,
+    });
 
-    sendAuthPage(
-      res,
-      pending.redirectUri,
-      renderConsentPage({
-        clientName: pending.clientName,
-        scopes: decision.grantable,
-        userEmail: session.userEmail,
-        ticket,
-        formAction: oauth.authorizePath,
-      }),
-    );
     return;
   }
 
   // ── consent stage ─────────────────────────────────────────────────────────
   const consumed = await consumePending(ticket);
-  if (!consumed || consumed.userId === null) {
-    sendHtml(
-      res,
-      renderMessagePage("This request expired", "Start again from the app."),
-      StatusCodes.BAD_REQUEST,
-    );
+  if (!consumed) {
+    res.status(StatusCodes.BAD_REQUEST).json({
+      message: "This request expired",
+      error: "Start again from the app.",
+    });
     return;
   }
 
@@ -505,27 +284,18 @@ export async function postAuthorize(
   }
 
   const code = await completeAuthorization({
-    userId: consumed.userId,
-    clientId: consumed.clientId,
+    userId: consumed.session!.userId,
+    clientId: consumed.client.id,
     redirectUri: consumed.redirectUri,
     scopes: consumed.scopes,
     codeChallenge: consumed.codeChallenge,
     codeChallengeMethod: consumed.codeChallengeMethod,
     resource: consumed.resource,
   });
-
   redirectWithCode(res, consumed.redirectUri, consumed.state, code);
+  return;
 }
 
-/**
- * POST /oauth/token — dispatches on grant_type BEFORE validating the body.
- *
- * Order matters for the error a client sees. Each grant has a different required
- * shape, so parsing first would answer an unsupported grant with a schema
- * complaint about a missing `code` — leaving the client to guess. Branching first
- * lets an unknown grant come back as the OAuth error that actually names the
- * problem.
- */
 export async function postToken(req: Request, res: Response): Promise<void> {
   const grantType = (req.body as Record<string, unknown> | undefined)
     ?.grant_type;

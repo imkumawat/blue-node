@@ -18,11 +18,12 @@ export async function verifySessionToken(
 ): Promise<AuthUser | null> {
   const record = await verifyAccessToken(rawToken);
   if (!record) return null;
+  return record;
 
-  return {
-    id: record.userId,
-    scopes: record.scopes,
-    sessionId: record.sessionId,
-    exp: record.exp,
-  };
+  // return {
+  //   id: record.userId,
+  //   scopes: record.scopes,
+  //   sessionId: record.sessionId,
+  //   exp: record.exp,
+  // };
 }

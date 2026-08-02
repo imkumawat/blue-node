@@ -32,7 +32,7 @@ const handlers: Record<string, Handler> = {
       });
     }
     const roomId = String(msg.roomId);
-    if (!(await isRoomMember(user.id, roomId))) {
+    if (!(await isRoomMember(user.userId, roomId))) {
       return sendToSocket(ws, {
         type: "error",
         data: { message: "Forbidden" },
@@ -62,10 +62,10 @@ const handlers: Record<string, Handler> = {
     const roomId = String(msg.roomId);
     if (!ws.rooms?.has(roomId)) return; // must have joined first
     const text = String(msg.text ?? "");
-    await saveRoomMessage(roomId, user.id, text); // persist (source of truth)
+    await saveRoomMessage(roomId, user.userId, text); // persist (source of truth)
     await deliverToRoom(
       roomId,
-      { type: "room.message", data: { roomId, from: user.id, text } },
+      { type: "room.message", data: { roomId, from: user.userId, text } },
       ws.connectionId, // except-sender
     );
   },

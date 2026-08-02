@@ -30,8 +30,8 @@ export async function signup(req: Request, res: Response): Promise<void> {
 
   const consentMeta = {
     ipAddress: getClientIp(req),
-    userAgent: req.headers["user-agent"],
-    platform: (req.headers["x-platform"] as string | undefined) ?? "web",
+    userAgent: req.headers["user-agent"] || null,
+    platform: (req.headers["x-platform"] as string) ?? "web",
   };
 
   const { user } = await registerUser({
@@ -43,19 +43,9 @@ export async function signup(req: Request, res: Response): Promise<void> {
     lastName,
   });
 
-  // No session yet — the user must verify their email (POST /v1/auth/verify-email)
-  // before any tokens are issued.
   res.status(StatusCodes.CREATED).json({
     success: true,
-    data: {
-      user: {
-        id: user.id,
-        email: user.email,
-        status: user.status,
-        createdAt: user.createdAt,
-      },
-      verificationRequired: true,
-    },
+    data: { user, verificationRequired: true },
   });
 }
 
@@ -73,14 +63,7 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
   setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
   res.status(StatusCodes.OK).json({
     success: true,
-    data: {
-      user: {
-        id: user.id,
-        email: user.email,
-        status: user.status,
-        createdAt: user.createdAt,
-      },
-    },
+    data: { user },
   });
 }
 
@@ -108,6 +91,8 @@ export async function resetPassword(
   await resetPasswordService({ email, code, newPassword });
 
   // No tokens issued — the user logs in fresh with the new password.
+
+  clearAuthCookies(res);
   res.status(StatusCodes.OK).json({
     success: true,
     message: "Password reset successful. Please log in.",
@@ -121,7 +106,7 @@ export async function changePassword(
   const { currentPassword, newPassword } = req.body as ChangePasswordInput;
 
   await changePasswordService({
-    userId: req.user!.id,
+    userId: req.session!.userId,
     currentPassword,
     newPassword,
   });
@@ -183,9 +168,9 @@ export async function refreshSession(
 }
 
 export async function logout(req: Request, res: Response): Promise<void> {
-  const user = req.user!;
+  const user = req.session!;
   await logoutUser({
-    userId: user.id,
+    userId: user.userId,
     sessionId: user.sessionId,
   });
 
@@ -199,7 +184,7 @@ export async function getCurrentUser(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const userId = req.user!.id;
+  const userId = req.session!.userId;
   const user = await getUserById(userId);
 
   res.status(StatusCodes.OK).json({

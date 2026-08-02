@@ -34,7 +34,7 @@ const getProfile = defineTool({
   },
 
   handler: async (_input, ctx) => {
-    const user = await getUserById(ctx.user.id);
+    const user = await getUserById(ctx.user.userId);
 
     // Pick fields explicitly. getUserById returns the raw `users` row, which
     // includes passwordHash — spreading it or JSON.stringify-ing it would hand

@@ -33,7 +33,7 @@ export interface McpContext {
  * Keep it thin — anything expensive belongs in a service the tool calls.
  */
 export function buildContext(req: Request): McpContext {
-  if (!req.user) {
+  if (!req.session) {
     // Not defensive padding — an invariant check. If this ever fires, the mount
     // order in app.ts is wrong (authenticateMcp must run before the dispatcher)
     // and every tool would otherwise execute unauthenticated. Fail loud.
@@ -43,7 +43,7 @@ export function buildContext(req: Request): McpContext {
   }
 
   return {
-    user: req.user,
+    user: req.session,
     ipAddress: getClientIp(req),
     requestId: req.requestId!, // set by the requestId middleware, mounted app-wide
     logger: req.logger,

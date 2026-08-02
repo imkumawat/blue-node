@@ -21,6 +21,7 @@ function isScope(value: string): value is Scope {
 /** An /authorize request that has passed every check except "who is the user". */
 export interface ValidatedAuthorizeRequest {
   client: OauthClient;
+  response_type: string;
   redirectUri: string;
   scopes: Scope[];
   codeChallenge: string;
@@ -73,6 +74,7 @@ export async function validateAuthorizeRequest(
 
   return {
     client,
+    response_type: input.response_type,
     redirectUri: input.redirect_uri,
     scopes,
     codeChallenge: input.code_challenge,
@@ -109,8 +111,27 @@ function resolveResource(requested: string | undefined): string {
 }
 
 /**
- * Scopes are space-delimited (RFC 6749). Falling back to what the client
- * registered mirrors the RFC's "the server may use a default".
+ * Scopes are space-delimited (RFC 6749).
+ *
+ * What the client registered plays TWO roles here, and they are easy to
+ * conflate:
+ *
+ *   default  the request may omit `scope`, in which case the registered set is
+ *            used — the RFC's "the server may use a default"
+ *   ceiling  the request may never exceed the registered set, whether it named
+ *            scopes or not
+ *
+ * The ceiling is the part that matters. Without it, a client registers for one
+ * thing and then asks for another at authorize time, and the only barrier left
+ * is a user clicking Allow on a screen that names powers the client never
+ * declared.
+ *
+ * NOTE: this bounds a client to its OWN registration, which stops an honest
+ * client from over-asking and a stolen client_id from being widened. It is not
+ * yet a bound on what may be delegated at all — registration is open (DCR) and
+ * unclamped, so a client can still declare a broad set for itself. Clamping
+ * registration against a server-side delegatable allowlist is the other half,
+ * and is deliberately still to do.
  *
  * An empty result is an error rather than an empty grant: every tool requires a
  * scope, so a token carrying none could not call anything. Failing here is far
@@ -119,17 +140,32 @@ function resolveResource(requested: string | undefined): string {
  */
 function resolveRequestedScopes(
   requested: string | undefined,
-  clientDefault: string | null,
+  clientRegistered: string | null,
 ): Scope[] {
-  const raw = (requested ?? clientDefault ?? "").split(" ").filter(Boolean);
+  const registered = new Set(
+    (clientRegistered ?? "").split(" ").filter(Boolean),
+  );
 
-  if (raw.length === 0) {
+  // Registering no scope is a statement, not an omission: the client asked for
+  // no capability, so there is no ceiling to fit under and nothing it can ever
+  // be granted. Saying so here beats letting it through to fail later at every
+  // single tool call.
+  if (registered.size === 0) {
     throw new AuthorizeRedirectError(
       "invalid_scope",
-      "No scope requested and the client has no default scope",
+      "This client registered no scopes and cannot request any",
     );
   }
 
+  const raw = (requested ?? clientRegistered ?? "").split(" ").filter(Boolean);
+
+  if (raw.length === 0) {
+    throw new AuthorizeRedirectError("invalid_scope", "No scope requested");
+  }
+
+  // Checked before the ceiling on purpose: "that is not a scope" and "that is
+  // not YOUR scope" are different mistakes, and answering with the wrong one
+  // sends the client looking in the wrong place.
   const unknown = raw.filter((s) => !isScope(s));
   if (unknown.length > 0) {
     throw new AuthorizeRedirectError(
@@ -138,47 +174,38 @@ function resolveRequestedScopes(
     );
   }
 
+  const beyondRegistration = raw.filter((s) => !registered.has(s));
+  if (beyondRegistration.length > 0) {
+    throw new AuthorizeRedirectError(
+      "invalid_scope",
+      `Scope not registered for this client: ${beyondRegistration.join(", ")}`,
+    );
+  }
+
   return [...new Set(raw.filter(isScope))];
 }
 
 /** What /authorize does next, once the user behind the session is known. */
 export interface ConsentDecision {
-  /** Scopes to actually grant — requested, narrowed to what the user holds. */
-  grantable: Scope[];
-  /** False when an existing grant already covers all of them. */
   needsConsent: boolean;
   existingGrant: OauthGrant | null;
+  requiredGrants: Scope[];
 }
 
-/**
- * Decides whether the consent screen has to be shown.
- *
- * Two narrowings happen here, and they are different things. A user cannot
- * delegate permission they do not hold, so the request is first intersected with
- * the user's own scopes. What remains is then compared against any standing
- * grant: fully covered means this app was already approved for all of it and the
- * screen is skipped; anything new means asking again — which is what makes
- * incremental consent work instead of silently widening an old approval.
- */
-export async function resolveConsent(params: {
+export async function resolveGrant(params: {
   userId: string;
-  userScopes: string[];
   clientId: string;
   requestedScopes: Scope[];
 }): Promise<ConsentDecision> {
-  const held = new Set(params.userScopes);
-  const grantable = params.requestedScopes.filter((s) => held.has(s));
-
-  if (grantable.length === 0) {
-    throw new AuthorizeRedirectError(
-      "invalid_scope",
-      "You do not have permission to grant any of the requested scopes",
-    );
-  }
-
   const existingGrant = await findGrant(params.userId, params.clientId);
-  const alreadyGranted = new Set(existingGrant?.scopes ?? []);
-  const needsConsent = !grantable.every((s) => alreadyGranted.has(s));
 
-  return { grantable, needsConsent, existingGrant };
+  const alreadyGranted = new Set(existingGrant?.scopes ?? []);
+  const needsConsent = !params.requestedScopes.every((s) =>
+    alreadyGranted.has(s),
+  );
+  const requiredGrants = params.requestedScopes.filter(
+    (s) => !alreadyGranted.has(s),
+  );
+
+  return { needsConsent, existingGrant, requiredGrants };
 }

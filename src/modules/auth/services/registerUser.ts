@@ -18,8 +18,8 @@ import type { User } from "../../../models/postgres/user/user.js";
 
 interface ConsentMeta {
   ipAddress: string;
-  userAgent?: string | null;
-  platform?: string;
+  userAgent: string | null;
+  platform: string;
 }
 
 interface RegisterInput {
@@ -37,11 +37,11 @@ interface RegisterResult {
 
 export async function registerUser({
   email,
+  firstName,
+  lastName,
   password,
   consents,
   consentMeta,
-  firstName,
-  lastName,
 }: RegisterInput): Promise<RegisterResult> {
   const existing = await findUserByEmail(email);
   if (existing) throw new EmailAlreadyExistsError();
@@ -49,10 +49,10 @@ export async function registerUser({
   const passwordHash = await hashPassword(password);
   const user = await createUser({
     email,
-    passwordHash,
-    status: "pending",
     firstName,
     lastName,
+    passwordHash,
+    status: "pending",
   });
 
   await Promise.all(

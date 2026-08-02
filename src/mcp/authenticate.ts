@@ -57,7 +57,7 @@ export function authenticateMcp(): RequestHandler {
       // Audience is the MCP resource id, NOT the portal audience. This is the
       // RFC 8707 binding: a token minted for a different resource must be
       // rejected here even when it is otherwise valid and unexpired.
-      req.user = await verifyToken(token, resourceUri);
+      req.session = await verifyToken(token, resourceUri);
 
       // A user who removes an app's access expects it to stop working now, not
       // whenever the current access token happens to expire. Deleting the grant

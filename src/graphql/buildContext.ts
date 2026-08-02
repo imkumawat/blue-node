@@ -37,8 +37,8 @@ export async function buildContext({
   res: Response;
 }): Promise<GraphQLContext> {
   return {
-    user: req.user ?? null,
-    accessExp: req.user?.exp ?? null,
+    user: req.session ?? null,
+    accessExp: req.session?.exp ?? null,
     rawRefreshToken: req.cookies?.refresh_token ?? null,
     ipAddress: getClientIp(req),
     userAgent: req.headers["user-agent"] ?? null,

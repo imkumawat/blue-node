@@ -51,7 +51,7 @@ export const authResolvers = {
     me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
       if (!ctx.user) return null;
       // Load via the per-request DataLoader (batches + caches within the request).
-      const user = await ctx.loaders.userById.load(ctx.user.id);
+      const user = await ctx.loaders.userById.load(ctx.user.userId);
       if (!user) throw new UserNotFoundError();
       return user;
     },
@@ -116,7 +116,7 @@ export const authResolvers = {
       // — same JWT). Refresh cookie is independent — validate explicitly.
       if (!ctx.rawRefreshToken) throw new InvalidRefreshTokenError();
       await logoutUser({
-        userId: ctx.user!.id,
+        userId: ctx.user!.userId,
         sessionId: ctx.user!.sessionId,
       });
       return true;

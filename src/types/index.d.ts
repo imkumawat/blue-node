@@ -7,7 +7,7 @@ declare global {
       requestId: string;
       logger: Logger;
       startTime: bigint;
-      user: AuthUser | null;
+      session: AuthUser | null;
       apiClient?: { id: string; clientName: string };
     }
   }

@@ -18,7 +18,7 @@ export function authenticateMobile(audience: string): RequestHandler {
           ),
         );
       }
-      req.user = await verifyToken(token, audience);
+      req.session = await verifyToken(token, audience);
       next();
     } catch (err) {
       next(err);

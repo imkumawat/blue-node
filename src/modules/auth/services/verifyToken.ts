@@ -1,15 +1,13 @@
 import { verifyAccessToken } from "../lib/tokenService.js";
 
 export interface AuthUser {
-  id: string;
+  userId: string;
   scopes: string[];
-  jti: string;
   exp: number;
   sessionId: string; // from token `sid` claim — server-generated per login
   // From the token `gid` claim. Non-null only when this token was issued to an
   // OAuth client under the user's grant; null for a first-party session. The MCP
   // auth guard uses it to check whether that grant has since been revoked.
-  grantId: string | null;
 }
 
 /**
@@ -25,11 +23,11 @@ export async function verifyToken(
 ): Promise<AuthUser> {
   const payload = await verifyAccessToken(rawToken, audience);
   return {
-    id: payload.sub,
+    userId: payload.sub,
     scopes: payload.scopes ?? [],
-    jti: payload.jti,
+    // jti: payload.jti,
     exp: payload.exp ?? 0,
     sessionId: payload.sid,
-    grantId: payload.gid ?? null,
+    //  grantId: payload.gid ?? null,
   };
 }

@@ -9,6 +9,8 @@ import {
 import { changePasswordEmail } from "../emails/changePasswordEmail.js";
 import { InvalidVerificationCodeError } from "../errors.js";
 import { revokeAccessTokens } from "../lib/tokenStore.js";
+import { disconnectUser } from "../../../websocket/index.js";
+import logger from "../../../utils/logger.js";
 
 interface ResetPasswordInput {
   email: string;
@@ -40,6 +42,13 @@ export async function resetPassword({
   // Revoke every refresh token — old sessions can no longer be renewed.
   const sessionIds = await deleteAllSessions(user.id);
   await revokeAccessTokens(sessionIds);
+
+  await disconnectUser(user.id, "password changed").catch((err) =>
+    logger.warn(
+      { err, userId: user.id },
+      "WS disconnect on password change failed",
+    ),
+  );
 
   //await revokeAllRefreshTokensForUser(user.id);
 

@@ -25,7 +25,8 @@ export type PublicUser = Pick<
  * GraphQL context and the WS layer never have to care which token FORMAT arrived.
  */
 export interface AuthUser {
-  id: string;
+  userId: string;
+  // Special permission scopes if user has, array of strings. Empty array if user has no special permissions.
   scopes: string[];
   /** Server-generated per login; stable across token rotation. */
   sessionId: string;

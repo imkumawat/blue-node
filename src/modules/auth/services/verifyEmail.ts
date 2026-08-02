@@ -24,8 +24,8 @@ interface AuthResult {
 export async function verifyEmail({
   email,
   code,
-  userAgent,
   ipAddress,
+  userAgent,
 }: VerifyEmailInput): Promise<AuthResult> {
   const user = await findUserByEmail(email);
   if (!user || user.status !== "pending") {

@@ -5,14 +5,14 @@ export function optionalAuthenticate(): RequestHandler {
   return async (req, _res, next) => {
     const token = req.cookies?.access_token ?? null;
     if (!token) {
-      req.user = null;
+      req.session = null;
       return next();
     }
 
     try {
-      req.user = await verifySessionToken(token);
+      req.session = await verifySessionToken(token);
     } catch {
-      req.user = null;
+      req.session = null;
     }
 
     next();
