@@ -1,4 +1,4 @@
-import { findUserByEmail, updateUserStatus } from "../infra/userQueries.js";
+import { findUserByEmail, updateUser } from "../infra/userQueries.js";
 import { createSession } from "./createSession.js";
 import type { SessionCredentials } from "./createSession.js";
 import { verifyEmailVerificationCode } from "../infra/emailVerification.js";
@@ -35,7 +35,7 @@ export async function verifyEmail({
   const ok = await verifyEmailVerificationCode(user.id, code);
   if (!ok) throw new InvalidVerificationCodeError();
 
-  await updateUserStatus(user.id, "active");
+  await updateUser(user.id, { status: "active" });
 
   const credentials = await createSession({
     userId: user.id,

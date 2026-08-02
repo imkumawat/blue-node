@@ -1,4 +1,4 @@
-import { findUserByEmail, updateUserPassword } from "../infra/userQueries.js";
+import { findUserByEmail, updateUser } from "../infra/userQueries.js";
 import { deleteAllSessions } from "../infra/sessionQueries.js";
 import { verifyPasswordResetCode } from "../infra/passwordReset.js";
 import { hashPassword } from "../../../shared/utils/password.js";
@@ -37,7 +37,7 @@ export async function resetPassword({
   if (!ok) throw new InvalidVerificationCodeError();
 
   const passwordHash = await hashPassword(newPassword);
-  await updateUserPassword(user.id, passwordHash);
+  await updateUser(user.id, { passwordHash });
 
   // Revoke every refresh token — old sessions can no longer be renewed.
   const sessionIds = await deleteAllSessions(user.id);
