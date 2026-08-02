@@ -168,7 +168,6 @@ export async function postAuthorize(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const { oauth } = getEnvConfig();
   const { ticket, decision, email, password, captchaToken } =
     req.body as Record<string, string | undefined>;
 
