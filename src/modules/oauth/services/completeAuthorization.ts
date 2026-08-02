@@ -1,5 +1,5 @@
-import { upsertGrant } from "../lib/grantQueries.js";
-import { issueAuthCode } from "../lib/authCodeStore.js";
+import { upsertGrant } from "../infra/grantQueries.js";
+import { issueAuthCode } from "../infra/authCodeStore.js";
 import type { Scope } from "../../../shared/constants/scopes.js";
 
 export async function completeAuthorization(params: {

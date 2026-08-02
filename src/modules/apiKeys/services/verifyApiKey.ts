@@ -1,4 +1,7 @@
-import { findApiKeyByHash, touchApiKeyLastUsed } from "../lib/apiKeyQueries.js";
+import {
+  findApiKeyByHash,
+  touchApiKeyLastUsed,
+} from "../infra/apiKeyQueries.js";
 import { sha256 } from "../../../shared/utils/crypto.js";
 import { ApiKeyExpiredError } from "../errors.js";
 import logger from "../../../utils/logger.js";

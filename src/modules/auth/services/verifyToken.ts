@@ -1,4 +1,4 @@
-import { verifyAccessToken } from "../lib/tokenService.js";
+import { verifyAccessToken } from "../infra/tokenService.js";
 
 import type { AuthSession } from "../types.js";
 

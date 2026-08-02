@@ -4,9 +4,9 @@ import {
 } from "../../../shared/utils/crypto.js";
 import logger from "../../../utils/logger.js";
 import { issueGrantTokens } from "../../auth/index.js";
-import { consumeAuthCode } from "../lib/authCodeStore.js";
-import { touchClientLastUsed } from "../lib/clientQueries.js";
-import { touchGrantLastUsed } from "../lib/grantQueries.js";
+import { consumeAuthCode } from "../infra/authCodeStore.js";
+import { touchClientLastUsed } from "../infra/clientQueries.js";
+import { touchGrantLastUsed } from "../infra/grantQueries.js";
 import { TokenRequestError } from "../errors.js";
 
 export interface TokenResponse {

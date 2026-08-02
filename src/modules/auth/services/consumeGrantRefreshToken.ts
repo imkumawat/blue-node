@@ -1,7 +1,7 @@
 import {
   blacklistAccessToken,
   rotateRefreshToken,
-} from "../lib/tokenService.js";
+} from "../infra/tokenService.js";
 import { InvalidRefreshTokenError } from "../errors.js";
 
 /**

@@ -3,7 +3,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   storeRefreshToken,
-} from "../lib/tokenService.js";
+} from "../infra/tokenService.js";
 
 import type { GrantTokens } from "../types.js";
 

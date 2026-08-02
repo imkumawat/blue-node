@@ -1,10 +1,10 @@
-import { findUserById, updateUserPassword } from "../lib/userQueries.js";
+import { findUserById, updateUserPassword } from "../infra/userQueries.js";
 import {
   verifyPassword,
   hashPassword,
 } from "../../../shared/utils/password.js";
-import { deleteAllSessions } from "../lib/sessionQueries.js";
-import { revokeAccessTokens } from "../lib/tokenStore.js";
+import { deleteAllSessions } from "../infra/sessionQueries.js";
+import { revokeAccessTokens } from "../infra/tokenStore.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,

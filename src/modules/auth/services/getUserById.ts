@@ -1,4 +1,4 @@
-import { findUserById } from "../lib/userQueries.js";
+import { findUserById } from "../infra/userQueries.js";
 import { UserNotFoundError } from "../errors.js";
 import type { User } from "../../../models/postgres/user/user.js";
 

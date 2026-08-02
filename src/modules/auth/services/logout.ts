@@ -1,6 +1,6 @@
 import { disconnectSession } from "../../../websocket/index.js";
-import { revokeAccessToken } from "../lib/tokenStore.js";
-import { deleteSession } from "../lib/sessionQueries.js";
+import { revokeAccessToken } from "../infra/tokenStore.js";
+import { deleteSession } from "../infra/sessionQueries.js";
 
 interface LogoutParams {
   userId: string;

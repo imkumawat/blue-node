@@ -1,4 +1,4 @@
-import { insertClient } from "../lib/clientQueries.js";
+import { insertClient } from "../infra/clientQueries.js";
 import {
   InvalidClientMetadataError,
   InvalidRedirectUriError,

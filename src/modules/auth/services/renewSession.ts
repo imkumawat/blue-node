@@ -1,9 +1,9 @@
 import { getEnvConfig } from "../../../config/env.js";
 import { hmacSha256, randomToken } from "../../../shared/utils/crypto.js";
-import { getScopes } from "../lib/permissionQueries.js";
+import { getScopes } from "../infra/permissionQueries.js";
 import { InvalidRefreshTokenError } from "../errors.js";
-import { issueAccessToken, revokeAccessToken } from "../lib/tokenStore.js";
-import { rotateSession, touchSession } from "../lib/sessionQueries.js";
+import { issueAccessToken, revokeAccessToken } from "../infra/tokenStore.js";
+import { rotateSession, touchSession } from "../infra/sessionQueries.js";
 import type { SessionCredentials } from "./createSession.js";
 
 /**

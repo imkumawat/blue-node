@@ -4,8 +4,8 @@ import {
   consumeGrantRefreshToken,
   issueGrantTokens,
 } from "../../auth/index.js";
-import { findGrantById, touchGrantLastUsed } from "../lib/grantQueries.js";
-import { touchClientLastUsed } from "../lib/clientQueries.js";
+import { findGrantById, touchGrantLastUsed } from "../infra/grantQueries.js";
+import { touchClientLastUsed } from "../infra/clientQueries.js";
 import { TokenRequestError } from "../errors.js";
 import type { TokenResponse } from "./exchangeCode.js";
 

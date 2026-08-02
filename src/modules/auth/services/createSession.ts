@@ -1,15 +1,15 @@
 import { getEnvConfig } from "../../../config/env.js";
 import { getDeviceLabel } from "../../../utils/getDeviceLabel.js";
 import { hmacSha256, randomToken } from "../../../shared/utils/crypto.js";
-import { getScopes } from "../lib/permissionQueries.js";
-import { issueAccessToken } from "../lib/tokenStore.js";
-import { insertSession } from "../lib/sessionQueries.js";
+import { getScopes } from "../infra/permissionQueries.js";
+import { issueAccessToken } from "../infra/tokenStore.js";
+import { insertSession } from "../infra/sessionQueries.js";
 
 /**
  * Device-session credentials.
  *
  * The sibling of issueGrantTokens: that one credentials an OAuth grant, this one
- * credentials a device. Both wrap lib/tokenStore and are called by other code
+ * credentials a device. Both wrap infra/tokenStore and are called by other code
  * rather than by a route.
  *
  * Both tokens here are opaque. Nothing on this path is a JWT: the only party that

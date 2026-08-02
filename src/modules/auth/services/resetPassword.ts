@@ -1,6 +1,6 @@
-import { findUserByEmail, updateUserPassword } from "../lib/userQueries.js";
-import { deleteAllSessions } from "../lib/sessionQueries.js";
-import { verifyPasswordResetCode } from "../lib/passwordReset.js";
+import { findUserByEmail, updateUserPassword } from "../infra/userQueries.js";
+import { deleteAllSessions } from "../infra/sessionQueries.js";
+import { verifyPasswordResetCode } from "../infra/passwordReset.js";
 import { hashPassword } from "../../../shared/utils/password.js";
 import {
   enqueueEmail,
@@ -8,7 +8,7 @@ import {
 } from "../../notifications/jobs/sendEmail.js";
 import { changePasswordEmail } from "../emails/changePasswordEmail.js";
 import { InvalidVerificationCodeError } from "../errors.js";
-import { revokeAccessTokens } from "../lib/tokenStore.js";
+import { revokeAccessTokens } from "../infra/tokenStore.js";
 import { disconnectUser } from "../../../websocket/index.js";
 import logger from "../../../utils/logger.js";
 

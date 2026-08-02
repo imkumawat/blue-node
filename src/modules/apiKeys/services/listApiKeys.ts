@@ -1,4 +1,4 @@
-import { findAllApiKeys } from "../lib/apiKeyQueries.js";
+import { findAllApiKeys } from "../infra/apiKeyQueries.js";
 
 export async function listApiKeys() {
   return findAllApiKeys();

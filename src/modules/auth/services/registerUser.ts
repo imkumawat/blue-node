@@ -4,10 +4,10 @@ import {
   DEFAULT_CONSENT_VERSION,
   type ConsentType,
 } from "../constants.js";
-import { findUserByEmail, createUser } from "../lib/userQueries.js";
+import { findUserByEmail, createUser } from "../infra/userQueries.js";
 import { hashPassword } from "../../../shared/utils/password.js";
-import { logConsent } from "../lib/consentQueries.js";
-import { createEmailVerificationCode } from "../lib/emailVerification.js";
+import { logConsent } from "../infra/consentQueries.js";
+import { createEmailVerificationCode } from "../infra/emailVerification.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,

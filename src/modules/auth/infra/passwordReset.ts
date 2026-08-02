@@ -6,7 +6,7 @@ import {
   constantTimeEqual,
 } from "../../../shared/utils/crypto.js";
 
-// Mirrors lib/emailVerification.ts but on a separate keyspace — a pending
+// Mirrors infra/emailVerification.ts but on a separate keyspace — a pending
 // email-verify code and a password-reset code can coexist for the same user
 // without clobbering each other. Keyed by userId (not email): no raw PII in keys.
 function key(userId: string): string {

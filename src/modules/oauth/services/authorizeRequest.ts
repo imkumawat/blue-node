@@ -1,8 +1,8 @@
 import { getEnvConfig } from "../../../config/env.js";
 import { SCOPES } from "../../../shared/constants/scopes.js";
 import type { Scope } from "../../../shared/constants/scopes.js";
-import { findClientById } from "../lib/clientQueries.js";
-import { findGrant } from "../lib/grantQueries.js";
+import { findClientById } from "../infra/clientQueries.js";
+import { findGrant } from "../infra/grantQueries.js";
 import {
   AuthorizeRedirectError,
   InvalidRedirectUriError,

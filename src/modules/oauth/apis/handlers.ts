@@ -29,7 +29,7 @@ import {
   consumePending,
   createPending,
   readPending,
-} from "../lib/pendingAuthStore.js";
+} from "../infra/pendingAuthStore.js";
 import {
   resolveGrant,
   validateAuthorizeRequest,

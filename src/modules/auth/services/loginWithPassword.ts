@@ -2,9 +2,9 @@ import { getEnvConfig } from "../../../config/env.js";
 import { getRedis } from "../../../lib/cache/redis/client.js";
 import logger from "../../../utils/logger.js";
 import { sha256 } from "../../../shared/utils/crypto.js";
-import { findUserByEmail } from "../lib/userQueries.js";
+import { findUserByEmail } from "../infra/userQueries.js";
 import { verifyPassword } from "../../../shared/utils/password.js";
-import { getScopes } from "../lib/permissionQueries.js";
+import { getScopes } from "../infra/permissionQueries.js";
 
 import {
   InvalidCredentialsError,
