@@ -22,26 +22,18 @@ export function createOauthRouter(): Router {
   const { jwt, oauth } = getEnvConfig();
   const router = Router();
 
-  // The app-wide body parser is application/json ONLY. An HTML form submission
-  // and an OAuth token request are both application/x-www-form-urlencoded, so
-  // they need this — scoped to these two routes rather than added globally,
-  // which would change how every other endpoint parses a body.
   const form = express.urlencoded({ extended: false });
 
   router.get(oauth.metadataPath, getAuthServerMetadata);
 
-  // The signing keys belong to the authorization server, so they are served
-  // here rather than from a router of their own. Public and unguarded, like the
-  // metadata document above.
   router.get(jwt.jwksPath, getJwks);
+
+  router.post(oauth.registerPath, postRegister);
 
   router.get(oauth.authorizePath, getAuthorize);
   router.post(oauth.authorizePath, form, postAuthorize);
 
   router.post(oauth.tokenPath, form, postToken);
-
-  // Dynamic client registration is JSON — the global parser already handles it.
-  router.post(oauth.registerPath, postRegister);
 
   return router;
 }
