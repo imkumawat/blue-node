@@ -1,5 +1,5 @@
 import { upsertGrant } from "../infra/grantQueries.js";
-import { issueAuthCode } from "../infra/authCodeStore.js";
+import { issueAuthorizationCode } from "../infra/oauthTokenStore.js";
 import type { Scope } from "../../../shared/constants/scopes.js";
 
 export async function completeAuthorization(params: {
@@ -18,7 +18,7 @@ export async function completeAuthorization(params: {
     params.scopes,
   );
 
-  return issueAuthCode({
+  return issueAuthorizationCode({
     userId: params.userId,
     clientId: params.clientId,
     grantId: grant.id,
