@@ -199,7 +199,6 @@ export async function postAuthorize(
       return;
     }
 
-    let authSession: AuthSession | null;
     try {
       const { credentials } = await loginWithPassword({
         email,
@@ -213,8 +212,7 @@ export async function postAuthorize(
       // the next app, or this one again, skips the login step entirely.
       setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
 
-      authSession = await verifySessionToken(credentials.accessToken);
-      pending.authSession = authSession;
+      pending.authSession = await verifySessionToken(credentials.accessToken);
     } catch (err) {
       // Wrong credentials, lockout and the CAPTCHA gate all land here. The
       // message is whatever the auth module already decided is safe to show.
@@ -262,7 +260,6 @@ export async function postAuthorize(
 
     await updatePendingAuthorizationRequest(ticket, {
       ...pending,
-      authSession: authSession,
     });
     res.status(StatusCodes.UNAUTHORIZED).json({
       ticket,
