@@ -2,7 +2,7 @@ import { getRedis } from "../../../lib/cache/redis/client.js";
 import { getEnvConfig } from "../../../config/env.js";
 import { randomToken, sha256 } from "../../../shared/utils/crypto.js";
 import type { Scope } from "../../../shared/constants/scopes.js";
-import type { AuthUser } from "../../auth/types.js";
+import type { AuthSession } from "../../auth/types.js";
 import type { OauthClient } from "../../../models/postgres/oauth/oauthClient.js";
 
 export interface PendingAuthorization {
@@ -14,7 +14,7 @@ export interface PendingAuthorization {
   codeChallengeMethod: "S256";
   resource: string;
   state: string | null;
-  session: AuthUser | null;
+  session: AuthSession | null;
 }
 
 function key(ticket: string): string {

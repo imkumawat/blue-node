@@ -10,7 +10,7 @@ import { getPublicJwks } from "../../../shared/utils/jose.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
 import { loginWithPassword, verifySessionToken } from "../../auth/index.js";
 
-import type { AuthUser } from "../../auth/index.js";
+import type { AuthSession } from "../../auth/index.js";
 
 import {
   authorizeInput,
@@ -65,7 +65,7 @@ function redirectWithError(
   res.redirect(url.toString());
 }
 
-async function resolveSession(req: Request): Promise<AuthUser | null> {
+async function resolveSession(req: Request): Promise<AuthSession | null> {
   const token = req.cookies?.access_token as string | undefined;
   if (!token) return null;
 
@@ -188,7 +188,7 @@ export async function postAuthorize(
       return;
     }
 
-    let session: AuthUser | null;
+    let session: AuthSession | null;
     try {
       const { credentials } = await loginWithPassword({
         email,

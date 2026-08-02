@@ -3,10 +3,10 @@ import type { Logger } from "pino";
 import { getClientIp } from "../utils/getClientIp.js";
 import { createLoaders } from "./loaders/index.js";
 import type { Loaders } from "./loaders/index.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 
 export interface GraphQLContext {
-  user: AuthUser | null;
+  user: AuthSession | null;
   accessExp: number | null;
   rawRefreshToken: string | null;
   ipAddress: string;

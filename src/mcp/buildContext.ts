@@ -2,7 +2,7 @@ import type { Request } from "express";
 import type { Logger } from "pino";
 
 import { getClientIp } from "../utils/getClientIp.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 
 export interface McpContext {
   /**
@@ -13,7 +13,7 @@ export interface McpContext {
    * tool. `user.scopes` carries what the token was granted — that is what
    * per-tool authorization reads.
    */
-  user: AuthUser;
+  user: AuthSession;
   ipAddress: string;
   requestId: string;
   logger: Logger;

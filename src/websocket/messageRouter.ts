@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 import { sendToSocket, joinRoom, leaveRoom } from "./connectionManager.js";
 import { subscribeRoom, unsubscribeRoom } from "./subscriber.js";
 import { deliverToRoom } from "./publisher.js";
@@ -15,7 +15,7 @@ interface WSMessage {
 // handlers must null-check before acting.
 type Handler = (
   msg: WSMessage,
-  user: AuthUser | null,
+  user: AuthSession | null,
   ws: WebSocket,
 ) => Promise<void>;
 
@@ -73,7 +73,7 @@ const handlers: Record<string, Handler> = {
 
 export async function routeMessage(
   msg: WSMessage,
-  user: AuthUser | null,
+  user: AuthSession | null,
   ws: WebSocket,
 ): Promise<void> {
   const handler = handlers[msg?.type];

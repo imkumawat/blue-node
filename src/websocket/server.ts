@@ -6,7 +6,7 @@ import type { Duplex } from "stream";
 import cookie from "cookie";
 import { v7 as uuidv7 } from "uuid";
 import { verifySessionToken } from "../modules/auth/index.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 import {
   addUserConnection,
   removeUserConnection,
@@ -119,7 +119,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     }
   }
 
-  function handleConnection(ws: WebSocket, user: AuthUser | null): void {
+  function handleConnection(ws: WebSocket, user: AuthSession | null): void {
     ws.connectionId = uuidv7();
 
     if (user) {

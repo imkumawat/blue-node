@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 
 declare global {
   namespace Express {
@@ -7,7 +7,7 @@ declare global {
       requestId: string;
       logger: Logger;
       startTime: bigint;
-      session: AuthUser | null;
+      session: AuthSession | null;
       apiClient?: { id: string; clientName: string };
     }
   }

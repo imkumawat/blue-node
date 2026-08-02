@@ -1,5 +1,5 @@
 import { verifyAccessToken } from "../lib/tokenStore.js";
-import type { AuthUser } from "../types.js";
+import type { AuthSession } from "../types.js";
 
 /**
  * Verifies a first-party session token — REST, GraphQL and the WS upgrade.
@@ -15,7 +15,7 @@ import type { AuthUser } from "../types.js";
  */
 export async function verifySessionToken(
   rawToken: string,
-): Promise<AuthUser | null> {
+): Promise<AuthSession | null> {
   const record = await verifyAccessToken(rawToken);
   if (!record) return null;
   return record;

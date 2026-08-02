@@ -1,6 +1,6 @@
 import { verifyAccessToken } from "../lib/tokenService.js";
 
-import type { AuthUser } from "../types.js";
+import type { AuthSession } from "../types.js";
 
 /**
  * Verifies a JWT and returns the auth-context shape used everywhere
@@ -12,7 +12,7 @@ import type { AuthUser } from "../types.js";
 export async function verifyToken(
   rawToken: string,
   audience: string,
-): Promise<AuthUser> {
+): Promise<AuthSession> {
   const payload = await verifyAccessToken(rawToken, audience);
   return {
     userId: payload.sub,
