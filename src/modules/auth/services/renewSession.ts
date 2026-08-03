@@ -9,7 +9,7 @@ import {
   rotateSession,
   deleteSession,
 } from "../infra/sessionQueries.js";
-import { disconnectSession } from "../../../websocket/index.js";
+import { disconnectSocketConnection } from "../../../websocket/index.js";
 import type { SessionCredentials } from "./createSession.js";
 
 /**
@@ -90,7 +90,7 @@ async function reportIfReuse(presentedHash: string): Promise<void> {
   const spent = await findSessionByPreviousTokenHash(presentedHash);
   if (!spent) return;
 
-  await disconnectSession(spent.userId, spent.id);
+  await disconnectSocketConnection(spent.userId, spent.id);
   await revokeAccessToken(spent.id);
   await deleteSession(spent.id, spent.userId);
 

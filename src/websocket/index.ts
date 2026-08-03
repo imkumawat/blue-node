@@ -5,7 +5,7 @@
 export { attachWebSocketServer } from "./server.js";
 export { initWsPubsub, closeWsPubsub } from "./subscriber.js";
 export {
-  disconnectSession,
+  disconnectSocketConnection,
   disconnectUser,
   deliverToUser,
   deliverToSession,

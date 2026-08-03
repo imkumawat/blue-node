@@ -47,7 +47,7 @@ export async function deliverToSession(
 }
 
 /** Close ONE session's sockets across every instance (per-device logout). */
-export async function disconnectSession(
+export async function disconnectSocketConnection(
   userId: string,
   sessionId: string,
   reason = "logged out",
