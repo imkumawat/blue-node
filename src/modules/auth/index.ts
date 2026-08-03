@@ -5,6 +5,6 @@ export { loginWithPassword } from "./services/loginWithPassword.js";
 export { getUserById } from "./services/getUserById.js";
 export { consumeGrantRefreshToken } from "./services/consumeGrantRefreshToken.js";
 
-export { InvalidTokenError } from "./errors.js";
+export { InvalidTokenError, InvalidateAuthSessionError } from "./errors.js";
 
 export type { AuthSession, GrantTokens } from "./types.js";
