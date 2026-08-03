@@ -35,7 +35,22 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
+    // HMAC of the refresh token currently valid for this device. Rotation
+    // overwrites it, which is why the previous one has to be kept below.
     tokenHash: char("token_hash", { length: 64 }).unique(),
+
+    // The hash this row held before the last rotation.
+    //
+    // Without it a replayed refresh token is indistinguishable from a random
+    // string: rotation overwrote the hash, so the lookup simply misses and the
+    // only honest answer is "no such token". Keeping one generation back is what
+    // turns that miss into a signal — a hit here means a credential that WAS
+    // valid is being presented after it was spent, which is the shape of a
+    // stolen token being replayed.
+    //
+    // One generation is enough. The attack it catches is a replay of the token
+    // that was stolen; a chain older than that has no live counterpart anyway.
+    previousTokenHash: char("previous_token_hash", { length: 64 }),
 
     // No portal/audience column, deliberately. An "admin" here is not a separate
     // population — there is one users table, and admin_access is a SCOPE. So a
@@ -70,11 +85,6 @@ export const sessions = pgTable(
       .defaultNow()
       .notNull(),
 
-    // NULL = live and never used. Set = this jti was consumed by a rotation;
-    // any later presentation is reuse and must trip the family revoke. The row
-    // is the sole source of truth for rotation state (no companion Redis key).
-    rotatedAt: timestamp("rotated_at", { withTimezone: true }),
-
     // Tracks the refresh-token lifetime and slides forward on each refresh: this
     // is how long the DEVICE may stay signed in, not how long one credential
     // lives. No default — the caller derives it from the configured refresh
@@ -95,6 +105,10 @@ export const sessions = pgTable(
     // Powers the expiry sweep. Postgres will not add this for us, and without it
     // the sweep sequentially scans the whole table.
     index("sessions_expires_at_idx").on(table.expiresAt),
+
+    // The reuse check runs on every REJECTED refresh, which is exactly the path
+    // an attacker hammers. Without this index that path is a sequential scan.
+    index("sessions_previous_token_hash_idx").on(table.previousTokenHash),
   ],
 );
 
@@ -103,21 +117,22 @@ export type NewSession = typeof sessions.$inferInsert;
 
 /*
   CREATE TABLE sessions (
-    id            UUID PRIMARY KEY,
-    user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash  CHAR(64) UNIQUE,             -- opaque rows: the credential's HMAC
-    device_label  VARCHAR(120),
-    user_agent    TEXT,
-    ip_address    VARCHAR(45),
-    last_used_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-     rotated_at  TIMESTAMPTZ,                       -- NULL = live; set = already rotated
-    expires_at    TIMESTAMPTZ NOT NULL,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id                  UUID PRIMARY KEY,
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash          CHAR(64) UNIQUE,   -- HMAC of the live refresh token
+    previous_token_hash CHAR(64),          -- the one before the last rotation
+    device_label        VARCHAR(120),
+    user_agent          TEXT,
+    ip_address          VARCHAR(45),
+    last_used_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at          TIMESTAMPTZ NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
-  CREATE INDEX sessions_user_id_idx    ON sessions(user_id);
-  CREATE INDEX sessions_expires_at_idx ON sessions(expires_at);
+  CREATE INDEX sessions_user_id_idx             ON sessions(user_id);
+  CREATE INDEX sessions_expires_at_idx          ON sessions(expires_at);
+  CREATE INDEX sessions_previous_token_hash_idx ON sessions(previous_token_hash);
 
-  -- The sweep. Refresh tokens follow by FK cascade once refresh_tokens.session_id
-  -- exists, so this row is the only one that has to be chased.
+
+  -- The sweep.
   --   DELETE FROM sessions WHERE expires_at < NOW();
 */
