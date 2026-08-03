@@ -15,7 +15,7 @@ import type { McpToolDescriptor } from "./protocol.js";
  * graphql/server.ts reaches graphql-apis/typedefs.js. Routing these through the
  * module's index.ts barrel instead would drag the whole tool graph into every
  * barrel consumer — the REST auth middleware and the WS router only want
- * verifyToken, and the barrel is curated precisely to keep it that way.
+ * verifySessionToken, and the barrel is curated precisely to keep it that way.
  */
 const ALL_TOOLS: McpTool[] = [...authMcpTools];
 
@@ -67,9 +67,9 @@ export function assertUniqueToolNames(): void {
  * back forbidden.
  */
 export function listToolsFor(ctx: McpContext): McpToolDescriptor[] {
-  return ALL_TOOLS.filter((tool) =>
-    ctx.session.scopes.includes(tool.scope),
-  ).map((tool) => tool.descriptor);
+  return ALL_TOOLS.filter((tool) => ctx.grant.scopes.includes(tool.scope)).map(
+    (tool) => tool.descriptor,
+  );
 }
 
 export function findTool(name: string): McpTool | undefined {
