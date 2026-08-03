@@ -5,13 +5,14 @@ import { logoutUser } from "../services/logout.js";
 import { parseInput } from "../../../shared/utils/parseInput.js";
 import { signupSchema, loginSchema, verifyEmailSchema } from "../schemas.js";
 import { InvalidRefreshTokenError, UserNotFoundError } from "../errors.js";
+
 import type { GraphQLContext } from "../../../graphql/buildContext.js";
-import type { IssuedToken } from "../lib/tokenService.js";
+import type { SessionCredentials } from "../services/createSession.js";
+import type { PublicUser } from "../types.js";
 
 interface AuthLikeResult {
-  user: { id: string; email: string; createdAt: Date };
-  access: IssuedToken;
-  refresh: IssuedToken;
+  user: PublicUser;
+  credentials: SessionCredentials;
 }
 
 interface RegisterArgs {
@@ -35,19 +36,22 @@ interface EchoArgs {
   limit: number;
 }
 
-function toAuthPayload({ user, access, refresh }: AuthLikeResult) {
+function toAuthPayload({ user, credentials }: AuthLikeResult) {
   return {
     user,
-    tokens: { accessToken: access.token, refreshToken: refresh.token },
+    tokens: {
+      accessToken: credentials.accessToken,
+      refreshToken: credentials.refreshToken,
+    },
   };
 }
 
 export const authResolvers = {
   Query: {
     me: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-      if (!ctx.user) return null;
+      if (!ctx.session) return null;
       // Load via the per-request DataLoader (batches + caches within the request).
-      const user = await ctx.loaders.userById.load(ctx.user.id);
+      const user = await ctx.loaders.userById.load(ctx.session.userId);
       if (!user) throw new UserNotFoundError();
       return user;
     },
@@ -82,10 +86,14 @@ export const authResolvers = {
     verifyEmail: async (
       _parent: unknown,
       { input }: VerifyEmailArgs,
-      _ctx: GraphQLContext,
+      ctx: GraphQLContext,
     ) => {
       const validated = parseInput(verifyEmailSchema, input);
-      const result = await verifyEmailService(validated);
+      const result = await verifyEmailService({
+        ...validated,
+        userAgent: ctx.userAgent,
+        ipAddress: ctx.ipAddress,
+      });
       return toAuthPayload(result);
     },
 
@@ -98,20 +106,18 @@ export const authResolvers = {
       const result = await loginWithPassword({
         ...validated,
         ipAddress: ctx.ipAddress,
+        userAgent: ctx.userAgent,
       });
       return toAuthPayload(result);
     },
 
     logout: async (_parent: unknown, _args: unknown, ctx: GraphQLContext) => {
-      // @authenticated directive guarantees ctx.user (thus accessJti/accessExp
+      // @authenticated directive guarantees ctx.session (thus accessJti/accessExp
       // — same JWT). Refresh cookie is independent — validate explicitly.
       if (!ctx.rawRefreshToken) throw new InvalidRefreshTokenError();
       await logoutUser({
-        userId: ctx.user!.id,
-        sessionId: ctx.user!.sessionId,
-        accessJti: ctx.accessJti!,
-        accessExp: ctx.accessExp!,
-        rawRefreshToken: ctx.rawRefreshToken,
+        userId: ctx.session!.userId,
+        sessionId: ctx.session!.sessionId,
       });
       return true;
     },

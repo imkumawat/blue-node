@@ -1,4 +1,4 @@
-import { revokeApiKeyById, insertApiKey } from "../lib/apiKeyQueries.js";
+import { revokeApiKeyById, insertApiKey } from "../infra/apiKeyQueries.js";
 
 export async function rotateApiKey({
   id,

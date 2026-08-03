@@ -1,5 +1,9 @@
 import DataLoader from "dataloader";
-import { findUsersByIds } from "../../modules/auth/lib/userQueries.js";
+// TODO(boundary): reaches into auth's infra/ directly. Per the module contract
+// this should come through modules/auth/index.js — the barrel exists so a
+// module's internals can move without breaking outside callers, which is
+// exactly what the lib/ → infra/ rename just demonstrated.
+import { findUsersByIds } from "../../modules/auth/infra/userQueries.js";
 import type { User } from "../../models/postgres/user/user.js";
 
 /**

@@ -1,15 +1,13 @@
 import { getEnvConfig } from "../../../config/env.js";
-import { DEFAULT_USER_SCOPES } from "../../../shared/constants/scopes.js";
 import {
   CONSENT_VERSIONS,
   DEFAULT_CONSENT_VERSION,
   type ConsentType,
 } from "../constants.js";
-import { findUserByEmail, createUser } from "../lib/userQueries.js";
+import { findUserByEmail, createUser } from "../infra/userQueries.js";
 import { hashPassword } from "../../../shared/utils/password.js";
-import { grantScopes } from "../lib/permissionQueries.js";
-import { logConsent } from "../lib/consentQueries.js";
-import { createEmailVerificationCode } from "../lib/emailVerification.js";
+import { logConsent } from "../infra/consentQueries.js";
+import { createEmailVerificationCode } from "../infra/tokenStore.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,
@@ -20,8 +18,8 @@ import type { User } from "../../../models/postgres/user/user.js";
 
 interface ConsentMeta {
   ipAddress: string;
-  userAgent?: string | null;
-  platform?: string;
+  userAgent: string | null;
+  platform: string;
 }
 
 interface RegisterInput {
@@ -39,11 +37,11 @@ interface RegisterResult {
 
 export async function registerUser({
   email,
+  firstName,
+  lastName,
   password,
   consents,
   consentMeta,
-  firstName,
-  lastName,
 }: RegisterInput): Promise<RegisterResult> {
   const existing = await findUserByEmail(email);
   if (existing) throw new EmailAlreadyExistsError();
@@ -51,13 +49,11 @@ export async function registerUser({
   const passwordHash = await hashPassword(password);
   const user = await createUser({
     email,
-    passwordHash,
-    status: "pending",
     firstName,
     lastName,
+    passwordHash,
+    status: "pending",
   });
-
-  await grantScopes(user.id, [...DEFAULT_USER_SCOPES]);
 
   await Promise.all(
     consents.map((consentType) =>

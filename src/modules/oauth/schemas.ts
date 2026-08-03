@@ -8,7 +8,26 @@ import { z } from "zod";
  * mapping is the boundary, and it stays in one place.
  */
 export const registerClientInput = z.object({
-  client_name: z.string().min(1).max(255),
+  /**
+   * Shown to the user on the consent screen, which makes it the one field here an
+   * attacker controls and gets rendered: registration is open, so anyone can
+   * submit any name.
+   *
+   * Angle brackets are rejected rather than escaped-and-accepted. Escaping at
+   * render time is the actual XSS fix and it is not optional — this is the second
+   * layer, and it is a NARROW rule rather than a blocklist: a display name has no
+   * legitimate use for `<` or `>`, so nothing real is lost by refusing them at the
+   * door instead of storing them and hoping every future render escapes.
+   *
+   * Trimmed first so a name of nothing but spaces fails min(1) instead of being
+   * stored and rendering as a blank on the consent screen. 255 matches the column.
+   */
+  client_name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .regex(/^[^<>]*$/, "client_name must not contain < or >"),
 
   // Plain strings, not z.url(): a native app may legitimately register a
   // private-use scheme such as com.example.app:/cb, which a URL validator aimed

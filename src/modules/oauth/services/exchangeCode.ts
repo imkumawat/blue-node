@@ -3,10 +3,10 @@ import {
   sha256Base64Url,
 } from "../../../shared/utils/crypto.js";
 import logger from "../../../utils/logger.js";
-import { issueGrantTokens } from "../../auth/index.js";
-import { consumeAuthCode } from "../lib/authCodeStore.js";
-import { touchClientLastUsed } from "../lib/clientQueries.js";
-import { touchGrantLastUsed } from "../lib/grantQueries.js";
+import { issueGrantSession } from "./issueGrantSession.js";
+import { consumeAuthorizationCode } from "../infra/oauthTokenStore.js";
+import { touchClientLastUsed } from "../infra/clientQueries.js";
+import { touchGrantLastUsed } from "../infra/grantQueries.js";
 import { TokenRequestError } from "../errors.js";
 
 export interface TokenResponse {
@@ -46,7 +46,7 @@ export async function exchangeCode(
 ): Promise<TokenResponse> {
   // Atomic consume: if two requests race, exactly one gets the record and the
   // other sees nothing. Single use is enforced here, not by a later check.
-  const record = await consumeAuthCode(params.code);
+  const record = await consumeAuthorizationCode(params.code);
   if (!record) {
     reject("code not found, expired, or already redeemed", {
       clientId: params.clientId,
@@ -85,8 +85,9 @@ export async function exchangeCode(
     });
   }
 
-  const tokens = await issueGrantTokens({
+  const tokens = await issueGrantSession({
     userId: record.userId,
+    clientId: record.clientId,
     grantId: record.grantId,
     scopes: record.scopes,
     audience: record.resource,

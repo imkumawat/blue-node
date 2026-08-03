@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { JWK } from "jose";
 
 export const envSchema = z.object({
   // Server
@@ -43,20 +44,12 @@ export const envSchema = z.object({
   MQTT_USERNAME: z.string().optional(),
   MQTT_PASSWORD: z.string().optional(),
 
-  // MCP (Model Context Protocol) server — feature-flagged; OFF = endpoint not
-  // mounted at all. RESOURCE_URI is the canonical resource id this server is
-  // known by; it is what an access token's `aud` claim is validated against, so
-  // a missing value would mean skipping that check — mcp/server.ts therefore
-  // throws at boot when the flag is on and it is unset. AUTH_SERVER_URL is the
-  // authorization server advertised in the protected-resource document; in dev
-  // it points back at this app.
-  MCP_ENABLED: z.enum(["true", "false"]).default("false"),
   // The value an access token's `aud` claim must equal. RFC 8707 says a resource
   // indicator SHOULD be a URI (in prod: https://api.blue-node.dev/mcp), but it is
   // matched as an opaque string — in dev point it at the existing JWT audience so
   // the aud check stays real against tokens this app already issues.
-  MCP_RESOURCE_URI: z.string().min(1).optional(),
-  MCP_AUTH_SERVER_URL: z.url().optional(),
+  MCP_RESOURCE_URI: z.string().min(1),
+  OAUTH_SERVER_URL: z.url(),
 
   // Auth
   API_SECRET_KEY: z.string().min(16),
@@ -75,6 +68,61 @@ export const envSchema = z.object({
   JWT_USER_SECRET: z.string().min(32),
   JWT_ADMIN_SECRET: z.string().min(32),
   JWT_ISSUER: z.string().url(),
+
+  /**
+   * Private signing keys as a JSON array of JWKs, NEWEST FIRST — the first entry
+   * signs, the rest stay only so tokens issued before the last rotation still
+   * verify. Rotation is therefore: prepend the new key, deploy, and drop the old
+   * one once every token it signed has expired.
+   *
+   * JWK rather than PEM because a PEM's newlines do not survive an env var
+   * intact, while a JWK is a single line of JSON.
+   *
+   * Validated only far enough to catch a config mistake; jose does the real
+   * cryptographic validation when it imports these at boot.
+   */
+  JWT_SIGNING_KEYS: z.string().transform((raw, ctx): JWK[] => {
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "must be valid JSON" });
+      return z.NEVER;
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "must be a non-empty JSON array of JWKs",
+      });
+      return z.NEVER;
+    }
+
+    const everyEntryLooksLikeAJwk = parsed.every(
+      (entry) =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as { kty?: unknown }).kty === "string",
+    );
+
+    if (!everyEntryLooksLikeAJwk) {
+      ctx.addIssue({
+        code: "custom",
+        message: "every entry must be a JWK object with a string `kty`",
+      });
+      return z.NEVER;
+    }
+
+    return parsed as JWK[];
+  }),
+
+  // Opaque tokens
+  // Pepper for access-token HMACs. Deliberately separate from the JWT secrets:
+  // it signs nothing, it only makes a stored digest useless on its own. Kept in
+  // config and never written to Redis, so a Redis dump alone cannot be used to
+  // verify guesses offline.
+  TOKEN_PEPPER: z.string().min(32),
 
   // Swagger
   SWAGGER_USER: z.string().min(1).optional(),

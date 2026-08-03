@@ -5,8 +5,8 @@ import type { IncomingMessage } from "http";
 import type { Duplex } from "stream";
 import cookie from "cookie";
 import { v7 as uuidv7 } from "uuid";
-import { verifyToken } from "../modules/auth/index.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import { verifySessionToken } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 import {
   addUserConnection,
   removeUserConnection,
@@ -29,13 +29,13 @@ import { getEnvConfig } from "../config/env.js";
 
 /**
  * Attaches a WebSocket server to the existing httpServer. Auth happens during
- * the HTTP-to-WS upgrade handshake (before accept) — same JWT cookie/Bearer
- * flow as REST/GraphQL via `verifyToken` application use case.
+ * the HTTP-to-WS upgrade handshake (before accept) — the same opaque
+ * cookie/Bearer flow REST and GraphQL use, via `verifySessionToken`.
  *
  * Returns the WebSocketServer instance so server.ts can manage shutdown.
  */
 export function attachWebSocketServer(httpServer: Server): WebSocketServer {
-  const { ws: wsConfig, jwt, cors } = getEnvConfig();
+  const { ws: wsConfig, cors } = getEnvConfig();
 
   // The WebSocketServer is created with `noServer: true` so it doesn't listen on its own port — it piggybacks on the existing HTTP server.
   // The `maxPayload` option is set to limit the size of incoming messages, preventing potential abuse or resource exhaustion.
@@ -99,10 +99,10 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
         // allowed.
         if (viaCookie && !req.headers.origin) return rejectUpgrade(socket, 403);
 
-        const user = await verifyToken(accessToken, jwt.userAudience);
+        const session = await verifySessionToken(accessToken);
 
         wss.handleUpgrade(req, socket, head, (ws) => {
-          handleConnection(ws, user);
+          handleConnection(ws, session);
         });
       } else if (req.pathname === wsConfig.paths.public) {
         // Public WS: no authenticated user → pass null. handleConnection skips
@@ -119,29 +119,29 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     }
   }
 
-  function handleConnection(ws: WebSocket, user: AuthUser | null): void {
+  function handleConnection(ws: WebSocket, user: AuthSession | null): void {
     ws.connectionId = uuidv7();
 
     if (user) {
       // Authenticated: identity + cross-instance channel + token-expiry close.
       // Set identities BEFORE addUserConnection so a pub/sub message arriving the
       // instant we subscribe can already filter on sessionId.
-      ws.userId = user.id;
+      ws.userId = user.userId;
       ws.sessionId = user.sessionId;
       ws.userExp = user.exp;
 
-      const isFirstLocalSocket = !hasLocalUser(user.id);
-      addUserConnection(user.id, ws);
+      const isFirstLocalSocket = !hasLocalUser(user.userId);
+      addUserConnection(user.userId, ws);
       // Subscribe to this user's cross-instance channel on their first local
       // socket; the last socket's close unsubscribes (see ws "close" below).
       if (isFirstLocalSocket) {
-        void subscribeUser(user.id).catch((err) =>
-          logger.error({ err, userId: user.id }, "WS subscribe failed"),
+        void subscribeUser(user.userId).catch((err) =>
+          logger.error({ err, userId: user.userId }, "WS subscribe failed"),
         );
       }
       logger.info(
         {
-          userId: user.id,
+          userId: user.userId,
           sessionId: user.sessionId,
           connectionId: ws.connectionId,
         },
@@ -165,7 +165,10 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
           const msg = JSON.parse(raw.toString());
           await routeMessage(msg, user, ws);
         } catch (err) {
-          logger.warn({ err, userId: user?.id }, "WS message handling failed");
+          logger.warn(
+            { err, userId: user?.userId },
+            "WS message handling failed",
+          );
           sendToSocket(ws, { type: "error", data: { message: "Bad message" } });
         }
       })();
@@ -179,14 +182,14 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
         );
       }
       if (user) {
-        removeUserConnection(user.id, ws);
+        removeUserConnection(user.userId, ws);
         // Last local socket for this user gone → drop the channel subscription.
-        if (!hasLocalUser(user.id)) {
-          void unsubscribeUser(user.id).catch((err) =>
-            logger.error({ err, userId: user.id }, "WS unsubscribe failed"),
+        if (!hasLocalUser(user.userId)) {
+          void unsubscribeUser(user.userId).catch((err) =>
+            logger.error({ err, userId: user.userId }, "WS unsubscribe failed"),
           );
         }
-        logger.info({ userId: user.id }, "WS disconnected");
+        logger.info({ userId: user.userId }, "WS disconnected");
       } else {
         removePublicConnection(ws);
         logger.info(
@@ -197,7 +200,7 @@ export function attachWebSocketServer(httpServer: Server): WebSocketServer {
     });
 
     ws.on("error", (err) => {
-      logger.error({ err, userId: user?.id }, "WS error");
+      logger.error({ err, userId: user?.userId }, "WS error");
     });
   }
 

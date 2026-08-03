@@ -1,26 +1,21 @@
-import { v7 as uuidv7 } from "uuid";
-import { getEnvConfig } from "../../../config/env.js";
-import { findUserByEmail, updateUserStatus } from "../lib/userQueries.js";
-import { getScopes } from "../lib/permissionQueries.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  storeRefreshToken,
-} from "../lib/tokenService.js";
-import type { IssuedToken } from "../lib/tokenService.js";
-import { verifyEmailVerificationCode } from "../lib/emailVerification.js";
+import { findUserByEmail, updateUserStatus } from "../infra/userQueries.js";
+import { createSession } from "./createSession.js";
+import type { SessionCredentials } from "./createSession.js";
+import { verifyEmailVerificationCode } from "../infra/tokenStore.js";
 import { InvalidVerificationCodeError } from "../errors.js";
-import type { User } from "../../../models/postgres/user/user.js";
+import type { PublicUser } from "../types.js";
 
 interface VerifyEmailInput {
   email: string;
   code: string;
+  /** Recorded on the session — this call is effectively the first login. */
+  userAgent: string | null;
+  ipAddress: string;
 }
 
 interface AuthResult {
-  user: Pick<User, "id" | "email" | "status" | "createdAt">;
-  access: IssuedToken;
-  refresh: IssuedToken;
+  user: PublicUser;
+  credentials: SessionCredentials;
 }
 
 // Confirm a signup's email-verification code, activate the account, and — only
@@ -29,9 +24,9 @@ interface AuthResult {
 export async function verifyEmail({
   email,
   code,
+  ipAddress,
+  userAgent,
 }: VerifyEmailInput): Promise<AuthResult> {
-  const { userAudience } = getEnvConfig().jwt;
-
   const user = await findUserByEmail(email);
   if (!user || user.status !== "pending") {
     throw new InvalidVerificationCodeError();
@@ -42,33 +37,22 @@ export async function verifyEmail({
 
   await updateUserStatus(user.id, "active");
 
-  const scopes = await getScopes(user.id);
-  const sessionId = uuidv7();
-  const access = generateAccessToken(userAudience, {
-    sub: user.id,
-    scopes,
-    sid: sessionId,
+  const credentials = await createSession({
+    userId: user.id,
+    userAgent,
+    ipAddress,
   });
-  const refresh = generateRefreshToken(userAudience, {
-    sub: user.id,
-    sid: sessionId,
-  });
-  await storeRefreshToken(
-    user.id,
-    refresh.jti,
-    refresh.expiresAt,
-    access.jti,
-    access.expiresAt,
-  );
 
   return {
     user: {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       status: "active",
       createdAt: user.createdAt,
     },
-    access,
-    refresh,
+
+    credentials,
   };
 }

@@ -66,12 +66,12 @@ export function setAuthCookies(
     refreshToken,
     accessExpiry: jwt.userAccessExpiry,
     refreshExpiry: jwt.userRefreshExpiry,
-    refreshPath: "/api/v1/auth",
+    refreshPath: "/api/v1/auth/refresh-session",
   });
 }
 
 export function clearAuthCookies(res: Response): void {
-  clearAuthCookiesFor(res, { refreshPath: "/api/v1/auth" });
+  clearAuthCookiesFor(res, { refreshPath: "/api/v1/auth/refresh-session" });
 }
 
 // --- Public: admin portal ---

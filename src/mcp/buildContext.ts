@@ -2,18 +2,23 @@ import type { Request } from "express";
 import type { Logger } from "pino";
 
 import { getClientIp } from "../utils/getClientIp.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { GrantAccessClaims } from "../modules/oauth/index.js";
 
 export interface McpContext {
   /**
-   * The authenticated principal.
+   * The authenticated principal — a third-party app acting for a user under a
+   * grant, never a user on a device.
+   *
+   * A grant rather than a session, and the distinction is not cosmetic: there is
+   * no device here, no session id, and nothing to log out of. `grant.scopes`
+   * carries what the user actually delegated, and that is what per-tool
+   * authorization reads. `grant.clientId` says WHICH app is asking, which the
+   * user id alone cannot.
    *
    * Non-nullable by design: authenticateMcp rejects an unauthenticated request
-   * with 401 before the dispatcher runs, so there is no anonymous path into a
-   * tool. `user.scopes` carries what the token was granted — that is what
-   * per-tool authorization reads.
+   * with 401 before the dispatcher runs, so there is no anonymous path to a tool.
    */
-  user: AuthUser;
+  grant: GrantAccessClaims;
   ipAddress: string;
   requestId: string;
   logger: Logger;
@@ -33,17 +38,17 @@ export interface McpContext {
  * Keep it thin — anything expensive belongs in a service the tool calls.
  */
 export function buildContext(req: Request): McpContext {
-  if (!req.user) {
+  if (!req.grant) {
     // Not defensive padding — an invariant check. If this ever fires, the mount
     // order in app.ts is wrong (authenticateMcp must run before the dispatcher)
     // and every tool would otherwise execute unauthenticated. Fail loud.
     throw new Error(
-      "MCP context built without an authenticated user — check middleware order",
+      "MCP context built without a verified grant — check middleware order",
     );
   }
 
   return {
-    user: req.user,
+    grant: req.grant,
     ipAddress: getClientIp(req),
     requestId: req.requestId!, // set by the requestId middleware, mounted app-wide
     logger: req.logger,

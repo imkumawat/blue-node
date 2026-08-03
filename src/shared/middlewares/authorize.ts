@@ -6,7 +6,7 @@ import type { Scope } from "../constants/scopes.js";
 
 export function authorize(...requiredScopes: Scope[]): RequestHandler {
   return (req, _res, next) => {
-    const userScopes = req.user?.scopes ?? [];
+    const userScopes = req.session?.scopes ?? [];
     const hasAll = requiredScopes.every((scope) => userScopes.includes(scope));
     if (!hasAll) {
       return next(

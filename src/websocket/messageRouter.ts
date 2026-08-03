@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 import { sendToSocket, joinRoom, leaveRoom } from "./connectionManager.js";
 import { subscribeRoom, unsubscribeRoom } from "./subscriber.js";
 import { deliverToRoom } from "./publisher.js";
@@ -15,7 +15,7 @@ interface WSMessage {
 // handlers must null-check before acting.
 type Handler = (
   msg: WSMessage,
-  user: AuthUser | null,
+  user: AuthSession | null,
   ws: WebSocket,
 ) => Promise<void>;
 
@@ -32,7 +32,7 @@ const handlers: Record<string, Handler> = {
       });
     }
     const roomId = String(msg.roomId);
-    if (!(await isRoomMember(user.id, roomId))) {
+    if (!(await isRoomMember(user.userId, roomId))) {
       return sendToSocket(ws, {
         type: "error",
         data: { message: "Forbidden" },
@@ -62,10 +62,10 @@ const handlers: Record<string, Handler> = {
     const roomId = String(msg.roomId);
     if (!ws.rooms?.has(roomId)) return; // must have joined first
     const text = String(msg.text ?? "");
-    await saveRoomMessage(roomId, user.id, text); // persist (source of truth)
+    await saveRoomMessage(roomId, user.userId, text); // persist (source of truth)
     await deliverToRoom(
       roomId,
-      { type: "room.message", data: { roomId, from: user.id, text } },
+      { type: "room.message", data: { roomId, from: user.userId, text } },
       ws.connectionId, // except-sender
     );
   },
@@ -73,7 +73,7 @@ const handlers: Record<string, Handler> = {
 
 export async function routeMessage(
   msg: WSMessage,
-  user: AuthUser | null,
+  user: AuthSession | null,
   ws: WebSocket,
 ): Promise<void> {
   const handler = handlers[msg?.type];

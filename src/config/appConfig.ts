@@ -21,6 +21,11 @@ export const REDIS_KEYS = {
   grantRevoked: "oauth:grant:revoked:",
   oauthCode: "oauth:code:", // authorization code — stored hashed, consumed atomically
   oauthPending: "oauth:pending:", // /authorize request held between GET and POST
+  // Opaque access token, keyed by SESSION id rather than by a hash of the token.
+  // tokenStore.ts explains the choice: revoking a device has to address its
+  // session directly, and a key derived from a token we never kept cannot be
+  // rebuilt from a session id alone.
+  accessToken: "at:",
 } as const;
 
 export const REDIS = {
@@ -71,6 +76,30 @@ export const JWT = {
   userRefreshExpiry: 604800, // 7d
   adminAccessExpiry: 3600, // 1h
   adminRefreshExpiry: 7200, // 2h
+
+  // Asymmetric signing, for tokens a party other than us has to verify.
+  // Kept in this block rather than a "jose" one on purpose: naming a config
+  // group after the library would make the name a lie the day the library
+  // changes.
+  //
+  // `alg` is a constant, not an env var: it has to move in lockstep with the key
+  // material (an RSA key cannot sign ES256), so an independent switch would only
+  // ever let the two drift apart.
+  alg: "RS256",
+
+  // Seconds of clock skew tolerated on verify. Fleets drift; 0 produces 401s
+  // that reproduce nowhere.
+  clockToleranceSec: 5,
+
+  // Where the public keys are served. A PUBLIC CONTRACT once it is advertised
+  // as `jwks_uri` in the authorization server metadata document.
+  jwksPath: "/.well-known/jwks.json",
+
+  // How long a verifier may cache the JWKS. This value sets the floor on a key
+  // rotation: after publishing a new key you must wait at least this long before
+  // signing with it, or a verifier holding a stale copy sees an unknown `kid`.
+  // Kept short for that reason — the cost is one small fetch every few minutes.
+  jwksCacheMaxAgeSec: 300, // 5 min
 } as const;
 
 export const AUTH = {
@@ -124,7 +153,7 @@ export const MCP = {
   // Single source of truth for the two client-facing paths. Both are a public
   // contract: changing either breaks every connector a user has already added.
   path: "/mcp",
-  wellKnownPath: "/.well-known/oauth-protected-resource",
+  wellKnownPath: "/.well-known/oauth-protected-resource/mcp",
 
   // Identity advertised in `initialize` → result.serverInfo.
   serverName: "blue-node",
@@ -144,6 +173,23 @@ export const MCP = {
   maxToolResultChars: 20_000,
 } as const;
 
+export const TOKENS = {
+  // Visible prefixes, Stripe/GitHub style (sk_live_, ghp_). They carry no secret;
+  // the value is that a leaked token is greppable in logs and recognisable by
+  // shape without a lookup.
+  //
+  // A PUBLIC CONTRACT: changing one invalidates every live token of that kind,
+  // the same way changing a Redis key prefix would.
+  accessPrefix: "nf_at_",
+  refreshPrefix: "nf_rt_",
+
+  // First-party session lifetimes. Kept here rather than under JWT because an
+  // opaque token has no signature and no claims — nothing about its lifetime is
+  // a JWT concern.
+  accessExpiry: 900, // 15 min — short window; rely on refresh rotation
+  refreshExpiry: 604800, // 7d — also how long a device session may live
+} as const;
+
 export const OAUTH = {
   // Client-facing endpoint paths. Advertised verbatim in the authorization
   // server metadata document, so changing one breaks every client that has
@@ -161,6 +207,25 @@ export const OAUTH = {
   // A user has to read the consent screen, and may have to log in first. Long
   // enough for that, short enough that an abandoned authorization disappears.
   pendingAuthTtlSec: 600,
+
+  // How long an access token issued to a client lives. Here rather than under
+  // JWT because it is a delegation decision — how long a third-party app may act
+  // for a user — while JWT holds the signing concerns (alg, kid, JWKS).
+  accessTokenTtlSec: 900, // 15 min — short window; the client refreshes
+
+  // Visible prefix for a grant's refresh token, kept DISTINCT from the
+  // first-party one. Two token families that look alike can be presented at the
+  // wrong endpoint and be rejected only by accident — a different prefix makes
+  // that a parse failure instead.
+  refreshPrefix: "nf_grt_",
+
+  // SLIDING lifetime: how long a connection may sit idle before the app has to
+  // be re-authorized.
+  refreshTokenTtlSec: 2_592_000, // 30d
+
+  // ABSOLUTE ceiling, fixed when the connection is created. Without it an app
+  // that refreshes on schedule never has to ask for consent again.
+  refreshTokenAbsoluteTtlSec: 15_552_000, // 180d
 } as const;
 
 export const MQTT = {

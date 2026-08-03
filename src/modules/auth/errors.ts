@@ -87,6 +87,16 @@ export class InvalidTokenError extends HttpError {
   }
 }
 
+export class InvalidAuthSessionError extends HttpError {
+  constructor() {
+    super(
+      "INVALID_AUTH_SESSION",
+      StatusCodes.UNAUTHORIZED,
+      "Invalid or missing token",
+    );
+  }
+}
+
 export class TokenRevokedError extends HttpError {
   constructor() {
     super("TOKEN_REVOKED", StatusCodes.UNAUTHORIZED, "Token has been revoked");

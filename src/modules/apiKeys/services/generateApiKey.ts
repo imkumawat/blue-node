@@ -1,4 +1,4 @@
-import { insertApiKey } from "../lib/apiKeyQueries.js";
+import { insertApiKey } from "../infra/apiKeyQueries.js";
 
 export async function generateApiKey({
   clientName,

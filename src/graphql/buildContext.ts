@@ -3,11 +3,10 @@ import type { Logger } from "pino";
 import { getClientIp } from "../utils/getClientIp.js";
 import { createLoaders } from "./loaders/index.js";
 import type { Loaders } from "./loaders/index.js";
-import type { AuthUser } from "../modules/auth/index.js";
+import type { AuthSession } from "../modules/auth/index.js";
 
 export interface GraphQLContext {
-  user: AuthUser | null;
-  accessJti: string | null;
+  session: AuthSession | null;
   accessExp: number | null;
   rawRefreshToken: string | null;
   ipAddress: string;
@@ -38,9 +37,8 @@ export async function buildContext({
   res: Response;
 }): Promise<GraphQLContext> {
   return {
-    user: req.user ?? null,
-    accessJti: req.user?.jti ?? null,
-    accessExp: req.user?.exp ?? null,
+    session: req.session ?? null,
+    accessExp: req.session?.exp ?? null,
     rawRefreshToken: req.cookies?.refresh_token ?? null,
     ipAddress: getClientIp(req),
     userAgent: req.headers["user-agent"] ?? null,

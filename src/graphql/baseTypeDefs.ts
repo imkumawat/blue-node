@@ -17,7 +17,7 @@ export const baseTypeDefs: string = `#graphql
   directive @complexity(value: Int!, multipliers: [String!]) on FIELD_DEFINITION
 
   """
-  Requires the request to carry a valid auth context — ctx.user must exist.
+  Requires the request to carry a valid auth context — ctx.session must exist.
   GraphQL equivalent of the REST \`authenticate()\` middleware.
   Throws InvalidTokenError otherwise. Runs BEFORE resolvers.
   """

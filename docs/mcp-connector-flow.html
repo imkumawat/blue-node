@@ -1,1035 +1,1377 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Connector — URL se jawab tak</title>
-
-<style>
-  /* ─── tokens ────────────────────────────────────────────────── */
-  :root {
-    --bg: #eceff2;
-    --surface: #fbfcfd;
-    --surface-2: #e3e8ec;
-    --surface-3: #d6dee3;
-    --rail: #c2ccd3;
-    --line: #cfd8de;
-    --text: #111a20;
-    --dim: #54656f;
-    --faint: #83949e;
-
-    --c-user: #6d7d89;
-    --c-claude: #d4593f;
-    --c-as: #7b5fc7;
-    --c-rs: #00887c;
-    --signal: #00887c;
-    --ok: #0e8f6c;
-    --warn: #c9741b;
-
-    --shadow: 0 1px 2px rgba(16, 26, 32, .06), 0 10px 28px -14px rgba(16, 26, 32, .22);
-
-    --f-mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "JetBrains Mono",
-              "SF Mono", Consolas, Menlo, monospace;
-    --f-sans: ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI",
-              Roboto, Helvetica, Arial, sans-serif;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0a1014;
-      --surface: #111a20;
-      --surface-2: #17232b;
-      --surface-3: #1e2d36;
-      --rail: #24343e;
-      --line: #22323c;
-      --text: #e4ebef;
-      --dim: #93a4ae;
-      --faint: #647680;
-
-      --c-user: #8ea0ac;
-      --c-claude: #f0836a;
-      --c-as: #a891ec;
-      --c-rs: #2ec2b3;
-      --signal: #2ec2b3;
-      --ok: #3ecf9e;
-      --warn: #eda44e;
-
-      --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 34px -18px rgba(0, 0, 0, .7);
-    }
-  }
-
-  :root[data-theme="dark"] {
-    --bg: #0a1014;
-    --surface: #111a20;
-    --surface-2: #17232b;
-    --surface-3: #1e2d36;
-    --rail: #24343e;
-    --line: #22323c;
-    --text: #e4ebef;
-    --dim: #93a4ae;
-    --faint: #647680;
-    --c-user: #8ea0ac;
-    --c-claude: #f0836a;
-    --c-as: #a891ec;
-    --c-rs: #2ec2b3;
-    --signal: #2ec2b3;
-    --ok: #3ecf9e;
-    --warn: #eda44e;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 14px 34px -18px rgba(0, 0, 0, .7);
-  }
-
-  :root[data-theme="light"] {
-    --bg: #eceff2;
-    --surface: #fbfcfd;
-    --surface-2: #e3e8ec;
-    --surface-3: #d6dee3;
-    --rail: #c2ccd3;
-    --line: #cfd8de;
-    --text: #111a20;
-    --dim: #54656f;
-    --faint: #83949e;
-    --c-user: #6d7d89;
-    --c-claude: #d4593f;
-    --c-as: #7b5fc7;
-    --c-rs: #00887c;
-    --signal: #00887c;
-    --ok: #0e8f6c;
-    --warn: #c9741b;
-    --shadow: 0 1px 2px rgba(16, 26, 32, .06), 0 10px 28px -14px rgba(16, 26, 32, .22);
-  }
-
-  /* ─── base ──────────────────────────────────────────────────── */
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--f-sans);
-    font-size: 15px;
-    line-height: 1.65;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: clip;
-  }
-
-  .wrap {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: clamp(28px, 6vw, 68px) clamp(16px, 4vw, 34px) 80px;
-    display: flex;
-    flex-direction: column;
-    gap: clamp(30px, 5vw, 52px);
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--signal);
-    outline-offset: 2px;
-    border-radius: 3px;
-  }
-
-  /* ─── masthead ──────────────────────────────────────────────── */
-  .eyebrow {
-    margin: 0 0 14px;
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    letter-spacing: .2em;
-    text-transform: uppercase;
-    color: var(--signal);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .eyebrow::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--line);
-  }
-
-  h1 {
-    margin: 0 0 16px;
-    font-family: var(--f-mono);
-    font-size: clamp(27px, 4.6vw, 43px);
-    font-weight: 600;
-    letter-spacing: -.02em;
-    line-height: 1.12;
-    text-wrap: balance;
-  }
-
-  .lede {
-    margin: 0;
-    max-width: 64ch;
-    color: var(--dim);
-    font-size: 16px;
-  }
-
-  .lede strong { color: var(--text); font-weight: 600; }
-
-  .legend {
-    list-style: none;
-    margin: 26px 0 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 22px;
-  }
-
-  .legend li {
-    display: flex;
-    align-items: baseline;
-    gap: 9px;
-    font-family: var(--f-mono);
-    font-size: 12.5px;
-    color: var(--dim);
-  }
-
-  .legend b {
-    color: var(--text);
-    font-weight: 600;
-  }
-
-  .swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    flex: none;
-    transform: translateY(-1px);
-  }
-
-  /* ─── console shell ─────────────────────────────────────────── */
-  .console {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-
-  .phases {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1px;
-    background: var(--line);
-    border-bottom: 1px solid var(--line);
-  }
-
-  .phase {
-    flex: 1 1 150px;
-    appearance: none;
-    border: 0;
-    background: var(--surface-2);
-    color: var(--dim);
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    padding: 13px 12px;
-    cursor: pointer;
-    text-align: left;
-    transition: background .16s, color .16s;
-  }
-
-  .phase:hover { background: var(--surface-3); color: var(--text); }
-
-  .phase[aria-selected="true"] {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: inset 0 2px 0 var(--signal);
-  }
-
-  .phase span {
-    display: block;
-    font-size: 10.5px;
-    letter-spacing: .06em;
-    text-transform: none;
-    color: var(--faint);
-    margin-top: 2px;
-  }
-
-  /* ─── stage ─────────────────────────────────────────────────── */
-  .stage {
-    height: clamp(330px, 50vh, 540px);
-    overflow: auto;
-    background:
-      linear-gradient(var(--surface) 0 0) padding-box;
-    scroll-behavior: smooth;
-  }
-
-  .lanebar {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    min-width: 780px;
-    height: 46px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
-
-  .lanechip {
-    position: absolute;
-    top: 11px;
-    transform: translateX(-50%);
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    letter-spacing: .08em;
-    white-space: nowrap;
-    padding: 4px 11px;
-    border-radius: 100px;
-    border: 1px solid currentColor;
-    color: var(--dim);
-    background: var(--surface);
-    transition: background .2s, color .2s;
-  }
-
-  .lanechip.hot {
-    color: var(--surface);
-    background: var(--hue);
-    border-color: var(--hue);
-  }
-
-  svg#seq {
-    display: block;
-    width: 100%;
-    min-width: 780px;
-  }
-
-  /* ─── svg step states ───────────────────────────────────────── */
-  .rail { stroke: var(--rail); stroke-width: 1; stroke-dasharray: 2 7; }
-
-  .step { opacity: .26; transition: opacity .3s; }
-  .step.done { opacity: .62; }
-  .step.live { opacity: 1; }
-
-  .step .wire {
-    stroke: var(--hue);
-    stroke-width: 1.7;
-    fill: none;
-    transition: stroke-dashoffset .62s cubic-bezier(.4, 0, .2, 1);
-  }
-
-  .step .head { fill: var(--hue); }
-
-  .step .lbl {
-    font-family: var(--f-mono);
-    font-size: 15px;
-    fill: var(--dim);
-  }
-
-  .step.live .lbl { fill: var(--text); }
-  .step .lbl .m { fill: var(--hue); font-weight: 700; }
-
-  .step .box {
-    fill: var(--surface-2);
-    stroke: var(--hue);
-    stroke-width: 1.4;
-    rx: 5;
-  }
-
-  .step.live .box {
-    fill: var(--surface-3);
-    animation: boxpulse 1.4s ease-in-out infinite;
-  }
-
-  @keyframes boxpulse {
-    0%, 100% { stroke-width: 1.4; }
-    50% { stroke-width: 2.6; }
-  }
-
-  .step .num {
-    font-family: var(--f-mono);
-    font-size: 12.5px;
-    fill: var(--faint);
-  }
-
-  #packet {
-    opacity: 0;
-    transition: transform .62s cubic-bezier(.4, 0, .2, 1), opacity .2s;
-  }
-
-  #packet circle { fill: var(--hue); }
-  #packet .halo { fill: var(--hue); opacity: .22; }
-
-  /* ─── controls ──────────────────────────────────────────────── */
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 12px 14px;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    background: var(--surface-2);
-  }
-
-  .btn {
-    appearance: none;
-    font-family: var(--f-mono);
-    font-size: 12px;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-    padding: 7px 13px;
-    border-radius: 5px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--dim);
-    cursor: pointer;
-    transition: background .15s, color .15s, border-color .15s;
-  }
-
-  .btn:hover { color: var(--text); border-color: var(--rail); }
-
-  .btn.primary {
-    background: var(--signal);
-    border-color: var(--signal);
-    color: var(--surface);
-    font-weight: 700;
-    min-width: 94px;
-  }
-
-  .btn.primary:hover { filter: brightness(1.08); color: var(--surface); }
-
-  .counter {
-    font-family: var(--f-mono);
-    font-size: 12px;
-    color: var(--faint);
-    font-variant-numeric: tabular-nums;
-    margin-left: auto;
-  }
-
-  .track {
-    width: 100%;
-    height: 2px;
-    background: var(--surface-3);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .track i {
-    display: block;
-    height: 100%;
-    width: 0;
-    background: var(--signal);
-    transition: width .3s;
-  }
-
-  /* ─── dock ──────────────────────────────────────────────────── */
-  .dock {
-    display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
-  }
-
-  @media (max-width: 780px) {
-    .dock { grid-template-columns: minmax(0, 1fr); }
-  }
-
-  .detail {
-    padding: 20px 22px 24px;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .detail__top {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .stepno {
-    font-family: var(--f-mono);
-    font-size: 12px;
-    color: var(--faint);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .chip {
-    font-family: var(--f-mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .1em;
-    padding: 3px 9px;
-    border-radius: 4px;
-    color: var(--surface);
-    background: var(--hue, var(--signal));
-  }
-
-  .detail h2 {
-    margin: 0;
-    font-family: var(--f-mono);
-    font-size: 17px;
-    font-weight: 600;
-    letter-spacing: -.01em;
-    line-height: 1.35;
-    text-wrap: balance;
-  }
-
-  .detail p {
-    margin: 0;
-    max-width: 58ch;
-    color: var(--dim);
-    font-size: 14.5px;
-  }
-
-  .detail p strong { color: var(--text); font-weight: 600; }
-
-  /* which repo file actually runs this step — the whole point of the trace */
-  .files {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 7px;
-    margin: 0;
-    max-width: none;
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    line-height: 1.5;
-  }
-
-  .files > .lbl {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .12em;
-    color: var(--faint);
-    text-transform: uppercase;
-  }
-
-  .files code {
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-left: 2px solid var(--hue, var(--signal));
-    border-radius: 4px;
-    padding: 2px 7px;
-    color: var(--text);
-    white-space: nowrap;
-  }
-
-  .files > .sep { color: var(--faint); }
-  .files > .none { color: var(--faint); font-style: italic; font-family: var(--f-sans); }
-
-  pre.wirebox {
-    margin: 0;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-left: 2px solid var(--hue, var(--signal));
-    border-radius: 5px;
-    padding: 13px 15px;
-    overflow-x: auto;
-    font-family: var(--f-mono);
-    font-size: 12.5px;
-    line-height: 1.7;
-    color: var(--dim);
-    tab-size: 2;
-  }
-
-  .w-verb { color: var(--text); font-weight: 700; }
-  .w-key { color: var(--c-as); }
-  .w-str { color: var(--signal); }
-  .w-note { color: var(--warn); font-style: italic; }
-  .w-ok { color: var(--ok); font-weight: 700; }
-  .w-bad { color: var(--warn); font-weight: 700; }
-
-  .index {
-    border-left: 1px solid var(--line);
-    background: var(--surface-2);
-    max-height: 420px;
-    overflow-y: auto;
-    padding: 10px 0;
-  }
-
-  @media (max-width: 780px) {
-    .index { border-left: 0; border-top: 1px solid var(--line); max-height: 260px; }
-  }
-
-  .index ol { list-style: none; margin: 0; padding: 0; }
-
-  .index button {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 26px 1fr;
-    gap: 9px;
-    align-items: baseline;
-    appearance: none;
-    border: 0;
-    background: none;
-    text-align: left;
-    padding: 5px 16px;
-    cursor: pointer;
-    font-family: var(--f-mono);
-    font-size: 12.5px;
-    color: var(--faint);
-    transition: background .14s, color .14s;
-  }
-
-  .index button:hover { background: var(--surface-3); color: var(--text); }
-
-  .index button i {
-    font-style: normal;
-    font-variant-numeric: tabular-nums;
-    color: var(--faint);
-  }
-
-  .index button.seen { color: var(--dim); }
-
-  .index button.now {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--signal);
-  }
-
-  .index button.now i { color: var(--signal); }
-
-  .index h3 {
-    margin: 14px 0 5px;
-    padding: 0 16px;
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: .16em;
-    text-transform: uppercase;
-    color: var(--faint);
-    font-weight: 600;
-  }
-
-  .index h3:first-child { margin-top: 2px; }
-
-  /* ─── prose sections ────────────────────────────────────────── */
-  .section > h2 {
-    margin: 0 0 6px;
-    font-family: var(--f-mono);
-    font-size: clamp(18px, 2.6vw, 23px);
-    font-weight: 600;
-    letter-spacing: -.01em;
-  }
-
-  .section > p.sub {
-    margin: 0 0 24px;
-    max-width: 62ch;
-    color: var(--dim);
-  }
-
-  .split {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 16px;
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    padding: 20px 21px 22px;
-    border-top: 2px solid var(--hue, var(--signal));
-  }
-
-  .card h3 {
-    margin: 0 0 3px;
-    font-family: var(--f-mono);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    color: var(--hue, var(--signal));
-  }
-
-  .card .role {
-    margin: 0 0 14px;
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-
-  .card ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .card li {
-    display: grid;
-    grid-template-columns: 15px 1fr;
-    gap: 8px;
-    font-size: 14px;
-    color: var(--dim);
-  }
-
-  .card li b { color: var(--text); font-weight: 600; }
-
-  .card li::before {
-    content: "→";
-    font-family: var(--f-mono);
-    color: var(--hue, var(--signal));
-    font-size: 13px;
-  }
-
-  .card li.no::before { content: "×"; color: var(--faint); }
-  .card code {
-    font-family: var(--f-mono);
-    font-size: 12.5px;
-    background: var(--surface-2);
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: var(--text);
-  }
-
-  .traps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
-    gap: 14px;
-  }
-
-  .trap {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    padding: 16px 18px 18px;
-  }
-
-  .trap h4 {
-    margin: 0 0 6px;
-    font-family: var(--f-mono);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: .02em;
-  }
-
-  .trap p { margin: 0; font-size: 13.5px; color: var(--dim); }
-  .trap p code {
-    font-family: var(--f-mono);
-    font-size: 12px;
-    color: var(--text);
-  }
-
-  footer {
-    border-top: 1px solid var(--line);
-    padding-top: 20px;
-    font-family: var(--f-mono);
-    font-size: 11.5px;
-    color: var(--faint);
-    line-height: 1.9;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    * {
-      transition-duration: .001s !important;
-      animation: none !important;
-      scroll-behavior: auto !important;
-    }
-  }
-</style>
-
-</head>
-<body>
-
-<div class="wrap">
-
-  <header>
-    <p class="eyebrow">Model Context Protocol · blue-node ka asli wire trace</p>
-    <h1>Claude connector: URL se jawab tak</h1>
-    <p class="lede">
-      Aap connector settings me ek URL paste karte ho. Uske baad Claude
-      <strong>46 steps</strong> chalata hai — pehle pata karta hai ki server protected hai,
-      phir khud ko register karta hai, consent leta hai, token banwata hai, aur phir tools
-      call karta hai. Har step ka asli HTTP <em>aur wo file jo usko handle karti hai</em>
-      neeche hai. Play dabao.
-    </p>
-    <p class="lede" style="margin-top: 12px">
-      Ye illustration nahi hai. Host <code>api.imkumawatmanoj.com</code> asli hai, tool
-      <code>get_profile</code> asli hai, DCR ka body wahi hai jo real Claude Desktop ne
-      bheja, aur file paths repo ke asli paths hain. End-to-end verified — Claude ka
-      apna unattended token refresh bhi.
-    </p>
-    <ul class="legend">
-      <li><span class="swatch" style="background: var(--c-user)"></span><b>User</b> browser</li>
-      <li><span class="swatch" style="background: var(--c-claude)"></span><b>Claude</b> MCP client</li>
-      <li><span class="swatch" style="background: var(--c-as)"></span><b>Authorization Server</b> <code>modules/oauth/</code></li>
-      <li><span class="swatch" style="background: var(--c-rs)"></span><b>Resource Server</b> <code>src/mcp/</code></li>
-    </ul>
-    <p class="lede" style="margin-top: 14px; font-size: 14px">
-      <b>Dhyaan do:</b> AS aur RS do lanes me hain, par dono <em>ek hi Express app</em>
-      hain — ek hi host, ek hi process. Lanes role ka farq dikhati hain, machine ka nahi.
-      Alag AS chahiye ho to sirf <code>MCP_AUTH_SERVER_URL</code> badalti hai.
-    </p>
-  </header>
-
-  <section class="console">
-    <div class="phases" role="tablist" id="phases"></div>
-
-    <div class="stage" id="stage">
-      <div class="lanebar" id="lanebar"></div>
-      <svg id="seq" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
-
-    <div class="controls">
-      <button class="btn primary" id="play">Play</button>
-      <button class="btn" id="prev">◀ Prev</button>
-      <button class="btn" id="next">Next ▶</button>
-      <button class="btn" id="speed">1×</button>
-      <button class="btn" id="reset">Restart</button>
-      <span class="counter" id="counter">01 / 46</span>
-      <div class="track"><i id="bar"></i></div>
-    </div>
-
-    <div class="dock">
-      <article class="detail" id="detail" aria-live="polite">
-        <div class="detail__top">
-          <span class="stepno" id="d-no">STEP 01</span>
-          <span class="chip" id="d-chip">UI</span>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Claude Connector — URL se jawab tak</title>
+
+    <style>
+      /* ─── tokens ────────────────────────────────────────────────── */
+      :root {
+        --bg: #eceff2;
+        --surface: #fbfcfd;
+        --surface-2: #e3e8ec;
+        --surface-3: #d6dee3;
+        --rail: #c2ccd3;
+        --line: #cfd8de;
+        --text: #111a20;
+        --dim: #54656f;
+        --faint: #83949e;
+
+        --c-user: #6d7d89;
+        --c-claude: #d4593f;
+        --c-as: #7b5fc7;
+        --c-rs: #00887c;
+        --signal: #00887c;
+        --ok: #0e8f6c;
+        --warn: #c9741b;
+
+        --shadow:
+          0 1px 2px rgba(16, 26, 32, 0.06),
+          0 10px 28px -14px rgba(16, 26, 32, 0.22);
+
+        --f-mono:
+          ui-monospace, "Cascadia Code", "Cascadia Mono", "JetBrains Mono",
+          "SF Mono", Consolas, Menlo, monospace;
+        --f-sans:
+          ui-sans-serif, system-ui, "Segoe UI Variable Text", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a1014;
+          --surface: #111a20;
+          --surface-2: #17232b;
+          --surface-3: #1e2d36;
+          --rail: #24343e;
+          --line: #22323c;
+          --text: #e4ebef;
+          --dim: #93a4ae;
+          --faint: #647680;
+
+          --c-user: #8ea0ac;
+          --c-claude: #f0836a;
+          --c-as: #a891ec;
+          --c-rs: #2ec2b3;
+          --signal: #2ec2b3;
+          --ok: #3ecf9e;
+          --warn: #eda44e;
+
+          --shadow:
+            0 1px 2px rgba(0, 0, 0, 0.45), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+        }
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #0a1014;
+        --surface: #111a20;
+        --surface-2: #17232b;
+        --surface-3: #1e2d36;
+        --rail: #24343e;
+        --line: #22323c;
+        --text: #e4ebef;
+        --dim: #93a4ae;
+        --faint: #647680;
+        --c-user: #8ea0ac;
+        --c-claude: #f0836a;
+        --c-as: #a891ec;
+        --c-rs: #2ec2b3;
+        --signal: #2ec2b3;
+        --ok: #3ecf9e;
+        --warn: #eda44e;
+        --shadow:
+          0 1px 2px rgba(0, 0, 0, 0.45), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+      }
+
+      :root[data-theme="light"] {
+        --bg: #eceff2;
+        --surface: #fbfcfd;
+        --surface-2: #e3e8ec;
+        --surface-3: #d6dee3;
+        --rail: #c2ccd3;
+        --line: #cfd8de;
+        --text: #111a20;
+        --dim: #54656f;
+        --faint: #83949e;
+        --c-user: #6d7d89;
+        --c-claude: #d4593f;
+        --c-as: #7b5fc7;
+        --c-rs: #00887c;
+        --signal: #00887c;
+        --ok: #0e8f6c;
+        --warn: #c9741b;
+        --shadow:
+          0 1px 2px rgba(16, 26, 32, 0.06),
+          0 10px 28px -14px rgba(16, 26, 32, 0.22);
+      }
+
+      /* ─── base ──────────────────────────────────────────────────── */
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--f-sans);
+        font-size: 15px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: clip;
+      }
+
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: clamp(28px, 6vw, 68px) clamp(16px, 4vw, 34px) 80px;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(30px, 5vw, 52px);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 2px;
+        border-radius: 3px;
+      }
+
+      /* ─── masthead ──────────────────────────────────────────────── */
+      .eyebrow {
+        margin: 0 0 14px;
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--signal);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .eyebrow::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--line);
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-family: var(--f-mono);
+        font-size: clamp(27px, 4.6vw, 43px);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.12;
+        text-wrap: balance;
+      }
+
+      .lede {
+        margin: 0;
+        max-width: 64ch;
+        color: var(--dim);
+        font-size: 16px;
+      }
+
+      .lede strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .legend {
+        list-style: none;
+        margin: 26px 0 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 22px;
+      }
+
+      .legend li {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
+        font-family: var(--f-mono);
+        font-size: 12.5px;
+        color: var(--dim);
+      }
+
+      .legend b {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex: none;
+        transform: translateY(-1px);
+      }
+
+      /* ─── console shell ─────────────────────────────────────────── */
+      .console {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .phases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1px;
+        background: var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .phase {
+        flex: 1 1 150px;
+        appearance: none;
+        border: 0;
+        background: var(--surface-2);
+        color: var(--dim);
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 13px 12px;
+        cursor: pointer;
+        text-align: left;
+        transition:
+          background 0.16s,
+          color 0.16s;
+      }
+
+      .phase:hover {
+        background: var(--surface-3);
+        color: var(--text);
+      }
+
+      .phase[aria-selected="true"] {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: inset 0 2px 0 var(--signal);
+      }
+
+      .phase span {
+        display: block;
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: none;
+        color: var(--faint);
+        margin-top: 2px;
+      }
+
+      /* ─── stage ─────────────────────────────────────────────────── */
+      .stage {
+        height: clamp(330px, 50vh, 540px);
+        overflow: auto;
+        background: linear-gradient(var(--surface) 0 0) padding-box;
+        scroll-behavior: smooth;
+      }
+
+      .lanebar {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        min-width: 780px;
+        height: 46px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .lanechip {
+        position: absolute;
+        top: 11px;
+        transform: translateX(-50%);
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        padding: 4px 11px;
+        border-radius: 100px;
+        border: 1px solid currentColor;
+        color: var(--dim);
+        background: var(--surface);
+        transition:
+          background 0.2s,
+          color 0.2s;
+      }
+
+      .lanechip.hot {
+        color: var(--surface);
+        background: var(--hue);
+        border-color: var(--hue);
+      }
+
+      svg#seq {
+        display: block;
+        width: 100%;
+        min-width: 780px;
+      }
+
+      /* ─── svg step states ───────────────────────────────────────── */
+      .rail {
+        stroke: var(--rail);
+        stroke-width: 1;
+        stroke-dasharray: 2 7;
+      }
+
+      .step {
+        opacity: 0.26;
+        transition: opacity 0.3s;
+      }
+      .step.done {
+        opacity: 0.62;
+      }
+      .step.live {
+        opacity: 1;
+      }
+
+      .step .wire {
+        stroke: var(--hue);
+        stroke-width: 1.7;
+        fill: none;
+        transition: stroke-dashoffset 0.62s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .step .head {
+        fill: var(--hue);
+      }
+
+      .step .lbl {
+        font-family: var(--f-mono);
+        font-size: 15px;
+        fill: var(--dim);
+      }
+
+      .step.live .lbl {
+        fill: var(--text);
+      }
+      .step .lbl .m {
+        fill: var(--hue);
+        font-weight: 700;
+      }
+
+      .step .box {
+        fill: var(--surface-2);
+        stroke: var(--hue);
+        stroke-width: 1.4;
+        rx: 5;
+      }
+
+      .step.live .box {
+        fill: var(--surface-3);
+        animation: boxpulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes boxpulse {
+        0%,
+        100% {
+          stroke-width: 1.4;
+        }
+        50% {
+          stroke-width: 2.6;
+        }
+      }
+
+      .step .num {
+        font-family: var(--f-mono);
+        font-size: 12.5px;
+        fill: var(--faint);
+      }
+
+      #packet {
+        opacity: 0;
+        transition:
+          transform 0.62s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.2s;
+      }
+
+      #packet circle {
+        fill: var(--hue);
+      }
+      #packet .halo {
+        fill: var(--hue);
+        opacity: 0.22;
+      }
+
+      /* ─── controls ──────────────────────────────────────────────── */
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 12px 14px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: var(--surface-2);
+      }
+
+      .btn {
+        appearance: none;
+        font-family: var(--f-mono);
+        font-size: 12px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 7px 13px;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--dim);
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s,
+          border-color 0.15s;
+      }
+
+      .btn:hover {
+        color: var(--text);
+        border-color: var(--rail);
+      }
+
+      .btn.primary {
+        background: var(--signal);
+        border-color: var(--signal);
+        color: var(--surface);
+        font-weight: 700;
+        min-width: 94px;
+      }
+
+      .btn.primary:hover {
+        filter: brightness(1.08);
+        color: var(--surface);
+      }
+
+      .counter {
+        font-family: var(--f-mono);
+        font-size: 12px;
+        color: var(--faint);
+        font-variant-numeric: tabular-nums;
+        margin-left: auto;
+      }
+
+      .track {
+        width: 100%;
+        height: 2px;
+        background: var(--surface-3);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .track i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--signal);
+        transition: width 0.3s;
+      }
+
+      /* ─── dock ──────────────────────────────────────────────────── */
+      .dock {
+        display: grid;
+        grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+      }
+
+      @media (max-width: 780px) {
+        .dock {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .detail {
+        padding: 20px 22px 24px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .detail__top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .stepno {
+        font-family: var(--f-mono);
+        font-size: 12px;
+        color: var(--faint);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .chip {
+        font-family: var(--f-mono);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        padding: 3px 9px;
+        border-radius: 4px;
+        color: var(--surface);
+        background: var(--hue, var(--signal));
+      }
+
+      .detail h2 {
+        margin: 0;
+        font-family: var(--f-mono);
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+        text-wrap: balance;
+      }
+
+      .detail p {
+        margin: 0;
+        max-width: 58ch;
+        color: var(--dim);
+        font-size: 14.5px;
+      }
+
+      .detail p strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      /* which repo file actually runs this step — the whole point of the trace */
+      .files {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 7px;
+        margin: 0;
+        max-width: none;
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        line-height: 1.5;
+      }
+
+      .files > .lbl {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: var(--faint);
+        text-transform: uppercase;
+      }
+
+      .files code {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--hue, var(--signal));
+        border-radius: 4px;
+        padding: 2px 7px;
+        color: var(--text);
+        white-space: nowrap;
+      }
+
+      .files > .sep {
+        color: var(--faint);
+      }
+      .files > .none {
+        color: var(--faint);
+        font-style: italic;
+        font-family: var(--f-sans);
+      }
+
+      pre.wirebox {
+        margin: 0;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--hue, var(--signal));
+        border-radius: 5px;
+        padding: 13px 15px;
+        overflow-x: auto;
+        font-family: var(--f-mono);
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: var(--dim);
+        tab-size: 2;
+      }
+
+      .w-verb {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .w-key {
+        color: var(--c-as);
+      }
+      .w-str {
+        color: var(--signal);
+      }
+      .w-note {
+        color: var(--warn);
+        font-style: italic;
+      }
+      .w-ok {
+        color: var(--ok);
+        font-weight: 700;
+      }
+      .w-bad {
+        color: var(--warn);
+        font-weight: 700;
+      }
+
+      .index {
+        border-left: 1px solid var(--line);
+        background: var(--surface-2);
+        max-height: 420px;
+        overflow-y: auto;
+        padding: 10px 0;
+      }
+
+      @media (max-width: 780px) {
+        .index {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+          max-height: 260px;
+        }
+      }
+
+      .index ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .index button {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 26px 1fr;
+        gap: 9px;
+        align-items: baseline;
+        appearance: none;
+        border: 0;
+        background: none;
+        text-align: left;
+        padding: 5px 16px;
+        cursor: pointer;
+        font-family: var(--f-mono);
+        font-size: 12.5px;
+        color: var(--faint);
+        transition:
+          background 0.14s,
+          color 0.14s;
+      }
+
+      .index button:hover {
+        background: var(--surface-3);
+        color: var(--text);
+      }
+
+      .index button i {
+        font-style: normal;
+        font-variant-numeric: tabular-nums;
+        color: var(--faint);
+      }
+
+      .index button.seen {
+        color: var(--dim);
+      }
+
+      .index button.now {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: inset 2px 0 0 var(--signal);
+      }
+
+      .index button.now i {
+        color: var(--signal);
+      }
+
+      .index h3 {
+        margin: 14px 0 5px;
+        padding: 0 16px;
+        font-family: var(--f-mono);
+        font-size: 10.5px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 600;
+      }
+
+      .index h3:first-child {
+        margin-top: 2px;
+      }
+
+      /* ─── prose sections ────────────────────────────────────────── */
+      .section > h2 {
+        margin: 0 0 6px;
+        font-family: var(--f-mono);
+        font-size: clamp(18px, 2.6vw, 23px);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .section > p.sub {
+        margin: 0 0 24px;
+        max-width: 62ch;
+        color: var(--dim);
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 20px 21px 22px;
+        border-top: 2px solid var(--hue, var(--signal));
+      }
+
+      .card h3 {
+        margin: 0 0 3px;
+        font-family: var(--f-mono);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: var(--hue, var(--signal));
+      }
+
+      .card .role {
+        margin: 0 0 14px;
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+
+      .card ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .card li {
+        display: grid;
+        grid-template-columns: 15px 1fr;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--dim);
+      }
+
+      .card li b {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .card li::before {
+        content: "→";
+        font-family: var(--f-mono);
+        color: var(--hue, var(--signal));
+        font-size: 13px;
+      }
+
+      .card li.no::before {
+        content: "×";
+        color: var(--faint);
+      }
+      .card code {
+        font-family: var(--f-mono);
+        font-size: 12.5px;
+        background: var(--surface-2);
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: var(--text);
+      }
+
+      .traps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+        gap: 14px;
+      }
+
+      .trap {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 16px 18px 18px;
+      }
+
+      .trap h4 {
+        margin: 0 0 6px;
+        font-family: var(--f-mono);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .trap p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--dim);
+      }
+      .trap p code {
+        font-family: var(--f-mono);
+        font-size: 12px;
+        color: var(--text);
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding-top: 20px;
+        font-family: var(--f-mono);
+        font-size: 11.5px;
+        color: var(--faint);
+        line-height: 1.9;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition-duration: 0.001s !important;
+          animation: none !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <p class="eyebrow">
+          Model Context Protocol · blue-node ka asli wire trace
+        </p>
+        <h1>Claude connector: URL se jawab tak</h1>
+        <p class="lede">
+          Aap connector settings me ek URL paste karte ho. Uske baad Claude
+          <strong>46 steps</strong> chalata hai — pehle pata karta hai ki server
+          protected hai, phir khud ko register karta hai, consent leta hai,
+          token banwata hai, aur phir tools call karta hai. Har step ka asli
+          HTTP <em>aur wo file jo usko handle karti hai</em>
+          neeche hai. Play dabao.
+        </p>
+        <p class="lede" style="margin-top: 12px">
+          Ye illustration nahi hai. Host
+          <code>api.imkumawatmanoj.com</code> asli hai, tool
+          <code>get_profile</code> asli hai, DCR ka body wahi hai jo real Claude
+          Desktop ne bheja, aur file paths repo ke asli paths hain. End-to-end
+          verified — Claude ka apna unattended token refresh bhi.
+        </p>
+        <ul class="legend">
+          <li>
+            <span class="swatch" style="background: var(--c-user)"></span
+            ><b>User</b> browser
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--c-claude)"></span
+            ><b>Claude</b> MCP client
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--c-as)"></span
+            ><b>Authorization Server</b> <code>modules/oauth/</code>
+          </li>
+          <li>
+            <span class="swatch" style="background: var(--c-rs)"></span
+            ><b>Resource Server</b> <code>src/mcp/</code>
+          </li>
+        </ul>
+        <p class="lede" style="margin-top: 14px; font-size: 14px">
+          <b>Dhyaan do:</b> AS aur RS do lanes me hain, par dono
+          <em>ek hi Express app</em> hain — ek hi host, ek hi process. Lanes
+          role ka farq dikhati hain, machine ka nahi. Alag AS chahiye ho to sirf
+          <code>OAUTH_SERVER_URL</code> badalti hai.
+        </p>
+      </header>
+
+      <section class="console">
+        <div class="phases" role="tablist" id="phases"></div>
+
+        <div class="stage" id="stage">
+          <div class="lanebar" id="lanebar"></div>
+          <svg id="seq" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
-        <h2 id="d-title">—</h2>
-        <p id="d-why">—</p>
-        <p class="files" id="d-files"></p>
-        <pre class="wirebox" id="d-wire"></pre>
-      </article>
-      <nav class="index" id="index" aria-label="Steps"></nav>
+
+        <div class="controls">
+          <button class="btn primary" id="play">Play</button>
+          <button class="btn" id="prev">◀ Prev</button>
+          <button class="btn" id="next">Next ▶</button>
+          <button class="btn" id="speed">1×</button>
+          <button class="btn" id="reset">Restart</button>
+          <span class="counter" id="counter">01 / 46</span>
+          <div class="track"><i id="bar"></i></div>
+        </div>
+
+        <div class="dock">
+          <article class="detail" id="detail" aria-live="polite">
+            <div class="detail__top">
+              <span class="stepno" id="d-no">STEP 01</span>
+              <span class="chip" id="d-chip">UI</span>
+            </div>
+            <h2 id="d-title">—</h2>
+            <p id="d-why">—</p>
+            <p class="files" id="d-files"></p>
+            <pre class="wirebox" id="d-wire"></pre>
+          </article>
+          <nav class="index" id="index" aria-label="Steps"></nav>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Authorization Server vs Resource Server</h2>
+        <p class="sub">
+          Poora confusion isi line pe hota hai. Ek token <em>banata</em> hai,
+          doosra token <em>check</em> karta hai. Trace me dekho — steps 6–26 AS
+          ke saath hain, steps 27–40 RS ke saath. blue-node me dono ek hi app
+          hain, par code ka bantwara poora alag hai:
+          <code>modules/oauth/</code> vs <code>src/mcp/</code>.
+        </p>
+        <div class="split">
+          <div class="card" style="--hue: var(--c-as)">
+            <h3>Authorization Server</h3>
+            <p class="role">
+              <code>src/modules/oauth/</code> · token banata hai
+            </p>
+            <ul>
+              <li>
+                <code>/.well-known/oauth-authorization-server</code> — endpoint
+                discovery <b>(RFC 8414)</b><br /><code
+                  >apis/handlers.ts › getAuthServerMetadata</code
+                >
+              </li>
+              <li>
+                <code>/oauth/register</code> —
+                <b>Dynamic Client Registration (RFC 7591)</b><br /><code
+                  >services/registerClient.ts</code
+                >
+                · redirect_uri rules yahan
+              </li>
+              <li>
+                <code>/oauth/authorize</code> — <b>GET</b> page deta hai,
+                <b>POST</b> login+consent leta hai<br /><code
+                  >services/authorizeRequest.ts</code
+                >
+                · <code>views/pages.ts</code>
+              </li>
+              <li>
+                <code>/oauth/token</code> — code+PKCE verifier, aur
+                refresh_token grant<br /><code>services/exchangeCode.ts</code> ·
+                <code>services/refreshGrantTokens.ts</code>
+              </li>
+              <li>
+                Owns: client registry (<code>oauth_clients</code>), consent
+                records (<code>oauth_grants</code>), auth codes, scope narrowing
+              </li>
+              <li class="no">Tools ke baare me kuch nahi jaanta</li>
+            </ul>
+          </div>
+          <div class="card" style="--hue: var(--c-rs)">
+            <h3>Resource Server</h3>
+            <p class="role"><code>src/mcp/</code> · data deta hai</p>
+            <ul>
+              <li>
+                <code>/mcp</code> — asli MCP endpoint (JSON-RPC 2.0)<br /><code
+                  >server.ts</code
+                >
+                · <code>jsonrpc.ts</code> · <code>protocol.ts</code>
+              </li>
+              <li>
+                <code>/.well-known/oauth-protected-resource</code> — "mera AS ye
+                hai" <b>(RFC 9728)</b><br /><code>metadata.ts</code>
+              </li>
+              <li>
+                Har request pe signature, <code>iss</code>,
+                <b><code>aud</code></b
+                >, <code>exp</code>, blacklist, grant-revoked check<br /><code
+                  >authenticate.ts</code
+                >
+              </li>
+              <li>
+                Tool registry + per-tool scope enforcement<br /><code
+                  >registry.ts</code
+                >
+                · <code>defineTool.ts</code>
+              </li>
+              <li class="no">User login — nahi karta</li>
+              <li class="no">Consent screen — nahi dikhata</li>
+              <li class="no">Token issue — kabhi nahi</li>
+            </ul>
+          </div>
+        </div>
+        <p class="sub" style="margin: 20px 0 0">
+          Beech ka pul do exports hain: <code>issueGrantTokens</code> aur
+          <code>consumeGrantRefreshToken</code>, dono
+          <code>modules/auth/</code> se. <code>modules/oauth/</code> kabhi
+          <code>refresh_tokens</code> table ko seedha nahi chhoota — rotation
+          aur reuse-detection ek hi module ki milkiyat rehti hai. OAuth
+          <em>delegation policy</em> owns karta hai (clients, PKCE, consent),
+          auth <em>credentials</em> owns karta hai.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Jo abhi HS256 pe hai, aur jo abhi bana hi nahi</h2>
+        <p class="sub">
+          Trace me sab kuch asli hai — jisme wo cheezein bhi hain jo aadhi hain.
+          Doc me jhooth likhne se koi fayda nahi.
+        </p>
+        <div class="traps">
+          <div class="trap">
+            <h4><code>jwks_uri</code> nahi hai</h4>
+            <p>
+              Tokens <b>HS256</b> se sign hote hain — shared secret. AS aur RS
+              ek hi process hain to chalta hai. Par koi <em>doosra</em> service
+              token verify karna chahe to usko secret dena padega, jo usko token
+              <em>banane</em> ki power bhi de deta hai. <b>RS256 + JWKS</b> isi
+              ko theek karta hai; deferred hai.
+            </p>
+          </div>
+          <div class="trap">
+            <h4><code>scopes_supported</code> do jagah alag</h4>
+            <p>
+              AS metadata poora <code>SCOPES</code> catalog deta hai (8 scopes),
+              RS metadata sirf <code>read_profile</code>. Dono sach hain — AS
+              "main kya jaanta hoon", RS "is resource pe kya kaam ka hai". Par
+              ek client dono padh ke confuse ho sakta hai.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>Grant revoke ka endpoint nahi hai</h4>
+            <p>
+              Poori machinery bani hai: FK cascade, <code>gid</code> claim,
+              Redis marker. Jo nahi hai wo
+              <code>DELETE /v1/oauth/grants/:id</code> hai. Matlab aaj user apna
+              connected app <em>hata nahi sakta</em> — step 45 dikhata hai ki
+              banne par kya hoga.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>Per-user <code>mcpLimiter</code> nahi hai</h4>
+            <p>
+              Global IP limiter lagta hai, par spec ka "rate limit tool
+              invocations" ek hi user ke against aadha-poora hai.
+              <code>app.ts</code> me <code>TODO(rate limit)</code> pada hai.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>Code replay <em>rok</em>te hain, <em>detect</em> nahi karte</h4>
+            <p>
+              <code>GETDEL</code> se dusri redemption fail hoti hai — par OAuth
+              2.1 ye bhi kehta hai ki replay hue code se pehle jo tokens diye
+              the unko revoke karo. Uske liye tombstone chahiye. Jaan-boojh ke
+              nahi banaya.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>Confidential client support nahi</h4>
+            <p>
+              <code>token_endpoint_auth_methods_supported: ["none"]</code>.
+              Table aur CHECK constraint <code>client_secret_hash</code> ke liye
+              ready hain, par <code>/token</code> par secret verify karne wala
+              code nahi hai. Public client + PKCE hi poora flow hai.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Teen bug jo sirf asli Claude se test karne pe mile</h2>
+        <p class="sub">
+          Teeno ne local curl test paas kiya tha. Teeno asli client ke saath
+          fail hue. Isliye "real wala hi test karenge" ek preference nahi,
+          requirement hai.
+        </p>
+        <div class="traps">
+          <div class="trap">
+            <h4>1 · CSP <code>form-action</code> ne 302 chup-chaap roka</h4>
+            <p>
+              <code>form-action</code> sirf ye nahi decide karta ki form
+              <em>kahan post</em> kare — wo ye bhi decide karta hai ki us POST
+              ka response <em>kahan redirect</em> kar sake. App-wide policy
+              <code>'self'</code> thi, to consent ke baad client ko jaane wala
+              302 block ho gaya. Server log me <code>302</code>, DB me grant
+              bana hua, aur user ko wahi screen. Error
+              <b>sirf browser console me</b>. Fix:
+              <code>sendAuthPage()</code> per-response CSP bhejta hai jisme ek
+              already-verified redirect origin naamzad hai.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>2 · <code>audienceConfig()</code> me MCP branch hi nahi tha</h4>
+            <p>
+              Pehli <em>authenticated</em> MCP request pe
+              <code>verifyToken(token, resourceUri)</code> ne
+              <code>Unknown JWT audience</code> throw kiya → 500. Discovery aur
+              OAuth poora chal gaya tha; ye uske baad toota. Bina asli token ke
+              ye code path chalta hi nahi.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>
+              3 · Consent screen ne narrowed scope dikhaya, requested grant kiya
+            </h4>
+            <p>
+              GET <code>decision.grantable</code> render karta tha, POST
+              <code>pending.scopes</code> grant karta tha — jo client ne
+              <em>maanga</em> tha. Matlab user ne jo approve kiya, wo usse zyada
+              mil sakta tha. Fix: narrowed set pending record me likha jaata hai
+              (<code>attachUser</code>), to screen aur grant kabhi alag nahi ho
+              sakte.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Jahan log phaste hain</h2>
+        <p class="sub">
+          Ye saat cheezein trace me marked hain — build karte waqt in pe rukna.
+        </p>
+        <div class="traps">
+          <div class="trap">
+            <h4>1 · <code>aud</code> check chhod dena</h4>
+            <p>
+              Sabse common bug. Kisi doosre server ke liye bana valid token
+              aapke server pe chal jaayega — "confused deputy".
+              <code>resource</code> param (RFC 8707) isi liye hai.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>2 · Token passthrough</h4>
+            <p>
+              MCP spec me <strong>explicitly mana</strong> hai — upstream ka
+              token aage forward karna, ya doosre audience ka token accept
+              karna. Har hop apna token.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>3 · Consent skip karna</h4>
+            <p>
+              Third-party client hai. User ko dikhna chahiye kaunse scopes diye
+              jaa rahe hain. Silent grant = security bug, feature nahi.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>4 · Tool description ko doc samajhna</h4>
+            <p>
+              Wo <strong>prompt</strong> hai. Model usi se decide karta hai.
+              "Kab call karna hai" likho — sirf "kya karta hai" likhne se tool
+              trigger hi nahi hoga.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>5 · Arguments ko trust karna</h4>
+            <p>
+              <code>arguments</code> model ka output hai — untrusted. Zod parse
+              + per-tool scope check + tenant filter. Auth ≠ authz.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>6 · Bada tool result</h4>
+            <p>
+              Result seedha model ke context me jaata hai. 500 rows bhejna
+              context jalana hai. Paginate karo, summary do, cursor rakho.
+            </p>
+          </div>
+          <div class="trap">
+            <h4>7 · Ek hi <code>mcp</code> scope</h4>
+            <p>
+              Sab tools ek scope ke peeche = all-or-nothing. Per-tool scopes do
+              (<code>read_profile</code> vs <code>write_profile</code>) taaki
+              user read-only de sake. <code>defineTool</code> me scope per-tool
+              declare hota hai, aur <code>SUPPORTED_SCOPES</code> usi se derive
+              hota hai.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>File map — kaunsi file kya karti hai</h2>
+        <p class="sub">
+          Trace me har step ke saath uski file hai. Yahan ulta view hai: file se
+          step.
+        </p>
+        <div class="split">
+          <div class="card" style="--hue: var(--c-as)">
+            <h3>Authorization Server</h3>
+            <ul>
+              <li>
+                <code>apis/routes.ts</code> — 4 endpoints mount;
+                <code>urlencoded</code> parser sirf yahan
+              </li>
+              <li>
+                <code>apis/handlers.ts</code> — HTTP shell, stage dispatch, CSP,
+                redirects <b>(steps 8, 11, 16, 20, 22, 23)</b>
+              </li>
+              <li>
+                <code>services/registerClient.ts</code> — DCR + redirect_uri
+                rules <b>(step 9)</b>
+              </li>
+              <li>
+                <code>services/authorizeRequest.ts</code> — validate +
+                <code>resolveConsent</code> narrowing <b>(steps 13, 18)</b>
+              </li>
+              <li>
+                <code>services/completeAuthorization.ts</code> — grant likho,
+                code do <b>(step 21)</b>
+              </li>
+              <li>
+                <code>services/exchangeCode.ts</code> — 5 bindings + PKCE
+                <b>(steps 24, 26)</b>
+              </li>
+              <li>
+                <code>services/refreshGrantTokens.ts</code> — scope ceiling
+                re-read <b>(steps 43, 44)</b>
+              </li>
+              <li>
+                <code>lib/pendingAuthStore.ts</code> — Redis ticket, GET↔POST ka
+                pul
+              </li>
+              <li>
+                <code>lib/authCodeStore.ts</code> — hashed code,
+                <code>GETDEL</code> atomic consume
+              </li>
+              <li>
+                <code>lib/grantQueries.ts</code> — grant upsert, SQL me scope
+                union
+              </li>
+              <li>
+                <code>views/pages.ts</code> — login + consent HTML,
+                <code>escapeHtml</code>, scope descriptions
+              </li>
+              <li>
+                <code>schemas.ts</code> · <code>errors.ts</code> — zod shapes,
+                RFC 6749 §5.2 error vocabulary
+              </li>
+            </ul>
+          </div>
+          <div class="card" style="--hue: var(--c-rs)">
+            <h3>Resource Server + bridge</h3>
+            <ul>
+              <li>
+                <code>mcp/authenticate.ts</code> — Bearer, <code>aud</code>,
+                blacklist, grant-revoked <b>(steps 3, 28, 46)</b>
+              </li>
+              <li>
+                <code>mcp/metadata.ts</code> — RFC 9728 document
+                <b>(steps 4–5)</b>
+              </li>
+              <li>
+                <code>mcp/server.ts</code> — Express middleware, Origin +
+                protocol-version MUSTs
+              </li>
+              <li>
+                <code>mcp/jsonrpc.ts</code> — envelope parse, notification vs
+                request
+              </li>
+              <li>
+                <code>mcp/protocol.ts</code> — <code>initialize</code> result,
+                tool descriptor shape
+              </li>
+              <li>
+                <code>mcp/registry.ts</code> — tool list, scope filter,
+                duplicate-name guard
+              </li>
+              <li>
+                <code>mcp/defineTool.ts</code> — per-tool scope + zod boundary
+                <b>(step 36)</b>
+              </li>
+              <li>
+                <code>mcp/buildContext.ts</code> — <code>ctx.user</code> token
+                se banata hai
+              </li>
+              <li>
+                <code>auth/mcp-apis/tools.ts</code> — <code>get_profile</code>,
+                fields explicitly pick
+              </li>
+              <li>
+                <code>auth/services/issueGrantTokens.ts</code> —
+                <b>bridge:</b> token mint + <code>gid</code> <b>(step 25)</b>
+              </li>
+              <li>
+                <code>auth/services/consumeGrantRefreshToken.ts</code> —
+                <b>bridge:</b> rotate + reuse detect <b>(step 42)</b>
+              </li>
+              <li>
+                <code>models/postgres/oauth/oauthGrant.ts</code> — consent ka
+                live record, cascade ka source
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        MCP protocol revision 2025-06-18 · Streamable HTTP transport ·
+        hand-rolled, no SDK<br />
+        OAuth 2.1 + PKCE (RFC 7636) · RFC 9728 protected-resource metadata · RFC
+        8414 AS metadata · RFC 7591 dynamic client registration · RFC 8707
+        resource indicators · RFC 8252 native app callbacks<br />
+        Host, tool, scopes, DCR body aur file paths asli hain. Token strings,
+        code values aur email illustrative hain.<br />
+        Verified end-to-end against Claude Desktop, 28 July 2026 — including
+        Claude's own unattended token refresh.
+      </footer>
     </div>
-  </section>
 
-  <section class="section">
-    <h2>Authorization Server vs Resource Server</h2>
-    <p class="sub">
-      Poora confusion isi line pe hota hai. Ek token <em>banata</em> hai, doosra token
-      <em>check</em> karta hai. Trace me dekho — steps 6–26 AS ke saath hain,
-      steps 27–40 RS ke saath. blue-node me dono ek hi app hain, par code ka bantwara
-      poora alag hai: <code>modules/oauth/</code> vs <code>src/mcp/</code>.
-    </p>
-    <div class="split">
-      <div class="card" style="--hue: var(--c-as)">
-        <h3>Authorization Server</h3>
-        <p class="role"><code>src/modules/oauth/</code> · token banata hai</p>
-        <ul>
-          <li><code>/.well-known/oauth-authorization-server</code> — endpoint discovery <b>(RFC 8414)</b><br><code>apis/handlers.ts › getAuthServerMetadata</code></li>
-          <li><code>/oauth/register</code> — <b>Dynamic Client Registration (RFC 7591)</b><br><code>services/registerClient.ts</code> · redirect_uri rules yahan</li>
-          <li><code>/oauth/authorize</code> — <b>GET</b> page deta hai, <b>POST</b> login+consent leta hai<br><code>services/authorizeRequest.ts</code> · <code>views/pages.ts</code></li>
-          <li><code>/oauth/token</code> — code+PKCE verifier, aur refresh_token grant<br><code>services/exchangeCode.ts</code> · <code>services/refreshGrantTokens.ts</code></li>
-          <li>Owns: client registry (<code>oauth_clients</code>), consent records (<code>oauth_grants</code>), auth codes, scope narrowing</li>
-          <li class="no">Tools ke baare me kuch nahi jaanta</li>
-        </ul>
-      </div>
-      <div class="card" style="--hue: var(--c-rs)">
-        <h3>Resource Server</h3>
-        <p class="role"><code>src/mcp/</code> · data deta hai</p>
-        <ul>
-          <li><code>/mcp</code> — asli MCP endpoint (JSON-RPC 2.0)<br><code>server.ts</code> · <code>jsonrpc.ts</code> · <code>protocol.ts</code></li>
-          <li><code>/.well-known/oauth-protected-resource</code> — "mera AS ye hai" <b>(RFC 9728)</b><br><code>metadata.ts</code></li>
-          <li>Har request pe signature, <code>iss</code>, <b><code>aud</code></b>, <code>exp</code>, blacklist, grant-revoked check<br><code>authenticate.ts</code></li>
-          <li>Tool registry + per-tool scope enforcement<br><code>registry.ts</code> · <code>defineTool.ts</code></li>
-          <li class="no">User login — nahi karta</li>
-          <li class="no">Consent screen — nahi dikhata</li>
-          <li class="no">Token issue — kabhi nahi</li>
-        </ul>
-      </div>
-    </div>
-    <p class="sub" style="margin: 20px 0 0">
-      Beech ka pul do exports hain: <code>issueGrantTokens</code> aur
-      <code>consumeGrantRefreshToken</code>, dono <code>modules/auth/</code> se.
-      <code>modules/oauth/</code> kabhi <code>refresh_tokens</code> table ko seedha nahi
-      chhoota — rotation aur reuse-detection ek hi module ki milkiyat rehti hai. OAuth
-      <em>delegation policy</em> owns karta hai (clients, PKCE, consent), auth
-      <em>credentials</em> owns karta hai.
-    </p>
-  </section>
+    <script>
+      "use strict";
 
-  <section class="section">
-    <h2>Jo abhi HS256 pe hai, aur jo abhi bana hi nahi</h2>
-    <p class="sub">
-      Trace me sab kuch asli hai — jisme wo cheezein bhi hain jo aadhi hain. Doc me
-      jhooth likhne se koi fayda nahi.
-    </p>
-    <div class="traps">
-      <div class="trap">
-        <h4><code>jwks_uri</code> nahi hai</h4>
-        <p>Tokens <b>HS256</b> se sign hote hain — shared secret. AS aur RS ek hi process hain to chalta hai. Par koi <em>doosra</em> service token verify karna chahe to usko secret dena padega, jo usko token <em>banane</em> ki power bhi de deta hai. <b>RS256 + JWKS</b> isi ko theek karta hai; deferred hai.</p>
-      </div>
-      <div class="trap">
-        <h4><code>scopes_supported</code> do jagah alag</h4>
-        <p>AS metadata poora <code>SCOPES</code> catalog deta hai (8 scopes), RS metadata sirf <code>read_profile</code>. Dono sach hain — AS "main kya jaanta hoon", RS "is resource pe kya kaam ka hai". Par ek client dono padh ke confuse ho sakta hai.</p>
-      </div>
-      <div class="trap">
-        <h4>Grant revoke ka endpoint nahi hai</h4>
-        <p>Poori machinery bani hai: FK cascade, <code>gid</code> claim, Redis marker. Jo nahi hai wo <code>DELETE /v1/oauth/grants/:id</code> hai. Matlab aaj user apna connected app <em>hata nahi sakta</em> — step 45 dikhata hai ki banne par kya hoga.</p>
-      </div>
-      <div class="trap">
-        <h4>Per-user <code>mcpLimiter</code> nahi hai</h4>
-        <p>Global IP limiter lagta hai, par spec ka "rate limit tool invocations" ek hi user ke against aadha-poora hai. <code>app.ts</code> me <code>TODO(rate limit)</code> pada hai.</p>
-      </div>
-      <div class="trap">
-        <h4>Code replay <em>rok</em>te hain, <em>detect</em> nahi karte</h4>
-        <p><code>GETDEL</code> se dusri redemption fail hoti hai — par OAuth 2.1 ye bhi kehta hai ki replay hue code se pehle jo tokens diye the unko revoke karo. Uske liye tombstone chahiye. Jaan-boojh ke nahi banaya.</p>
-      </div>
-      <div class="trap">
-        <h4>Confidential client support nahi</h4>
-        <p><code>token_endpoint_auth_methods_supported: ["none"]</code>. Table aur CHECK constraint <code>client_secret_hash</code> ke liye ready hain, par <code>/token</code> par secret verify karne wala code nahi hai. Public client + PKCE hi poora flow hai.</p>
-      </div>
-    </div>
-  </section>
+      /* ── actors ─────────────────────────────────────────────────── */
+      const LANES = [
+        { id: "user", label: "USER · browser", hue: "var(--c-user)" },
+        { id: "claude", label: "CLAUDE", hue: "var(--c-claude)" },
+        { id: "as", label: "AUTH SERVER", hue: "var(--c-as)" },
+        { id: "rs", label: "RESOURCE SERVER", hue: "var(--c-rs)" },
+      ];
+      const LI = { user: 0, claude: 1, as: 2, rs: 3 };
+      const LANE_X = [110, 370, 630, 890];
+      const LANE_PCT = ["11%", "37%", "63%", "89%"];
 
-  <section class="section">
-    <h2>Teen bug jo sirf asli Claude se test karne pe mile</h2>
-    <p class="sub">
-      Teeno ne local curl test paas kiya tha. Teeno asli client ke saath fail hue.
-      Isliye "real wala hi test karenge" ek preference nahi, requirement hai.
-    </p>
-    <div class="traps">
-      <div class="trap">
-        <h4>1 · CSP <code>form-action</code> ne 302 chup-chaap roka</h4>
-        <p><code>form-action</code> sirf ye nahi decide karta ki form <em>kahan post</em> kare — wo ye bhi decide karta hai ki us POST ka response <em>kahan redirect</em> kar sake. App-wide policy <code>'self'</code> thi, to consent ke baad client ko jaane wala 302 block ho gaya. Server log me <code>302</code>, DB me grant bana hua, aur user ko wahi screen. Error <b>sirf browser console me</b>. Fix: <code>sendAuthPage()</code> per-response CSP bhejta hai jisme ek already-verified redirect origin naamzad hai.</p>
-      </div>
-      <div class="trap">
-        <h4>2 · <code>audienceConfig()</code> me MCP branch hi nahi tha</h4>
-        <p>Pehli <em>authenticated</em> MCP request pe <code>verifyToken(token, resourceUri)</code> ne <code>Unknown JWT audience</code> throw kiya → 500. Discovery aur OAuth poora chal gaya tha; ye uske baad toota. Bina asli token ke ye code path chalta hi nahi.</p>
-      </div>
-      <div class="trap">
-        <h4>3 · Consent screen ne narrowed scope dikhaya, requested grant kiya</h4>
-        <p>GET <code>decision.grantable</code> render karta tha, POST <code>pending.scopes</code> grant karta tha — jo client ne <em>maanga</em> tha. Matlab user ne jo approve kiya, wo usse zyada mil sakta tha. Fix: narrowed set pending record me likha jaata hai (<code>attachUser</code>), to screen aur grant kabhi alag nahi ho sakte.</p>
-      </div>
-    </div>
-  </section>
+      const PHASES = [
+        { name: "Discovery", hint: "auth kahan hai" },
+        { name: "Register", hint: "Claude khud ko banata hai" },
+        { name: "Consent", hint: "login → Allow → code" },
+        { name: "Token", hint: "code → access + refresh" },
+        { name: "Handshake", hint: "tools discover karna" },
+        { name: "Runtime", hint: "ek sawaal, ek jawab" },
+        { name: "Lifecycle", hint: "refresh aur revoke" },
+      ];
 
-  <section class="section">
-    <h2>Jahan log phaste hain</h2>
-    <p class="sub">Ye saat cheezein trace me marked hain — build karte waqt in pe rukna.</p>
-    <div class="traps">
-      <div class="trap">
-        <h4>1 · <code>aud</code> check chhod dena</h4>
-        <p>Sabse common bug. Kisi doosre server ke liye bana valid token aapke server pe chal jaayega — "confused deputy". <code>resource</code> param (RFC 8707) isi liye hai.</p>
-      </div>
-      <div class="trap">
-        <h4>2 · Token passthrough</h4>
-        <p>MCP spec me <strong>explicitly mana</strong> hai — upstream ka token aage forward karna, ya doosre audience ka token accept karna. Har hop apna token.</p>
-      </div>
-      <div class="trap">
-        <h4>3 · Consent skip karna</h4>
-        <p>Third-party client hai. User ko dikhna chahiye kaunse scopes diye jaa rahe hain. Silent grant = security bug, feature nahi.</p>
-      </div>
-      <div class="trap">
-        <h4>4 · Tool description ko doc samajhna</h4>
-        <p>Wo <strong>prompt</strong> hai. Model usi se decide karta hai. "Kab call karna hai" likho — sirf "kya karta hai" likhne se tool trigger hi nahi hoga.</p>
-      </div>
-      <div class="trap">
-        <h4>5 · Arguments ko trust karna</h4>
-        <p><code>arguments</code> model ka output hai — untrusted. Zod parse + per-tool scope check + tenant filter. Auth ≠ authz.</p>
-      </div>
-      <div class="trap">
-        <h4>6 · Bada tool result</h4>
-        <p>Result seedha model ke context me jaata hai. 500 rows bhejna context jalana hai. Paginate karo, summary do, cursor rakho.</p>
-      </div>
-      <div class="trap">
-        <h4>7 · Ek hi <code>mcp</code> scope</h4>
-        <p>Sab tools ek scope ke peeche = all-or-nothing. Per-tool scopes do (<code>read_profile</code> vs <code>write_profile</code>) taaki user read-only de sake. <code>defineTool</code> me scope per-tool declare hota hai, aur <code>SUPPORTED_SCOPES</code> usi se derive hota hai.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <h2>File map — kaunsi file kya karti hai</h2>
-    <p class="sub">
-      Trace me har step ke saath uski file hai. Yahan ulta view hai: file se step.
-    </p>
-    <div class="split">
-      <div class="card" style="--hue: var(--c-as)">
-        <h3>Authorization Server</h3>
-        <ul>
-          <li><code>apis/routes.ts</code> — 4 endpoints mount; <code>urlencoded</code> parser sirf yahan</li>
-          <li><code>apis/handlers.ts</code> — HTTP shell, stage dispatch, CSP, redirects <b>(steps 8, 11, 16, 20, 22, 23)</b></li>
-          <li><code>services/registerClient.ts</code> — DCR + redirect_uri rules <b>(step 9)</b></li>
-          <li><code>services/authorizeRequest.ts</code> — validate + <code>resolveConsent</code> narrowing <b>(steps 13, 18)</b></li>
-          <li><code>services/completeAuthorization.ts</code> — grant likho, code do <b>(step 21)</b></li>
-          <li><code>services/exchangeCode.ts</code> — 5 bindings + PKCE <b>(steps 24, 26)</b></li>
-          <li><code>services/refreshGrantTokens.ts</code> — scope ceiling re-read <b>(steps 43, 44)</b></li>
-          <li><code>lib/pendingAuthStore.ts</code> — Redis ticket, GET↔POST ka pul</li>
-          <li><code>lib/authCodeStore.ts</code> — hashed code, <code>GETDEL</code> atomic consume</li>
-          <li><code>lib/grantQueries.ts</code> — grant upsert, SQL me scope union</li>
-          <li><code>views/pages.ts</code> — login + consent HTML, <code>escapeHtml</code>, scope descriptions</li>
-          <li><code>schemas.ts</code> · <code>errors.ts</code> — zod shapes, RFC 6749 §5.2 error vocabulary</li>
-        </ul>
-      </div>
-      <div class="card" style="--hue: var(--c-rs)">
-        <h3>Resource Server + bridge</h3>
-        <ul>
-          <li><code>mcp/authenticate.ts</code> — Bearer, <code>aud</code>, blacklist, grant-revoked <b>(steps 3, 28, 46)</b></li>
-          <li><code>mcp/metadata.ts</code> — RFC 9728 document <b>(steps 4–5)</b></li>
-          <li><code>mcp/server.ts</code> — Express middleware, Origin + protocol-version MUSTs</li>
-          <li><code>mcp/jsonrpc.ts</code> — envelope parse, notification vs request</li>
-          <li><code>mcp/protocol.ts</code> — <code>initialize</code> result, tool descriptor shape</li>
-          <li><code>mcp/registry.ts</code> — tool list, scope filter, duplicate-name guard</li>
-          <li><code>mcp/defineTool.ts</code> — per-tool scope + zod boundary <b>(step 36)</b></li>
-          <li><code>mcp/buildContext.ts</code> — <code>ctx.user</code> token se banata hai</li>
-          <li><code>auth/mcp-apis/tools.ts</code> — <code>get_profile</code>, fields explicitly pick</li>
-          <li><code>auth/services/issueGrantTokens.ts</code> — <b>bridge:</b> token mint + <code>gid</code> <b>(step 25)</b></li>
-          <li><code>auth/services/consumeGrantRefreshToken.ts</code> — <b>bridge:</b> rotate + reuse detect <b>(step 42)</b></li>
-          <li><code>models/postgres/oauth/oauthGrant.ts</code> — consent ka live record, cascade ka source</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    MCP protocol revision 2025-06-18 · Streamable HTTP transport · hand-rolled, no SDK<br>
-    OAuth 2.1 + PKCE (RFC 7636) · RFC 9728 protected-resource metadata · RFC 8414 AS metadata ·
-    RFC 7591 dynamic client registration · RFC 8707 resource indicators · RFC 8252 native app callbacks<br>
-    Host, tool, scopes, DCR body aur file paths asli hain. Token strings, code values aur
-    email illustrative hain.<br>
-    Verified end-to-end against Claude Desktop, 28 July 2026 — including Claude's own
-    unattended token refresh.
-  </footer>
-</div>
-
-<script>
-  "use strict";
-
-  /* ── actors ─────────────────────────────────────────────────── */
-  const LANES = [
-    { id: "user",   label: "USER · browser",     hue: "var(--c-user)" },
-    { id: "claude", label: "CLAUDE",             hue: "var(--c-claude)" },
-    { id: "as",     label: "AUTH SERVER",        hue: "var(--c-as)" },
-    { id: "rs",     label: "RESOURCE SERVER",    hue: "var(--c-rs)" }
-  ];
-  const LI = { user: 0, claude: 1, as: 2, rs: 3 };
-  const LANE_X = [110, 370, 630, 890];
-  const LANE_PCT = ["11%", "37%", "63%", "89%"];
-
-  const PHASES = [
-    { name: "Discovery",  hint: "auth kahan hai" },
-    { name: "Register",   hint: "Claude khud ko banata hai" },
-    { name: "Consent",    hint: "login → Allow → code" },
-    { name: "Token",      hint: "code → access + refresh" },
-    { name: "Handshake",  hint: "tools discover karna" },
-    { name: "Runtime",    hint: "ek sawaal, ek jawab" },
-    { name: "Lifecycle",  hint: "refresh aur revoke" }
-  ];
-
-  /* ── the trace ──────────────────────────────────────────────────
+      /* ── the trace ──────────────────────────────────────────────────
      Ye blue-node ka ASLI flow hai — real host, real tool, real files.
      Har step ke saath wo file hai jo us step ko handle karti hai.
      Verified end-to-end against real Claude Desktop, 28 Jul 2026.
   ──────────────────────────────────────────────────────────────── */
-  const STEPS = [
-    /* ═══════════ phase 0 : discovery ═══════════ */
-    {
-      p: 0, from: "user", to: "claude", chip: "UI", lbl: "connector URL paste",
-      title: "Aap connector add karte ho",
-      why: "Aap sirf ek URL dete ho. Claude ko is waqt kuch nahi pata — auth chahiye ya nahi, kaunse tools hain, token kahan se milega. Sab kuch aage discover hoga.",
-      file: [],
-      wire:
-`claude.ai  ›  Settings  ›  Connectors  ›  Add custom connector
+      const STEPS = [
+        /* ═══════════ phase 0 : discovery ═══════════ */
+        {
+          p: 0,
+          from: "user",
+          to: "claude",
+          chip: "UI",
+          lbl: "connector URL paste",
+          title: "Aap connector add karte ho",
+          why: "Aap sirf ek URL dete ho. Claude ko is waqt kuch nahi pata — auth chahiye ya nahi, kaunse tools hain, token kahan se milega. Sab kuch aage discover hoga.",
+          file: [],
+          wire: `claude.ai  ›  Settings  ›  Connectors  ›  Add custom connector
 
 URL : https://api.imkumawatmanoj.com/mcp
 
-Bas yahi ek URL. Naam, client id, secret — kuch nahi maanga jaata.`
-    },
-    {
-      p: 0, from: "claude", to: "rs", chip: "POST", lbl: "initialize · no token",
-      title: "Claude bina token pehla probe bhejta hai",
-      why: "Ye jaan-boojh ke hai. 401 ka response hi auth ka poora roadmap deta hai — isliye pehle khali haath jaana sasta hai.",
-      file: ["src/app.ts", "src/mcp/authenticate.ts"],
-      wire:
-`POST /mcp HTTP/1.1
+Bas yahi ek URL. Naam, client id, secret — kuch nahi maanga jaata.`,
+        },
+        {
+          p: 0,
+          from: "claude",
+          to: "rs",
+          chip: "POST",
+          lbl: "initialize · no token",
+          title: "Claude bina token pehla probe bhejta hai",
+          why: "Ye jaan-boojh ke hai. 401 ka response hi auth ka poora roadmap deta hai — isliye pehle khali haath jaana sasta hai.",
+          file: ["src/app.ts", "src/mcp/authenticate.ts"],
+          wire: `POST /mcp HTTP/1.1
 Host: api.imkumawatmanoj.com
 Content-Type: application/json
 Accept: application/json, text/event-stream
@@ -1040,43 +1382,52 @@ Accept: application/json, text/event-stream
 
 // app.ts me mount aisa hai — app.all, app.post nahi:
 //   app.all(mcp.path, authenticateMcp(), createMcpMiddleware())
-// GET/DELETE ko bhi handler tak pahunchna hai taaki wo khud 405 de sake`
-    },
-    {
-      p: 0, from: "rs", to: "claude", chip: "401", lbl: "WWW-Authenticate",
-      title: "Resource Server auth ka roadmap deta hai",
-      why: "RS ka poora auth contribution yahi ek header hai — 'main protected hoon, aur mera metadata yahan hai'. Ye header na ho to Claude aage badh hi nahi sakta; discovery chain yahin se shuru hoti hai.",
-      file: ["src/mcp/authenticate.ts"],
-      wire:
-`HTTP/1.1 401 Unauthorized
+// GET/DELETE ko bhi handler tak pahunchna hai taaki wo khud 405 de sake`,
+        },
+        {
+          p: 0,
+          from: "rs",
+          to: "claude",
+          chip: "401",
+          lbl: "WWW-Authenticate",
+          title: "Resource Server auth ka roadmap deta hai",
+          why: "RS ka poora auth contribution yahi ek header hai — 'main protected hoon, aur mera metadata yahan hai'. Ye header na ho to Claude aage badh hi nahi sakta; discovery chain yahin se shuru hoti hai.",
+          file: ["src/mcp/authenticate.ts"],
+          wire: `HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer resource_metadata=
   "https://api.imkumawatmanoj.com/.well-known/oauth-protected-resource"
 
 // authenticate.ts: challenge SIRF auth failure pe lagta hai.
 // Redis down se aaya 500 bhi challenge bhejta, to client
-// OAuth dobara shuru kar deta — jo galat fix hai.`
-    },
-    {
-      p: 0, from: "claude", to: "rs", chip: "GET", lbl: "protected-resource metadata",
-      title: "Claude poochhta hai — tumhare tokens kaun banata hai?",
-      why: "RFC 9728. Ek chhoti JSON file jo RS ko uske AS se jodti hai. Ye bina token milni chahiye — client ise isliye maangta hai kyunki uske paas token nahi hai. Auth guard ke peeche rakhna sabse aam boot-time galti hai.",
-      file: ["src/mcp/metadata.ts"],
-      wire:
-`GET /.well-known/oauth-protected-resource HTTP/1.1
+// OAuth dobara shuru kar deta — jo galat fix hai.`,
+        },
+        {
+          p: 0,
+          from: "claude",
+          to: "rs",
+          chip: "GET",
+          lbl: "protected-resource metadata",
+          title: "Claude poochhta hai — tumhare tokens kaun banata hai?",
+          why: "RFC 9728. Ek chhoti JSON file jo RS ko uske AS se jodti hai. Ye bina token milni chahiye — client ise isliye maangta hai kyunki uske paas token nahi hai. Auth guard ke peeche rakhna sabse aam boot-time galti hai.",
+          file: ["src/mcp/metadata.ts"],
+          wire: `GET /.well-known/oauth-protected-resource HTTP/1.1
 Host: api.imkumawatmanoj.com
 
 // app.ts me metadata router auth guard se PEHLE mount hota hai:
 //   app.use(createMcpMetadataRouter())   <-- public
 //   app.use(createOauthRouter())         <-- public
-//   app.all(mcp.path, authenticateMcp(), ...)  <-- guarded`
-    },
-    {
-      p: 0, from: "rs", to: "claude", chip: "200", lbl: "authorization_servers",
-      title: "Yahin RS aur AS ka rishta define hota hai",
-      why: "authorization_servers wahi field hai jo RS ko token issuer se decouple karti hai. blue-node me ye apne aap ko point karta hai — dono kaam ek hi process me hain. Alag AS hota to sirf ye ek env value badalti.",
-      file: ["src/mcp/metadata.ts", "src/mcp/registry.ts"],
-      wire:
-`HTTP/1.1 200 OK
+//   app.all(mcp.path, authenticateMcp(), ...)  <-- guarded`,
+        },
+        {
+          p: 0,
+          from: "rs",
+          to: "claude",
+          chip: "200",
+          lbl: "authorization_servers",
+          title: "Yahin RS aur AS ka rishta define hota hai",
+          why: "authorization_servers wahi field hai jo RS ko token issuer se decouple karti hai. blue-node me ye apne aap ko point karta hai — dono kaam ek hi process me hain. Alag AS hota to sirf ye ek env value badalti.",
+          file: ["src/mcp/metadata.ts", "src/mcp/registry.ts"],
+          wire: `HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
@@ -1089,28 +1440,37 @@ Content-Type: application/json
 // scopes_supported registry.ts se aata hai, SCOPES catalog se nahi —
 // SUPPORTED_SCOPES = [...new Set(ALL_TOOLS.map(t => t.scope))]
 // matlab "is resource pe kya maang sakte ho". admin_access advertise
-// karna jab koi tool use nahi karta, consent screen gandi karta hai.`
-    },
-    {
-      p: 0, from: "claude", to: "as", chip: "GET", lbl: "AS metadata",
-      title: "Ab Claude Authorization Server se baat karta hai",
-      why: "RFC 8414. Lane badal gayi par host wahi hai — blue-node me AS aur RS ek hi Express app hain. Isliye ye do lanes role ka farq dikhati hain, machine ka nahi.",
-      file: ["src/modules/oauth/apis/routes.ts"],
-      wire:
-`GET /.well-known/oauth-authorization-server HTTP/1.1
+// karna jab koi tool use nahi karta, consent screen gandi karta hai.`,
+        },
+        {
+          p: 0,
+          from: "claude",
+          to: "as",
+          chip: "GET",
+          lbl: "AS metadata",
+          title: "Ab Claude Authorization Server se baat karta hai",
+          why: "RFC 8414. Lane badal gayi par host wahi hai — blue-node me AS aur RS ek hi Express app hain. Isliye ye do lanes role ka farq dikhati hain, machine ka nahi.",
+          file: ["src/modules/oauth/apis/routes.ts"],
+          wire: `GET /.well-known/oauth-authorization-server HTTP/1.1
 Host: api.imkumawatmanoj.com
 
 // routes.ts root pe mount hai, /api/v1 ke neeche nahi — ye protocol
 // endpoints hain jinke paths metadata document me publish hote hain.
-// Version lagate to v2 aane par discovery document jhooth bol deta.`
-    },
-    {
-      p: 0, from: "as", to: "claude", chip: "200", lbl: "endpoints + scopes",
-      title: "AS apna poora menu deta hai",
-      why: "registration_endpoint hona zaroori hai — warna Claude ke paas client_id aayega hi nahi. S256 ka matlab PKCE mandatory hai. issuer JWT_ISSUER se aata hai, API_BASE_URL se nahi, taaki wo hamesha token ke iss claim ke barabar ho.",
-      file: ["src/modules/oauth/apis/handlers.ts", "src/config/appConfig.ts"],
-      wire:
-`{
+// Version lagate to v2 aane par discovery document jhooth bol deta.`,
+        },
+        {
+          p: 0,
+          from: "as",
+          to: "claude",
+          chip: "200",
+          lbl: "endpoints + scopes",
+          title: "AS apna poora menu deta hai",
+          why: "registration_endpoint hona zaroori hai — warna Claude ke paas client_id aayega hi nahi. S256 ka matlab PKCE mandatory hai. issuer JWT_ISSUER se aata hai, API_BASE_URL se nahi, taaki wo hamesha token ke iss claim ke barabar ho.",
+          file: [
+            "src/modules/oauth/apis/handlers.ts",
+            "src/config/appConfig.ts",
+          ],
+          wire: `{
   "issuer": "https://api.imkumawatmanoj.com",
   "authorization_endpoint": "https://api.imkumawatmanoj.com/oauth/authorize",
   "token_endpoint": "https://api.imkumawatmanoj.com/oauth/token",
@@ -1129,17 +1489,24 @@ Host: api.imkumawatmanoj.com
 // deferred hai; tab ye field add hoti hai.
 // NOTE: yahan poora SCOPES catalog hai, jabki RS ne sirf read_profile
 // bataya tha. Dono sach hain — AS "main kya jaanta hoon", RS "is
-// resource pe kya kaam ka hai".`
-    },
+// resource pe kya kaam ka hai".`,
+        },
 
-    /* ═══════════ phase 1 : dynamic client registration ═══════════ */
-    {
-      p: 1, from: "claude", to: "as", chip: "POST", lbl: "/oauth/register · DCR",
-      title: "Claude khud ko register karta hai",
-      why: "RFC 7591. Aapne Claude ko manually register nahi kiya — wo khud kar raha hai. Iske bina har user ko haath se client banana padta, aur DCR na hone par Claude connector add hi nahi karne deta.",
-      file: ["src/modules/oauth/apis/routes.ts", "src/modules/oauth/apis/handlers.ts", "src/modules/oauth/schemas.ts"],
-      wire:
-`POST /oauth/register HTTP/1.1
+        /* ═══════════ phase 1 : dynamic client registration ═══════════ */
+        {
+          p: 1,
+          from: "claude",
+          to: "as",
+          chip: "POST",
+          lbl: "/oauth/register · DCR",
+          title: "Claude khud ko register karta hai",
+          why: "RFC 7591. Aapne Claude ko manually register nahi kiya — wo khud kar raha hai. Iske bina har user ko haath se client banana padta, aur DCR na hone par Claude connector add hi nahi karne deta.",
+          file: [
+            "src/modules/oauth/apis/routes.ts",
+            "src/modules/oauth/apis/handlers.ts",
+            "src/modules/oauth/schemas.ts",
+          ],
+          wire: `POST /oauth/register HTTP/1.1
 Host: api.imkumawatmanoj.com
 Content-Type: application/json
 
@@ -1155,15 +1522,18 @@ Content-Type: application/json
 // Ye body asli hai — real Claude Desktop ne exactly ye bheja.
 // schemas.ts me redirect_uris z.string() hai, z.url() nahi:
 // native app com.example.app:/cb register kar sakta hai, jise
-// http(s) wala URL validator reject kar deta.`
-    },
-    {
-      p: 1, from: "as", to: "as", chip: "CHECK", lbl: "redirect_uri rules",
-      title: "Registration ka asli kaam — redirect_uri validate karna",
-      why: "Ye poore flow ka sabse important check hai. redirect_uri hi wo jagah hai jahan auth code bheja jaayega. Loose validation = code attacker ke server pe. Isliye teen category: https anywhere, http SIRF loopback, ya custom scheme.",
-      file: ["src/modules/oauth/services/registerClient.ts"],
-      wire:
-`for each redirect_uri:
+// http(s) wala URL validator reject kar deta.`,
+        },
+        {
+          p: 1,
+          from: "as",
+          to: "as",
+          chip: "CHECK",
+          lbl: "redirect_uri rules",
+          title: "Registration ka asli kaam — redirect_uri validate karna",
+          why: "Ye poore flow ka sabse important check hai. redirect_uri hi wo jagah hai jahan auth code bheja jaayega. Loose validation = code attacker ke server pe. Isliye teen category: https anywhere, http SIRF loopback, ya custom scheme.",
+          file: ["src/modules/oauth/services/registerClient.ts"],
+          wire: `for each redirect_uri:
 
   https://claude.ai/api/mcp/auth_callback     OK   https, fine
   http://127.0.0.1:8080/callback              OK   loopback (RFC 8252)
@@ -1175,15 +1545,21 @@ Content-Type: application/json
   https://claude.ai/cb?x=1                    reject  query nahi
 
 // fragment aur query isliye mana hain — code redirect me query param
-// ban ke jaata hai, to pehle se maujood query ambiguity banati hai.`
-    },
-    {
-      p: 1, from: "as", to: "as", chip: "DB", lbl: "INSERT oauth_clients",
-      title: "Client Postgres me store hota hai",
-      why: "Public client hai — token_endpoint_auth_method: none, koi client_secret nahi. Table pe DB-level CHECK constraint hai jo method aur secret ko jodta hai, taaki public client galti se secret le ke na baithe (ya confidential bina secret).",
-      file: ["src/modules/oauth/lib/clientQueries.ts", "src/models/postgres/oauth/oauthClient.ts"],
-      wire:
-`INSERT INTO oauth_clients (client_name, redirect_uris, grant_types,
+// ban ke jaata hai, to pehle se maujood query ambiguity banati hai.`,
+        },
+        {
+          p: 1,
+          from: "as",
+          to: "as",
+          chip: "DB",
+          lbl: "INSERT oauth_clients",
+          title: "Client Postgres me store hota hai",
+          why: "Public client hai — token_endpoint_auth_method: none, koi client_secret nahi. Table pe DB-level CHECK constraint hai jo method aur secret ko jodta hai, taaki public client galti se secret le ke na baithe (ya confidential bina secret).",
+          file: [
+            "src/modules/oauth/lib/clientQueries.ts",
+            "src/models/postgres/oauth/oauthClient.ts",
+          ],
+          wire: `INSERT INTO oauth_clients (client_name, redirect_uris, grant_types,
        response_types, token_endpoint_auth_method, scope)
 VALUES ('Claude', ARRAY['https://claude.ai/api/mcp/auth_callback'], ...)
 
@@ -1198,15 +1574,18 @@ created_at                2026-07-28 11:01:34+00
 // DB CHECK: method = 'none' => secret_hash NULL hona chahiye
 //           method != 'none' => secret_hash NOT NULL hona chahiye
 // Ye app code me bhi hai, par DB me rakhna matlab koi bhi raasta
-// (migration, manual SQL) is invariant ko tod nahi sakta.`
-    },
-    {
-      p: 1, from: "as", to: "claude", chip: "201", lbl: "client_id",
-      title: "Claude ko identity mil gayi",
-      why: "client_secret nahi hai, isliye PKCE hi asli security hai — optional nahi. RFC 7591 kehta hai server wo metadata echo kare jo usne ACTUALLY register kiya, jo request se alag ho sakta hai.",
-      file: ["src/modules/oauth/apis/handlers.ts"],
-      wire:
-`HTTP/1.1 201 Created
+// (migration, manual SQL) is invariant ko tod nahi sakta.`,
+        },
+        {
+          p: 1,
+          from: "as",
+          to: "claude",
+          chip: "201",
+          lbl: "client_id",
+          title: "Claude ko identity mil gayi",
+          why: "client_secret nahi hai, isliye PKCE hi asli security hai — optional nahi. RFC 7591 kehta hai server wo metadata echo kare jo usne ACTUALLY register kiya, jo request se alag ho sakta hai.",
+          file: ["src/modules/oauth/apis/handlers.ts"],
+          wire: `HTTP/1.1 201 Created
 Content-Type: application/json
 
 {
@@ -1220,17 +1599,20 @@ Content-Type: application/json
 }
 
 // client_id uuidv7 hai — random nahi, time-sortable.
-// client_secret field hi nahi hai response me: public client.`
-    },
+// client_secret field hi nahi hai response me: public client.`,
+        },
 
-    /* ═══════════ phase 2 : authorize · login · consent ═══════════ */
-    {
-      p: 2, from: "claude", to: "user", chip: "BROWSER", lbl: "browser khulta hai",
-      title: "Flow browser me shift ho jaata hai",
-      why: "Yahan se control Claude ke haath me nahi hai. GET hi hai — bahar se aayi browser navigation POST nahi ho sakti, isliye protocol ka entry point GET hona majboori hai. resource param (RFC 8707) token ko sirf is MCP server ke liye bind karta hai.",
-      file: [],
-      wire:
-`GET https://api.imkumawatmanoj.com/oauth/authorize
+        /* ═══════════ phase 2 : authorize · login · consent ═══════════ */
+        {
+          p: 2,
+          from: "claude",
+          to: "user",
+          chip: "BROWSER",
+          lbl: "browser khulta hai",
+          title: "Flow browser me shift ho jaata hai",
+          why: "Yahan se control Claude ke haath me nahi hai. GET hi hai — bahar se aayi browser navigation POST nahi ho sakti, isliye protocol ka entry point GET hona majboori hai. resource param (RFC 8707) token ko sirf is MCP server ke liye bind karta hai.",
+          file: [],
+          wire: `GET https://api.imkumawatmanoj.com/oauth/authorize
   ?response_type=code
   &client_id=019fa863-1821-7422-a17a-4c7c62899bf0
   &redirect_uri=https://claude.ai/api/mcp/auth_callback
@@ -1242,15 +1624,21 @@ Content-Type: application/json
 
 // Claude pehle apne side ek URL kholta hai jo yahan redirect karta hai:
 //   claude.ai/api/organizations/<org>/mcp/start-auth/<id>
-// Isliye address bar me pehle claude.ai dikhta hai, phir hamara host.`
-    },
-    {
-      p: 2, from: "as", to: "as", chip: "CHECK", lbl: "validateAuthorizeRequest",
-      title: "Do errors jo redirect NAHI kar sakte",
-      why: "Baaki har galti client ko redirect ho ke jaati hai (RFC 6749 §4.1.2.1). Par unknown client_id aur galat redirect_uri par redirect karna hi attack hai — jo bhi URI diya wo verify nahi hua, to user ko wahan bhejna open redirect hai. Ye do browser me HTML page dikhate hain.",
-      file: ["src/modules/oauth/services/authorizeRequest.ts", "src/modules/oauth/schemas.ts"],
-      wire:
-`1  client_id  -> oauth_clients lookup           mila
+// Isliye address bar me pehle claude.ai dikhta hai, phir hamara host.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "as",
+          chip: "CHECK",
+          lbl: "validateAuthorizeRequest",
+          title: "Do errors jo redirect NAHI kar sakte",
+          why: "Baaki har galti client ko redirect ho ke jaati hai (RFC 6749 §4.1.2.1). Par unknown client_id aur galat redirect_uri par redirect karna hi attack hai — jo bhi URI diya wo verify nahi hua, to user ko wahan bhejna open redirect hai. Ye do browser me HTML page dikhate hain.",
+          file: [
+            "src/modules/oauth/services/authorizeRequest.ts",
+            "src/modules/oauth/schemas.ts",
+          ],
+          wire: `1  client_id  -> oauth_clients lookup           mila
 2  redirect_uri exact match registered list?    haan
      ^ ye do fail hue to HTML page, redirect NAHI
 
@@ -1262,15 +1650,18 @@ Content-Type: application/json
 
 // schemas.ts me response_type aur code_challenge_method plain string
 // hain, z.literal() nahi — galat value ka jawab OAuth redirect error
-// hona chahiye, 422 validation failure nahi jo client parse na kar sake.`
-    },
-    {
-      p: 2, from: "as", to: "as", chip: "REDIS", lbl: "pending ticket banao",
-      title: "Request Redis me park hoti hai",
-      why: "GET page render karta hai, POST usko complete karta hai — beech me poori OAuth request kahin rakhni padegi. Client ke form me hidden fields me daal dete to user usko edit kar ke scope badha leta. Isliye server-side record, aur form me sirf ek opaque ticket.",
-      file: ["src/modules/oauth/lib/pendingAuthStore.ts"],
-      wire:
-`SET oauth:pending:<sha256(ticket)>  '{...}'  EX 600
+// hona chahiye, 422 validation failure nahi jo client parse na kar sake.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "as",
+          chip: "REDIS",
+          lbl: "pending ticket banao",
+          title: "Request Redis me park hoti hai",
+          why: "GET page render karta hai, POST usko complete karta hai — beech me poori OAuth request kahin rakhni padegi. Client ke form me hidden fields me daal dete to user usko edit kar ke scope badha leta. Isliye server-side record, aur form me sirf ek opaque ticket.",
+          file: ["src/modules/oauth/lib/pendingAuthStore.ts"],
+          wire: `SET oauth:pending:<sha256(ticket)>  '{...}'  EX 600
 
 stored record:
   clientId, clientName, redirectUri, scopes,
@@ -1281,15 +1672,21 @@ stored record:
 // ticket ka sirf hash store hota hai, plaintext nahi — Redis dump se
 // koi replayable cheez na mile. Wahi treatment jo email-verify aur
 // password-reset codes ko milta hai.
-// TTL 600s: user ko consent screen padhna hai, login karna pad sakta hai.`
-    },
-    {
-      p: 2, from: "as", to: "user", chip: "HTML", lbl: "login page",
-      title: "Login page — aur wo CSP bug jo sirf asli test me mila",
-      why: "Ye page ek form deta hai jiska POST aakhir me client ko 302 karega. form-action sirf ye control nahi karta ki form KAHAN post kare — wo ye bhi control karta hai ki us POST ka response KAHAN redirect kar sake. Chrome poori redirect chain check karta hai.",
-      file: ["src/modules/oauth/views/pages.ts", "src/modules/oauth/apis/handlers.ts"],
-      wire:
-`HTTP/1.1 200 OK
+// TTL 600s: user ko consent screen padhna hai, login karna pad sakta hai.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "user",
+          chip: "HTML",
+          lbl: "login page",
+          title: "Login page — aur wo CSP bug jo sirf asli test me mila",
+          why: "Ye page ek form deta hai jiska POST aakhir me client ko 302 karega. form-action sirf ye control nahi karta ki form KAHAN post kare — wo ye bhi control karta hai ki us POST ka response KAHAN redirect kar sake. Chrome poori redirect chain check karta hai.",
+          file: [
+            "src/modules/oauth/views/pages.ts",
+            "src/modules/oauth/apis/handlers.ts",
+          ],
+          wire: `HTTP/1.1 200 OK
 Content-Security-Policy: default-src 'self'; script-src 'none';
   form-action 'self' https://claude.ai;   <-- yahi line
   frame-ancestors 'none'; base-uri 'self'
@@ -1306,15 +1703,18 @@ Content-Security-Policy: default-src 'self'; script-src 'none';
 // post hua, phir client ko jaane wala 302 CHUP-CHAAP block ho gaya.
 // User ko same screen dikhi, server log me 302 tha, error kahin nahi
 // except browser console. sendAuthPage() ab per-response CSP bhejta
-// hai jisme sirf ek already-verified redirect origin naamzad hai.`
-    },
-    {
-      p: 2, from: "user", to: "as", chip: "POST", lbl: "credentials · login stage",
-      title: "Pehla POST — ek hi endpoint, do stages",
-      why: "POST /oauth/authorize do baar hit hota hai: pehle login, phir consent. Kaunsa stage hai ye PENDING RECORD decide karta hai, request body nahi — body pe bharosa karte to submitted form claim kar sakta hai ki wo ek step paar kar chuka hai jo usne kiya hi nahi.",
-      file: ["src/modules/oauth/apis/handlers.ts"],
-      wire:
-`POST /oauth/authorize HTTP/1.1
+// hai jisme sirf ek already-verified redirect origin naamzad hai.`,
+        },
+        {
+          p: 2,
+          from: "user",
+          to: "as",
+          chip: "POST",
+          lbl: "credentials · login stage",
+          title: "Pehla POST — ek hi endpoint, do stages",
+          why: "POST /oauth/authorize do baar hit hota hai: pehle login, phir consent. Kaunsa stage hai ye PENDING RECORD decide karta hai, request body nahi — body pe bharosa karte to submitted form claim kar sakta hai ki wo ek step paar kar chuka hai jo usne kiya hi nahi.",
+          file: ["src/modules/oauth/apis/handlers.ts"],
+          wire: `POST /oauth/authorize HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 ticket=<opaque>&email=manoj@example.com&password=<...>
@@ -1326,15 +1726,21 @@ else                          -> CONSENT stage
 
 // urlencoded parser SIRF is router pe lagta hai. App-wide parser
 // JSON-only hai; global karte to har doosra endpoint body ka
-// matlab badal deta.`
-    },
-    {
-      p: 2, from: "as", to: "as", chip: "AUTH", lbl: "loginWithPassword",
-      title: "Wahi login jo REST karta hai — dobara nahi likha gaya",
-      why: "Consent screen ka login usi service se jaata hai jo /api/v1/auth/login use karta hai. Matlab lockout, CAPTCHA gate, account-status check — sab yahan bhi lagte hain. Doosri login path likhna hi wo tareeka hai jisse dono धीरे-धीरे alag ho jaate hain.",
-      file: ["src/modules/auth/services/loginWithPassword.ts", "src/shared/utils/cookies.ts"],
-      wire:
-`loginWithPassword({ email, password, ipAddress })
+// matlab badal deta.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "as",
+          chip: "AUTH",
+          lbl: "loginWithPassword",
+          title: "Wahi login jo REST karta hai — dobara nahi likha gaya",
+          why: "Consent screen ka login usi service se jaata hai jo /api/v1/auth/login use karta hai. Matlab lockout, CAPTCHA gate, account-status check — sab yahan bhi lagte hain. Doosri login path likhna hi wo tareeka hai jisse dono धीरे-धीरे alag ho jaate hain.",
+          file: [
+            "src/modules/auth/services/loginWithPassword.ts",
+            "src/shared/utils/cookies.ts",
+          ],
+          wire: `loginWithPassword({ email, password, ipAddress })
   -> lockout check       auth:fail:<email>
   -> CAPTCHA gate        (flag-gated)
   -> account status      pending/suspended reject
@@ -1346,15 +1752,21 @@ setAuthCookies(res, access, refresh)
 
 scopes = verifyToken(access, userAudience).scopes
   <-- token se, doosre permission lookup se nahi: jo mint hua hai
-      wahi authoritative statement hai ki session kya carry karta hai.`
-    },
-    {
-      p: 2, from: "as", to: "as", chip: "NARROW", lbl: "resolveConsent",
-      title: "Scope narrowing — aur ek security bug jo yahin tha",
-      why: "Client jo maange wo user ke paas ho, ye zaroori nahi. Grantable = requested ∩ user ke actual scopes. Agar maujooda grant sab kuch cover karta hai to consent screen skip ho jaati hai — isliye jo screen dikhaye, bilkul wahi grant hona chahiye.",
-      file: ["src/modules/oauth/services/authorizeRequest.ts", "src/modules/oauth/lib/grantQueries.ts"],
-      wire:
-`requested   read_profile write_profile
+      wahi authoritative statement hai ki session kya carry karta hai.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "as",
+          chip: "NARROW",
+          lbl: "resolveConsent",
+          title: "Scope narrowing — aur ek security bug jo yahin tha",
+          why: "Client jo maange wo user ke paas ho, ye zaroori nahi. Grantable = requested ∩ user ke actual scopes. Agar maujooda grant sab kuch cover karta hai to consent screen skip ho jaati hai — isliye jo screen dikhaye, bilkul wahi grant hona chahiye.",
+          file: [
+            "src/modules/oauth/services/authorizeRequest.ts",
+            "src/modules/oauth/lib/grantQueries.ts",
+          ],
+          wire: `requested   read_profile write_profile
 user holds  read_profile write_profile delete_account
 grantable   read_profile write_profile      <-- intersection
 
@@ -1365,15 +1777,18 @@ existing grant covers grantable?
 // BUG jo tha: GET decision.grantable DIKHATA tha, par POST
 // pending.scopes (jo client ne MAANGA tha) GRANT karta tha.
 // Ab narrowed set pending record me likh diya jaata hai
-// (attachUser), taaki screen aur grant kabhi alag na hon.`
-    },
-    {
-      p: 2, from: "as", to: "user", chip: "HTML", lbl: "consent page",
-      title: "Consent screen — AS ka kaam, RS ka nahi",
-      why: "Third-party client hai, isliye user ko dikhna chahiye ki kya diya jaa raha hai. Silent grant security bug hai, feature nahi. Scope ke technical naam ke saath uska matlab likhna zaroori hai — read_profile se user ko kuch samajh nahi aata.",
-      file: ["src/modules/oauth/views/pages.ts"],
-      wire:
-`+----------------------------------------------+
+// (attachUser), taaki screen aur grant kabhi alag na hon.`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "user",
+          chip: "HTML",
+          lbl: "consent page",
+          title: "Consent screen — AS ka kaam, RS ka nahi",
+          why: "Third-party client hai, isliye user ko dikhna chahiye ki kya diya jaa raha hai. Silent grant security bug hai, feature nahi. Scope ke technical naam ke saath uska matlab likhna zaroori hai — read_profile se user ko kuch samajh nahi aata.",
+          file: ["src/modules/oauth/views/pages.ts"],
+          wire: `+----------------------------------------------+
 |  Claude wants access to your account          |
 |                                               |
 |  * View your profile           read_profile   |
@@ -1388,15 +1803,18 @@ existing grant covers grantable?
 // Record isliye ki naya scope add karo aur description bhoolo to
 // TYPECHECK fail ho, na ki consent screen pe raw scope name dikhe.
 // escapeHtml() har interpolation pe — clientName DCR se aaya hai,
-// matlab attacker-controlled string hai.`
-    },
-    {
-      p: 2, from: "user", to: "as", chip: "POST", lbl: "decision=allow · consent stage",
-      title: "Doosra POST — consent stage",
-      why: "Deny bhi client ko WAPAS jaata hai, error page pe nahi: redirect_uri ab verify ho chuka hai, aur app ko haq hai jaanne ka ki mana kiya gaya. RFC ka access_denied yahi hai.",
-      file: ["src/modules/oauth/apis/handlers.ts"],
-      wire:
-`POST /oauth/authorize
+// matlab attacker-controlled string hai.`,
+        },
+        {
+          p: 2,
+          from: "user",
+          to: "as",
+          chip: "POST",
+          lbl: "decision=allow · consent stage",
+          title: "Doosra POST — consent stage",
+          why: "Deny bhi client ko WAPAS jaata hai, error page pe nahi: redirect_uri ab verify ho chuka hai, aur app ko haq hai jaanne ka ki mana kiya gaya. RFC ka access_denied yahi hai.",
+          file: ["src/modules/oauth/apis/handlers.ts"],
+          wire: `POST /oauth/authorize
 Content-Type: application/x-www-form-urlencoded
 
 ticket=<opaque>&decision=allow
@@ -1405,15 +1823,22 @@ ticket=<opaque>&decision=allow
 302 Location: https://claude.ai/api/mcp/auth_callback
   ?error=access_denied
   &error_description=The+user+denied+the+request
-  &state=xr7Qm1Zb`
-    },
-    {
-      p: 2, from: "as", to: "as", chip: "DB", lbl: "upsertGrant + issueAuthCode",
-      title: "Grant likha jaata hai, phir code banta hai",
-      why: "Grant hi consent ka live record hai — Google ke 'connected apps' jaisa, ek row per (user, client). Scopes SQL me UNION hote hain, replace nahi: naya scope approve karna purana approve kiya hua drop nahi kar sakta.",
-      file: ["src/modules/oauth/services/completeAuthorization.ts", "src/modules/oauth/lib/grantQueries.ts", "src/modules/oauth/lib/authCodeStore.ts"],
-      wire:
-`GETDEL oauth:pending:<hash>        <-- ticket single-use
+  &state=xr7Qm1Zb`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "as",
+          chip: "DB",
+          lbl: "upsertGrant + issueAuthCode",
+          title: "Grant likha jaata hai, phir code banta hai",
+          why: "Grant hi consent ka live record hai — Google ke 'connected apps' jaisa, ek row per (user, client). Scopes SQL me UNION hote hain, replace nahi: naya scope approve karna purana approve kiya hua drop nahi kar sakta.",
+          file: [
+            "src/modules/oauth/services/completeAuthorization.ts",
+            "src/modules/oauth/lib/grantQueries.ts",
+            "src/modules/oauth/lib/authCodeStore.ts",
+          ],
+          wire: `GETDEL oauth:pending:<hash>        <-- ticket single-use
 
 INSERT INTO oauth_grants (user_id, client_id, scopes)
 VALUES (...) ON CONFLICT (user_id, client_id) DO UPDATE
@@ -1427,15 +1852,18 @@ SET oauth:code:<sha256(code)>  '{...}'  EX 60
 code record me: userId, clientId, grantId, redirectUri, scopes,
                 codeChallenge, codeChallengeMethod, resource
      ^ ye sab /token pe DOBARA check hota hai, us request se
-       bharosa nahi kiya jaata`
-    },
-    {
-      p: 2, from: "as", to: "claude", chip: "302", lbl: "callback?code=…",
-      title: "Auth code callback pe wapas aata hai",
-      why: "Code 60 second jeeta hai aur single-use hai. state match karna client ka kaam hai — wahi CSRF guard hai. Code khud se koi access nahi deta; wo sirf ek claim ticket hai.",
-      file: ["src/modules/oauth/apis/handlers.ts"],
-      wire:
-`HTTP/1.1 302 Found
+       bharosa nahi kiya jaata`,
+        },
+        {
+          p: 2,
+          from: "as",
+          to: "claude",
+          chip: "302",
+          lbl: "callback?code=…",
+          title: "Auth code callback pe wapas aata hai",
+          why: "Code 60 second jeeta hai aur single-use hai. state match karna client ka kaam hai — wahi CSRF guard hai. Code khud se koi access nahi deta; wo sirf ek claim ticket hai.",
+          file: ["src/modules/oauth/apis/handlers.ts"],
+          wire: `HTTP/1.1 302 Found
 Location: https://claude.ai/api/mcp/auth_callback
   ?code=dUsdxulf8lQLTtlAH4Z6h-bD94jbxEe5WZi2Ipdv4_o
   &state=xr7Qm1Zb          <-- request ke state se match hona chahiye
@@ -1444,17 +1872,23 @@ Location: https://claude.ai/api/mcp/auth_callback
 // possible". Ek redirect hop ke liye 60s bahut hai, aur replay
 // window chhota rehta hai.
 // Manual testing me yahi TTL pareshan karta hai — copy-paste karne
-// me code expire ho jaata hai. Automate karna padta hai.`
-    },
+// me code expire ho jaata hai. Automate karna padta hai.`,
+        },
 
-    /* ═══════════ phase 3 : token exchange ═══════════ */
-    {
-      p: 3, from: "claude", to: "as", chip: "POST", lbl: "/oauth/token · code + verifier",
-      title: "Code ko token se exchange karta hai",
-      why: "code_verifier PKCE ka doosra hissa hai. Challenge browser redirect se PEHLE fix ho gaya tha, to sirf wahi redeem kar sakta hai jisne verifier banaya — isi se intercepted code public client ke against bekaar ho jaata hai.",
-      file: ["src/modules/oauth/apis/handlers.ts", "src/modules/oauth/schemas.ts"],
-      wire:
-`POST /oauth/token HTTP/1.1
+        /* ═══════════ phase 3 : token exchange ═══════════ */
+        {
+          p: 3,
+          from: "claude",
+          to: "as",
+          chip: "POST",
+          lbl: "/oauth/token · code + verifier",
+          title: "Code ko token se exchange karta hai",
+          why: "code_verifier PKCE ka doosra hissa hai. Challenge browser redirect se PEHLE fix ho gaya tha, to sirf wahi redeem kar sakta hai jisne verifier banaya — isi se intercepted code public client ke against bekaar ho jaata hai.",
+          file: [
+            "src/modules/oauth/apis/handlers.ts",
+            "src/modules/oauth/schemas.ts",
+          ],
+          wire: `POST /oauth/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
@@ -1468,15 +1902,21 @@ grant_type=authorization_code
 // Ulta karte to unsupported grant ka jawab "code field missing"
 // aata — client ko guess karna padta.
 // grant_type missing = invalid_request (RFC 6749 §5.2),
-// unknown grant_type = unsupported_grant_type. Do alag baatein.`
-    },
-    {
-      p: 3, from: "as", to: "as", chip: "PKCE", lbl: "5 bindings verify",
-      title: "Paanch check — aur sab ka ek hi error message",
-      why: "Har rejection same message deta hai: 'invalid, expired, or already used'. Chori kiya code rakhne wale ko ye nahi pata chalna chahiye ki kaunsa binding fail hua — 'PKCE mismatch' batana usko checklist de dena hai. Asli reason log me jaata hai.",
-      file: ["src/modules/oauth/services/exchangeCode.ts", "src/modules/oauth/lib/authCodeStore.ts"],
-      wire:
-`1  GETDEL oauth:code:<sha256(code)>     mila (aur destroy ho gaya)
+// unknown grant_type = unsupported_grant_type. Do alag baatein.`,
+        },
+        {
+          p: 3,
+          from: "as",
+          to: "as",
+          chip: "PKCE",
+          lbl: "5 bindings verify",
+          title: "Paanch check — aur sab ka ek hi error message",
+          why: "Har rejection same message deta hai: 'invalid, expired, or already used'. Chori kiya code rakhne wale ko ye nahi pata chalna chahiye ki kaunsa binding fail hua — 'PKCE mismatch' batana usko checklist de dena hai. Asli reason log me jaata hai.",
+          file: [
+            "src/modules/oauth/services/exchangeCode.ts",
+            "src/modules/oauth/lib/authCodeStore.ts",
+          ],
+          wire: `1  GETDEL oauth:code:<sha256(code)>     mila (aur destroy ho gaya)
      ^ atomic: do requests race karein to EXACTLY ek ko record
        milta hai. GET-phir-DEL me dono succeed kar sakte the —
        aur do baar redeem hone wala code account takeover hai.
@@ -1490,15 +1930,22 @@ grant_type=authorization_code
 5  sha256Base64Url(code_verifier) == codeChallenge  OK
      ^ constantTimeEqual se compare, == se nahi
 
-koi bhi fail  ->  invalid_grant + wahi ek message`
-    },
-    {
-      p: 3, from: "as", to: "as", chip: "MINT", lbl: "issueGrantTokens",
-      title: "Token banta hai — gid claim yahin lagta hai",
-      why: "Ye service isliye hai ki modules/oauth ko auth ke lib/ ko chhoona na pade: refresh_tokens table aur uski rotation logic ek hi module ki milkiyat rahe. OAuth delegation policy owns karta hai (clients, PKCE, consent), auth credentials owns karta hai.",
-      file: ["src/modules/auth/services/issueGrantTokens.ts", "src/modules/auth/lib/tokenService.ts", "src/models/postgres/user/refreshToken.ts"],
-      wire:
-`sessionId = uuidv7()          <-- per exchange nayi session
+koi bhi fail  ->  invalid_grant + wahi ek message`,
+        },
+        {
+          p: 3,
+          from: "as",
+          to: "as",
+          chip: "MINT",
+          lbl: "issueGrantTokens",
+          title: "Token banta hai — gid claim yahin lagta hai",
+          why: "Ye service isliye hai ki modules/oauth ko auth ke lib/ ko chhoona na pade: refresh_tokens table aur uski rotation logic ek hi module ki milkiyat rahe. OAuth delegation policy owns karta hai (clients, PKCE, consent), auth credentials owns karta hai.",
+          file: [
+            "src/modules/auth/services/issueGrantTokens.ts",
+            "src/modules/auth/lib/tokenService.ts",
+            "src/models/postgres/user/refreshToken.ts",
+          ],
+          wire: `sessionId = uuidv7()          <-- per exchange nayi session
 
 access  = { sub: userId, sid: sessionId, gid: grantId,
             scopes: ["read_profile"], aud: <resourceUri> }
@@ -1516,15 +1963,18 @@ INSERT INTO refresh_tokens (user_id, jti, expires_at,
 // se, ek statement me uda deta hai.
 // audienceConfig() me MCP audience ka branch add karna pada —
 // bina uske pehli authenticated MCP request "Unknown JWT
-// audience" throw karti thi. Ye bug sirf asli test me pakda.`
-    },
-    {
-      p: 3, from: "as", to: "claude", chip: "200", lbl: "access + refresh token",
-      title: "AS ka kaam khatam",
-      why: "Decoded payload me aud dekho — ye token sirf is MCP resource pe chalega, kisi doosre server pe nahi. Yahi confused-deputy attack rokta hai. Cache-Control: no-store spec ka MUST hai.",
-      file: ["src/modules/oauth/services/exchangeCode.ts"],
-      wire:
-`HTTP/1.1 200 OK
+// audience" throw karti thi. Ye bug sirf asli test me pakda.`,
+        },
+        {
+          p: 3,
+          from: "as",
+          to: "claude",
+          chip: "200",
+          lbl: "access + refresh token",
+          title: "AS ka kaam khatam",
+          why: "Decoded payload me aud dekho — ye token sirf is MCP resource pe chalega, kisi doosre server pe nahi. Yahi confused-deputy attack rokta hai. Cache-Control: no-store spec ka MUST hai.",
+          file: ["src/modules/oauth/services/exchangeCode.ts"],
+          wire: `HTTP/1.1 200 OK
 Cache-Control: no-store
 
 {
@@ -1547,17 +1997,20 @@ Cache-Control: no-store
   "exp": 1785237400
 }
 
-// alg HS256 hai, RS256 nahi — dekho phase 0 ka note.`
-    },
+// alg HS256 hai, RS256 nahi — dekho phase 0 ka note.`,
+        },
 
-    /* ═══════════ phase 4 : mcp handshake ═══════════ */
-    {
-      p: 4, from: "claude", to: "rs", chip: "POST", lbl: "initialize + Bearer",
-      title: "Wahi pehla request — ab token ke saath",
-      why: "Step 2 ka exact repeat, sirf Authorization header add hua. Ab Resource Server ka asli kaam shuru hota hai. Beech ke 24 steps sirf isliye the ki ye ek header bhara jaa sake.",
-      file: ["src/mcp/server.ts", "src/mcp/protocol.ts"],
-      wire:
-`POST /mcp HTTP/1.1
+        /* ═══════════ phase 4 : mcp handshake ═══════════ */
+        {
+          p: 4,
+          from: "claude",
+          to: "rs",
+          chip: "POST",
+          lbl: "initialize + Bearer",
+          title: "Wahi pehla request — ab token ke saath",
+          why: "Step 2 ka exact repeat, sirf Authorization header add hua. Ab Resource Server ka asli kaam shuru hota hai. Beech ke 24 steps sirf isliye the ki ye ek header bhara jaa sake.",
+          file: ["src/mcp/server.ts", "src/mcp/protocol.ts"],
+          wire: `POST /mcp HTTP/1.1
 Host: api.imkumawatmanoj.com
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
@@ -1569,15 +2022,22 @@ Accept: application/json, text/event-stream
 // Do spec MUSTs jo aasani se chhoot jaate hain:
 //   MCP-Protocol-Version header unsupported ho to 400
 //   Origin header validate karo (DNS rebinding defence)
-// Dono server.ts me hain.`
-    },
-    {
-      p: 4, from: "rs", to: "rs", chip: "VERIFY", lbl: "token validate",
-      title: "RS ka poora kaam sirf yahi hai",
-      why: "Validate karo aur serve karo — bas. Login nahi, consent nahi, token issue nahi. aud check chhodna sabse common galti hai: kisi aur ke liye bana valid token accept ho jaayega, aur wahi confused deputy hai.",
-      file: ["src/mcp/authenticate.ts", "src/modules/auth/services/verifyToken.ts", "src/modules/auth/lib/tokenService.ts"],
-      wire:
-`1  signature   HS256, userSecret se                  OK
+// Dono server.ts me hain.`,
+        },
+        {
+          p: 4,
+          from: "rs",
+          to: "rs",
+          chip: "VERIFY",
+          lbl: "token validate",
+          title: "RS ka poora kaam sirf yahi hai",
+          why: "Validate karo aur serve karo — bas. Login nahi, consent nahi, token issue nahi. aud check chhodna sabse common galti hai: kisi aur ke liye bana valid token accept ho jaayega, aur wahi confused deputy hai.",
+          file: [
+            "src/mcp/authenticate.ts",
+            "src/modules/auth/services/verifyToken.ts",
+            "src/modules/auth/lib/tokenService.ts",
+          ],
+          wire: `1  signature   HS256, userSecret se                  OK
      ^ JWKS fetch nahi — abhi shared secret hai. RS256 + JWKS
        deferred; tab yahan kid se key pick hoti.
 2  iss         api.imkumawatmanoj.com                 OK
@@ -1593,15 +2053,18 @@ Accept: application/json, text/event-stream
 7  scopes      req.user pe attach                      OK
 
 // scope ka per-tool check yahan NAHI hai — wo defineTool karta
-// hai. Ye layer sirf "ye token asli hai" bolti hai.`
-    },
-    {
-      p: 4, from: "rs", to: "claude", chip: "200", lbl: "capabilities + instructions",
-      title: "Handshake complete",
-      why: "Server batata hai wo kya support karta hai. instructions field poore session ke liye model ke context me jaati hai — usse wo failure mode band kiya hai jo tool design already rokta hai: model ka account id invent karna ya user se maangna.",
-      file: ["src/mcp/protocol.ts", "src/config/appConfig.ts"],
-      wire:
-`HTTP/1.1 200 OK
+// hai. Ye layer sirf "ye token asli hai" bolti hai.`,
+        },
+        {
+          p: 4,
+          from: "rs",
+          to: "claude",
+          chip: "200",
+          lbl: "capabilities + instructions",
+          title: "Handshake complete",
+          why: "Server batata hai wo kya support karta hai. instructions field poore session ke liye model ke context me jaati hai — usse wo failure mode band kiya hai jo tool design already rokta hai: model ka account id invent karna ya user se maangna.",
+          file: ["src/mcp/protocol.ts", "src/config/appConfig.ts"],
+          wire: `HTTP/1.1 200 OK
 Content-Type: application/json
 
 {"jsonrpc":"2.0","id":1,"result":{
@@ -1619,30 +2082,40 @@ Content-Type: application/json
 // nahi: wo notifications/tools/list_changed ka promise hai, jiske
 // liye SSE stream kholna padta. resources ya prompts declare karna
 // isse bura hota — client wo methods call karta jo sirf
-// method-not-found de sakte hain.`
-    },
-    {
-      p: 4, from: "claude", to: "rs", chip: "POST", lbl: "tools/list",
-      title: "Claude poochhta hai — tum kya kar sakte ho?",
-      why: "MCP me teen cheezein expose ho sakti hain: tools (actions), resources (data), prompts (templates). blue-node abhi sirf tools deta hai. notifications/initialized bhi aata hai — notification hai, id nahi, jawab nahi.",
-      file: ["src/mcp/server.ts", "src/mcp/jsonrpc.ts"],
-      wire:
-`POST /mcp
+// method-not-found de sakte hain.`,
+        },
+        {
+          p: 4,
+          from: "claude",
+          to: "rs",
+          chip: "POST",
+          lbl: "tools/list",
+          title: "Claude poochhta hai — tum kya kar sakte ho?",
+          why: "MCP me teen cheezein expose ho sakti hain: tools (actions), resources (data), prompts (templates). blue-node abhi sirf tools deta hai. notifications/initialized bhi aata hai — notification hai, id nahi, jawab nahi.",
+          file: ["src/mcp/server.ts", "src/mcp/jsonrpc.ts"],
+          wire: `POST /mcp
 Authorization: Bearer eyJ...
 
 {"jsonrpc":"2.0","method":"notifications/initialized"}
   <-- id nahi = notification. Iska koi response nahi jaata.
       202 Accepted, empty body.
 
-{"jsonrpc":"2.0","id":2,"method":"tools/list"}`
-    },
-    {
-      p: 4, from: "rs", to: "claude", chip: "200", lbl: "tool catalog",
-      title: "Tool catalog — description hi prompt hai",
-      why: "Model isi description se decide karta hai kab tool call karna hai. 'Kab call karna hai' likhna zaroori hai, sirf 'kya karta hai' nahi — warna tool trigger hi nahi hoga. inputSchema zod se generate hota hai, haath se nahi likha jaata.",
-      file: ["src/mcp/registry.ts", "src/mcp/defineTool.ts", "src/modules/auth/mcp-apis/tools.ts"],
-      wire:
-`{"jsonrpc":"2.0","id":2,"result":{"tools":[
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
+        },
+        {
+          p: 4,
+          from: "rs",
+          to: "claude",
+          chip: "200",
+          lbl: "tool catalog",
+          title: "Tool catalog — description hi prompt hai",
+          why: "Model isi description se decide karta hai kab tool call karna hai. 'Kab call karna hai' likhna zaroori hai, sirf 'kya karta hai' nahi — warna tool trigger hi nahi hoga. inputSchema zod se generate hota hai, haath se nahi likha jaata.",
+          file: [
+            "src/mcp/registry.ts",
+            "src/mcp/defineTool.ts",
+            "src/modules/auth/mcp-apis/tools.ts",
+          ],
+          wire: `{"jsonrpc":"2.0","id":2,"result":{"tools":[
   {
     "name": "get_profile",
     "description": "Get the signed-in user's own account profile —
@@ -1661,64 +2134,79 @@ Authorization: Bearer eyJ...
 // "Mujh pe" kaam karne wala tool subject ctx.user se leta hai,
 // input se kabhi nahi.
 // listToolsFor() granted scope se filter karta hai — model ko wo
-// tool dikhta hi nahi jo wo use nahi kar sakta.`
-    },
-    {
-      p: 4, from: "claude", to: "user", chip: "READY", lbl: "connector connected",
-      title: "Setup ek baar hota hai",
-      why: "Token store ho gaya. Agli baar user seedha runtime se shuru hota hai — poora OAuth block dobara nahi chalta. Yahi wajah hai ki 32 steps ke setup ko user ek baar bhi poora nahi dekhta.",
-      file: [],
-      wire:
-`Connectors
+// tool dikhta hi nahi jo wo use nahi kar sakta.`,
+        },
+        {
+          p: 4,
+          from: "claude",
+          to: "user",
+          chip: "READY",
+          lbl: "connector connected",
+          title: "Setup ek baar hota hai",
+          why: "Token store ho gaya. Agli baar user seedha runtime se shuru hota hai — poora OAuth block dobara nahi chalta. Yahi wajah hai ki 32 steps ke setup ko user ek baar bhi poora nahi dekhta.",
+          file: [],
+          wire: `Connectors
 
   *  blue-node                    connected
      https://api.imkumawatmanoj.com/mcp
-     1 tool  ·  read_profile`
-    },
+     1 tool  ·  read_profile`,
+        },
 
-    /* ═══════════ phase 5 : runtime ═══════════ */
-    {
-      p: 5, from: "user", to: "claude", chip: "ASK", lbl: "sawaal",
-      title: "User sawaal poochhta hai",
-      why: "Yahan se rozana ka flow hai. Ab jo bhi hoga, user ko protocol ka kuch nahi dikhega.",
-      file: [],
-      wire:
-`"mera account kis email pe hai?"`
-    },
-    {
-      p: 5, from: "claude", to: "claude", chip: "THINK", lbl: "tool select",
-      title: "Model tool chunta hai",
-      why: "Tool descriptions pehle se context me hain. Model description padh ke match karta hai. Isliye description likhna prompt engineering hai — MCP ka sabse under-rated hissa.",
-      file: [],
-      wire:
-`context me available:
+        /* ═══════════ phase 5 : runtime ═══════════ */
+        {
+          p: 5,
+          from: "user",
+          to: "claude",
+          chip: "ASK",
+          lbl: "sawaal",
+          title: "User sawaal poochhta hai",
+          why: "Yahan se rozana ka flow hai. Ab jo bhi hoga, user ko protocol ka kuch nahi dikhega.",
+          file: [],
+          wire: `"mera account kis email pe hai?"`,
+        },
+        {
+          p: 5,
+          from: "claude",
+          to: "claude",
+          chip: "THINK",
+          lbl: "tool select",
+          title: "Model tool chunta hai",
+          why: "Tool descriptions pehle se context me hain. Model description padh ke match karta hai. Isliye description likhna prompt engineering hai — MCP ka sabse under-rated hissa.",
+          file: [],
+          wire: `context me available:
   get_profile()
     "...Call this when the user asks about their own account,
      their email, or when they signed up."
 
 user intent  ->  apna account + email
 match        ->  get_profile
-arguments    ->  {}          <-- lene ke liye kuch hi nahi hai`
-    },
-    {
-      p: 5, from: "claude", to: "rs", chip: "POST", lbl: "tools/call get_profile",
-      title: "Tool call jaata hai",
-      why: "Dhyaan do — arguments model ka output hai, isliye untrusted hai. Ise bilkul user input ki tarah treat karo. Yahan schema khali hai to surface hi nahi hai, par jaise hi pehla argument aayega ye baat matter karegi.",
-      file: ["src/mcp/server.ts"],
-      wire:
-`POST /mcp
+arguments    ->  {}          <-- lene ke liye kuch hi nahi hai`,
+        },
+        {
+          p: 5,
+          from: "claude",
+          to: "rs",
+          chip: "POST",
+          lbl: "tools/call get_profile",
+          title: "Tool call jaata hai",
+          why: "Dhyaan do — arguments model ka output hai, isliye untrusted hai. Ise bilkul user input ki tarah treat karo. Yahan schema khali hai to surface hi nahi hai, par jaise hi pehla argument aayega ye baat matter karegi.",
+          file: ["src/mcp/server.ts"],
+          wire: `POST /mcp
 Authorization: Bearer eyJ...
 
 {"jsonrpc":"2.0","id":3,"method":"tools/call",
- "params":{"name":"get_profile","arguments":{}}}`
-    },
-    {
-      p: 5, from: "rs", to: "rs", chip: "GUARD", lbl: "scope + zod + context",
-      title: "Auth ≠ authz",
-      why: "Token valid hone ka matlab nahi ki ye user ye tool use kar sakta hai. defineTool boundary pe do kaam karta hai: scope check aur zod parse. Aur do tarah ki failure alag-alag jaati hai — tool ki galti isError, protocol ki galti JSON-RPC error.",
-      file: ["src/mcp/defineTool.ts", "src/mcp/buildContext.ts"],
-      wire:
-`tool       get_profile mila?               haan
+ "params":{"name":"get_profile","arguments":{}}}`,
+        },
+        {
+          p: 5,
+          from: "rs",
+          to: "rs",
+          chip: "GUARD",
+          lbl: "scope + zod + context",
+          title: "Auth ≠ authz",
+          why: "Token valid hone ka matlab nahi ki ye user ye tool use kar sakta hai. defineTool boundary pe do kaam karta hai: scope check aur zod parse. Aur do tarah ki failure alag-alag jaati hai — tool ki galti isError, protocol ki galti JSON-RPC error.",
+          file: ["src/mcp/defineTool.ts", "src/mcp/buildContext.ts"],
+          wire: `tool       get_profile mila?               haan
 scope      needs read_profile
            ctx.user.scopes me hai?         haan
 arguments  zod parse against input schema  OK
@@ -1733,15 +2221,22 @@ context    buildContext(req)  ->  { user: { id, scopes } }
 
 // TODO jo abhi khula hai: per-user mcpLimiter nahi hai. Global
 // IP limiter lagta hai, par spec ka "rate limit tool
-// invocations" aadha-poora hai.`
-    },
-    {
-      p: 5, from: "rs", to: "rs", chip: "WORK", lbl: "adapter → service → DB",
-      title: "Adapter thin, service reused",
-      why: "MCP aapke module ka teesra adapter hai — apis/ aur graphql-apis/ ke saath. Business logic wahi service layer hai, duplicate nahi hota. Ye hissa MCP protocol ka part nahi hai, ye aapke architecture ka part hai.",
-      file: ["src/modules/auth/mcp-apis/tools.ts", "src/modules/auth/services/getUserById.ts", "src/modules/auth/lib/userQueries.ts"],
-      wire:
-`mcp-apis/tools.ts        <-- thin adapter: parse + call + format
+// invocations" aadha-poora hai.`,
+        },
+        {
+          p: 5,
+          from: "rs",
+          to: "rs",
+          chip: "WORK",
+          lbl: "adapter → service → DB",
+          title: "Adapter thin, service reused",
+          why: "MCP aapke module ka teesra adapter hai — apis/ aur graphql-apis/ ke saath. Business logic wahi service layer hai, duplicate nahi hota. Ye hissa MCP protocol ka part nahi hai, ye aapke architecture ka part hai.",
+          file: [
+            "src/modules/auth/mcp-apis/tools.ts",
+            "src/modules/auth/services/getUserById.ts",
+            "src/modules/auth/lib/userQueries.ts",
+          ],
+          wire: `mcp-apis/tools.ts        <-- thin adapter: parse + call + format
   -> services/getUserById.ts    <-- business logic (shared)
     -> lib/userQueries.ts       <-- only place that touches DB
       -> Postgres  SELECT ... FROM users WHERE id = $1
@@ -1750,52 +2245,67 @@ context    buildContext(req)  ->  { user: { id, scopes } }
 //   [\`Email: \${user.email}\`, \`Status: \${user.status}\`, ...]
 // getUserById poora users row deta hai — jisme passwordHash hai.
 // Spread ya JSON.stringify karte to hash seedha model ke paas.
-// GraphQL me schema ye rokti hai; yahan TOOL khud boundary hai.`
-    },
-    {
-      p: 5, from: "rs", to: "claude", chip: "200", lbl: "tool result",
-      title: "Result model ke context me jaata hai",
-      why: "Seedha user ko nahi — model ko. Isliye size matter karta hai: 500 rows bhejna context jalana hai. appConfig me maxToolResultChars 20,000 pe capped hai taaki ek broad query poora context na kha jaaye.",
-      file: ["src/mcp/jsonrpc.ts", "src/mcp/protocol.ts"],
-      wire:
-`{"jsonrpc":"2.0","id":3,"result":{
+// GraphQL me schema ye rokti hai; yahan TOOL khud boundary hai.`,
+        },
+        {
+          p: 5,
+          from: "rs",
+          to: "claude",
+          chip: "200",
+          lbl: "tool result",
+          title: "Result model ke context me jaata hai",
+          why: "Seedha user ko nahi — model ko. Isliye size matter karta hai: 500 rows bhejna context jalana hai. appConfig me maxToolResultChars 20,000 pe capped hai taaki ek broad query poora context na kha jaaye.",
+          file: ["src/mcp/jsonrpc.ts", "src/mcp/protocol.ts"],
+          wire: `{"jsonrpc":"2.0","id":3,"result":{
   "content":[{"type":"text","text":
     "Email: manoj@example.com
      Status: active
      First Name: Manoj
      Last Name: Kumawat
      Member since: 2026-07-28"}],
-  "isError":false}}`
-    },
-    {
-      p: 5, from: "claude", to: "claude", chip: "THINK", lbl: "result se reason",
-      title: "Loop chalta rehta hai",
-      why: "Result context me aane ke baad model chahe to doosra tool call kar sakta hai. Ek turn me kai tool calls ho sakte hain — ye ek round-trip nahi, ek loop hai.",
-      file: [],
-      wire:
-`tool result  ->  context  ->  model reasons
+  "isError":false}}`,
+        },
+        {
+          p: 5,
+          from: "claude",
+          to: "claude",
+          chip: "THINK",
+          lbl: "result se reason",
+          title: "Loop chalta rehta hai",
+          why: "Result context me aane ke baad model chahe to doosra tool call kar sakta hai. Ek turn me kai tool calls ho sakte hain — ye ek round-trip nahi, ek loop hai.",
+          file: [],
+          wire: `tool result  ->  context  ->  model reasons
 
   aur tool chahiye?     ->  nahi
-  jawab bana sakte ho?  ->  haan`
-    },
-    {
-      p: 5, from: "claude", to: "user", chip: "ANSWER", lbl: "jawab",
-      title: "User ne kabhi JSON nahi dekha",
-      why: "Poora protocol invisible hai — 39 steps ke baad user ko sirf ek normal jawab milta hai. Yahi connector ka asli point hai.",
-      file: [],
-      wire:
-`"Aapka account manoj@example.com pe hai — Manoj Kumawat,
- status active, 28 July 2026 se member ho."`
-    },
+  jawab bana sakte ho?  ->  haan`,
+        },
+        {
+          p: 5,
+          from: "claude",
+          to: "user",
+          chip: "ANSWER",
+          lbl: "jawab",
+          title: "User ne kabhi JSON nahi dekha",
+          why: "Poora protocol invisible hai — 39 steps ke baad user ko sirf ek normal jawab milta hai. Yahi connector ka asli point hai.",
+          file: [],
+          wire: `"Aapka account manoj@example.com pe hai — Manoj Kumawat,
+ status active, 28 July 2026 se member ho."`,
+        },
 
-    /* ═══════════ phase 6 : lifecycle ═══════════ */
-    {
-      p: 6, from: "claude", to: "as", chip: "REFRESH", lbl: "access token expired",
-      title: "15 min baad — chup-chaap refresh",
-      why: "Access token expire hone pe Claude khud refresh token se naya le leta hai. User ko dobara consent nahi dena padta. Asli test me ye apne aap hua — code issue hone ke 30 minute baad, bina kisi interaction ke.",
-      file: ["src/modules/oauth/apis/handlers.ts", "src/modules/oauth/schemas.ts"],
-      wire:
-`POST /oauth/token HTTP/1.1
+        /* ═══════════ phase 6 : lifecycle ═══════════ */
+        {
+          p: 6,
+          from: "claude",
+          to: "as",
+          chip: "REFRESH",
+          lbl: "access token expired",
+          title: "15 min baad — chup-chaap refresh",
+          why: "Access token expire hone pe Claude khud refresh token se naya le leta hai. User ko dobara consent nahi dena padta. Asli test me ye apne aap hua — code issue hone ke 30 minute baad, bina kisi interaction ke.",
+          file: [
+            "src/modules/oauth/apis/handlers.ts",
+            "src/modules/oauth/schemas.ts",
+          ],
+          wire: `POST /oauth/token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=refresh_token
@@ -1803,15 +2313,21 @@ grant_type=refresh_token
 &client_id=019fa863-1821-7422-a17a-4c7c62899bf0
 &resource=https://api.imkumawatmanoj.com/mcp
 
-// scope bhejna optional hai — bheja to sirf NARROW kar sakta hai.`
-    },
-    {
-      p: 6, from: "as", to: "as", chip: "ROTATE", lbl: "consumeGrantRefreshToken",
-      title: "Rotation + reuse detection — dobara nahi likha gaya",
-      why: "Refresh token rotate hota hai aur purana access token blacklist. Wahi atomic soft-rotate jo first-party sessions use karti hain — dusri copy likhna reuse detection ko subtly galat karne ka dusra mauka hai.",
-      file: ["src/modules/auth/services/consumeGrantRefreshToken.ts", "src/modules/auth/lib/tokenService.ts"],
-      wire:
-`rotateRefreshToken(token, audience)
+// scope bhejna optional hai — bheja to sirf NARROW kar sakta hai.`,
+        },
+        {
+          p: 6,
+          from: "as",
+          to: "as",
+          chip: "ROTATE",
+          lbl: "consumeGrantRefreshToken",
+          title: "Rotation + reuse detection — dobara nahi likha gaya",
+          why: "Refresh token rotate hota hai aur purana access token blacklist. Wahi atomic soft-rotate jo first-party sessions use karti hain — dusri copy likhna reuse detection ko subtly galat karne ka dusra mauka hai.",
+          file: [
+            "src/modules/auth/services/consumeGrantRefreshToken.ts",
+            "src/modules/auth/lib/tokenService.ts",
+          ],
+          wire: `rotateRefreshToken(token, audience)
   -> jti already rotated?  =>  ENTIRE FAMILY revoke
        ^ reuse ka matlab token leak hua. Ek token chori hone se
          poori chain marti hai, sirf wo token nahi.
@@ -1829,15 +2345,18 @@ SETEX bl:<purana accessJti>  <bacha hua TTL>
 // Rotation grant checks se PEHLE hota hai — matlab fail hone
 // wali request bhi token kharch kar deti hai. Jaan-boojh ke:
 // wahan pahunchna matlab ya doosre client ka token hai ya scope
-// badhane ki koshish. Dono ka jawab credential jalana hai.`
-    },
-    {
-      p: 6, from: "as", to: "as", chip: "CEILING", lbl: "grant se scope re-read",
-      title: "Refresh scope badha nahi sakta",
-      why: "Ceiling wo hai jo user ne ACTUALLY approve kiya, aur wo har refresh pe grant se dobara padha jaata hai — token me carry nahi hota. Isliye beech me revoke hua scope agle refresh se milna band ho jaata hai, apne aap.",
-      file: ["src/modules/oauth/services/refreshGrantTokens.ts"],
-      wire:
-`grant = findGrantById(grantId)
+// badhane ki koshish. Dono ka jawab credential jalana hai.`,
+        },
+        {
+          p: 6,
+          from: "as",
+          to: "as",
+          chip: "CEILING",
+          lbl: "grant se scope re-read",
+          title: "Refresh scope badha nahi sakta",
+          why: "Ceiling wo hai jo user ne ACTUALLY approve kiya, aur wo har refresh pe grant se dobara padha jaata hai — token me carry nahi hota. Isliye beech me revoke hua scope agle refresh se milna band ho jaata hai, apne aap.",
+          file: ["src/modules/oauth/services/refreshGrantTokens.ts"],
+          wire: `grant = findGrantById(grantId)
   -> row hi nahi?               reject (cascade already maar chuka)
   -> grant.clientId != client?  reject
   -> grant.userId != token sub? reject
@@ -1849,15 +2368,18 @@ request me scope bheja?
 
 // Dhyaan do: ceiling GRANT hai, purana token nahi. Grant se
 // scope hata do, aur agla refresh usko issue karna band kar
-// deta hai — chahe token me wo likha ho.`
-    },
-    {
-      p: 6, from: "as", to: "claude", chip: "200", lbl: "naya token pair",
-      title: "Naya pair, wahi grant",
-      why: "Claude purana pair phenk deta hai. Grant row wahi rehti hai — consent dobara nahi maanga jaata. Isi liye grant ek table hai aur token claim nahi: wo tokens se zyada jeeta hai.",
-      file: ["src/modules/oauth/services/refreshGrantTokens.ts"],
-      wire:
-`HTTP/1.1 200 OK
+// deta hai — chahe token me wo likha ho.`,
+        },
+        {
+          p: 6,
+          from: "as",
+          to: "claude",
+          chip: "200",
+          lbl: "naya token pair",
+          title: "Naya pair, wahi grant",
+          why: "Claude purana pair phenk deta hai. Grant row wahi rehti hai — consent dobara nahi maanga jaata. Isi liye grant ek table hai aur token claim nahi: wo tokens se zyada jeeta hai.",
+          file: ["src/modules/oauth/services/refreshGrantTokens.ts"],
+          wire: `HTTP/1.1 200 OK
 Cache-Control: no-store
 
 {
@@ -1870,15 +2392,21 @@ Cache-Control: no-store
 
 // refresh_tokens table me rotation chain aisi dikhti hai:
 //   jti A  rotated_at 09:06:32  ->  jti B  rotated_at NULL
-// asli test me yahi chain proof thi ki Claude ne khud refresh kiya.`
-    },
-    {
-      p: 6, from: "user", to: "as", chip: "REVOKE", lbl: "remove access · ABHI NAHI BANA",
-      title: "Connected apps — jo abhi bacha hua kaam hai",
-      why: "Poori revocation machinery ban chuki hai — cascade, gid claim, Redis marker. Jo nahi hai wo use trigger karne wala endpoint hai. Isliye ye step aaj chalta nahi; ye dikhata hai ki jab banega to kya karega.",
-      file: ["src/modules/oauth/lib/grantQueries.ts", "src/models/postgres/oauth/oauthGrant.ts"],
-      wire:
-`PLANNED:  DELETE /api/v1/oauth/grants/:id
+// asli test me yahi chain proof thi ki Claude ne khud refresh kiya.`,
+        },
+        {
+          p: 6,
+          from: "user",
+          to: "as",
+          chip: "REVOKE",
+          lbl: "remove access · ABHI NAHI BANA",
+          title: "Connected apps — jo abhi bacha hua kaam hai",
+          why: "Poori revocation machinery ban chuki hai — cascade, gid claim, Redis marker. Jo nahi hai wo use trigger karne wala endpoint hai. Isliye ye step aaj chalta nahi; ye dikhata hai ki jab banega to kya karega.",
+          file: [
+            "src/modules/oauth/lib/grantQueries.ts",
+            "src/models/postgres/oauth/oauthGrant.ts",
+          ],
+          wire: `PLANNED:  DELETE /api/v1/oauth/grants/:id
           GET    /api/v1/oauth/grants     <-- connected apps list
 
 jab chalega:
@@ -1890,15 +2418,18 @@ jab chalega:
        -> har device se, ek statement me
 
 // grant row hi wo cheez hai jo "Google connected apps" screen
-// banati hai: client_name, scopes, created_at, last_used_at.`
-    },
-    {
-      p: 6, from: "rs", to: "rs", chip: "401", lbl: "agli request → grant revoked",
-      title: "Revoke ka matlab abhi, na ki 15 min baad",
-      why: "Refresh token cascade se turant mar jaata hai. Par access token stateless JWT hai — wo expire hone tak valid rehta. Redis marker wahi window band karta hai. User jab access hataata hai to usko ABHI band hona chahiye, na ki jab token expire ho.",
-      file: ["src/mcp/authenticate.ts"],
-      wire:
-`POST /mcp
+// banati hai: client_name, scopes, created_at, last_used_at.`,
+        },
+        {
+          p: 6,
+          from: "rs",
+          to: "rs",
+          chip: "401",
+          lbl: "agli request → grant revoked",
+          title: "Revoke ka matlab abhi, na ki 15 min baad",
+          why: "Refresh token cascade se turant mar jaata hai. Par access token stateless JWT hai — wo expire hone tak valid rehta. Redis marker wahi window band karta hai. User jab access hataata hai to usko ABHI band hona chahiye, na ki jab token expire ho.",
+          file: ["src/mcp/authenticate.ts"],
+          wire: `POST /mcp
 Authorization: Bearer eyJ...   <-- signature valid, exp future
 
 authenticate.ts:
@@ -1912,333 +2443,402 @@ WWW-Authenticate: Bearer resource_metadata="..."
   "message":"Access for this application has been revoked"}}
 
 // Cost: ek Redis lookup — wahi jo jti blacklist already leta
-// tha. Aur sirf un tokens pe jo grant carry karte hain.`
-    }
-  ];
-  /* ── geometry ───────────────────────────────────────────────── */
-  const NS = "http://www.w3.org/2000/svg";
-  const TOP = 46;
-  const ROW = 78;
-  const BOX_W = 250;
-  const H = TOP + (STEPS.length - 1) * ROW + 52;
+// tha. Aur sirf un tokens pe jo grant carry karte hain.`,
+        },
+      ];
+      /* ── geometry ───────────────────────────────────────────────── */
+      const NS = "http://www.w3.org/2000/svg";
+      const TOP = 46;
+      const ROW = 78;
+      const BOX_W = 250;
+      const H = TOP + (STEPS.length - 1) * ROW + 52;
 
-  const svg = document.getElementById("seq");
-  svg.setAttribute("viewBox", `0 0 1000 ${H}`);
+      const svg = document.getElementById("seq");
+      svg.setAttribute("viewBox", `0 0 1000 ${H}`);
 
-  const el = (name, attrs) => {
-    const n = document.createElementNS(NS, name);
-    for (const k in attrs) n.setAttribute(k, attrs[k]);
-    return n;
-  };
+      const el = (name, attrs) => {
+        const n = document.createElementNS(NS, name);
+        for (const k in attrs) n.setAttribute(k, attrs[k]);
+        return n;
+      };
 
-  /* lane rails */
-  LANE_X.forEach((x) => {
-    svg.appendChild(el("line", { class: "rail", x1: x, y1: 8, x2: x, y2: H - 14 }));
-  });
+      /* lane rails */
+      LANE_X.forEach((x) => {
+        svg.appendChild(
+          el("line", { class: "rail", x1: x, y1: 8, x2: x, y2: H - 14 }),
+        );
+      });
 
-  /* lane header chips */
-  const lanebar = document.getElementById("lanebar");
-  const chips = LANES.map((ln, i) => {
-    const c = document.createElement("span");
-    c.className = "lanechip";
-    c.style.left = LANE_PCT[i];
-    c.style.setProperty("--hue", ln.hue);
-    c.textContent = ln.label;
-    lanebar.appendChild(c);
-    return c;
-  });
+      /* lane header chips */
+      const lanebar = document.getElementById("lanebar");
+      const chips = LANES.map((ln, i) => {
+        const c = document.createElement("span");
+        c.className = "lanechip";
+        c.style.left = LANE_PCT[i];
+        c.style.setProperty("--hue", ln.hue);
+        c.textContent = ln.label;
+        lanebar.appendChild(c);
+        return c;
+      });
 
-  /* step groups */
-  const groups = STEPS.map((s, i) => {
-    const y = TOP + i * ROW;
-    const fi = LI[s.from], ti = LI[s.to];
-    const hue = LANES[fi].hue;
-    const g = el("g", { class: "step" });
-    g.style.setProperty("--hue", hue);
-    s._hue = hue;
-    s._y = y;
+      /* step groups */
+      const groups = STEPS.map((s, i) => {
+        const y = TOP + i * ROW;
+        const fi = LI[s.from],
+          ti = LI[s.to];
+        const hue = LANES[fi].hue;
+        const g = el("g", { class: "step" });
+        g.style.setProperty("--hue", hue);
+        s._hue = hue;
+        s._y = y;
 
-    g.appendChild(el("text", {
-      class: "num", x: 22, y: y + 5, "text-anchor": "start"
-    })).textContent = String(i + 1).padStart(2, "0");
+        g.appendChild(
+          el("text", {
+            class: "num",
+            x: 22,
+            y: y + 5,
+            "text-anchor": "start",
+          }),
+        ).textContent = String(i + 1).padStart(2, "0");
 
-    if (fi === ti) {
-      /* self step — box hangs off the lane toward the diagram centre so it
+        if (fi === ti) {
+          /* self step — box hangs off the lane toward the diagram centre so it
          never runs past the viewBox on the outer lanes */
-      const x = LANE_X[fi];
-      const bx = fi >= 2 ? x + 30 - BOX_W : x - 30;
-      const cx = bx + BOX_W / 2;
-      g.appendChild(el("rect", {
-        class: "box", x: bx, y: y - 17, width: BOX_W, height: 34
-      }));
-      const t = el("text", { class: "lbl", x: cx, y: y + 5, "text-anchor": "middle" });
-      const m = el("tspan", { class: "m" });
-      m.textContent = s.chip;
-      t.appendChild(m);
-      t.appendChild(document.createTextNode("  " + s.lbl));
-      g.appendChild(t);
-      s._kind = "self";
-      s._box = g.querySelector(".box");
-    } else {
-      /* arrow step */
-      const dir = ti > fi ? 1 : -1;
-      const sx = LANE_X[fi] + 15 * dir;
-      const ex = LANE_X[ti] - 17 * dir;
-      const len = Math.abs(ex - sx);
+          const x = LANE_X[fi];
+          const bx = fi >= 2 ? x + 30 - BOX_W : x - 30;
+          const cx = bx + BOX_W / 2;
+          g.appendChild(
+            el("rect", {
+              class: "box",
+              x: bx,
+              y: y - 17,
+              width: BOX_W,
+              height: 34,
+            }),
+          );
+          const t = el("text", {
+            class: "lbl",
+            x: cx,
+            y: y + 5,
+            "text-anchor": "middle",
+          });
+          const m = el("tspan", { class: "m" });
+          m.textContent = s.chip;
+          t.appendChild(m);
+          t.appendChild(document.createTextNode("  " + s.lbl));
+          g.appendChild(t);
+          s._kind = "self";
+          s._box = g.querySelector(".box");
+        } else {
+          /* arrow step */
+          const dir = ti > fi ? 1 : -1;
+          const sx = LANE_X[fi] + 15 * dir;
+          const ex = LANE_X[ti] - 17 * dir;
+          const len = Math.abs(ex - sx);
 
-      const line = el("line", { class: "wire", x1: sx, y1: y, x2: ex, y2: y });
-      line.style.strokeDasharray = len;
-      line.style.strokeDashoffset = len;
-      g.appendChild(line);
+          const line = el("line", {
+            class: "wire",
+            x1: sx,
+            y1: y,
+            x2: ex,
+            y2: y,
+          });
+          line.style.strokeDasharray = len;
+          line.style.strokeDashoffset = len;
+          g.appendChild(line);
 
-      g.appendChild(el("polygon", {
-        class: "head",
-        points: `${ex},${y} ${ex - 9 * dir},${y - 5} ${ex - 9 * dir},${y + 5}`
-      }));
+          g.appendChild(
+            el("polygon", {
+              class: "head",
+              points: `${ex},${y} ${ex - 9 * dir},${y - 5} ${ex - 9 * dir},${y + 5}`,
+            }),
+          );
 
-      const t = el("text", {
-        class: "lbl", x: (sx + ex) / 2, y: y - 11, "text-anchor": "middle"
+          const t = el("text", {
+            class: "lbl",
+            x: (sx + ex) / 2,
+            y: y - 11,
+            "text-anchor": "middle",
+          });
+          const m = el("tspan", { class: "m" });
+          m.textContent = s.chip;
+          t.appendChild(m);
+          t.appendChild(document.createTextNode("  " + s.lbl));
+          g.appendChild(t);
+
+          s._kind = "arrow";
+          s._line = line;
+          s._len = len;
+          s._sx = sx;
+          s._ex = ex;
+        }
+
+        svg.appendChild(g);
+        return g;
       });
-      const m = el("tspan", { class: "m" });
-      m.textContent = s.chip;
-      t.appendChild(m);
-      t.appendChild(document.createTextNode("  " + s.lbl));
-      g.appendChild(t);
 
-      s._kind = "arrow";
-      s._line = line;
-      s._len = len;
-      s._sx = sx;
-      s._ex = ex;
-    }
+      /* travelling packet */
+      const packet = el("g", { id: "packet" });
+      packet.appendChild(el("circle", { class: "halo", cx: 0, cy: 0, r: 13 }));
+      packet.appendChild(el("circle", { cx: 0, cy: 0, r: 5.5 }));
+      svg.appendChild(packet);
 
-    svg.appendChild(g);
-    return g;
-  });
+      /* ── phase tabs ─────────────────────────────────────────────── */
+      const phasesEl = document.getElementById("phases");
+      const firstOf = PHASES.map((_, pi) => STEPS.findIndex((s) => s.p === pi));
+      const tabs = PHASES.map((ph, pi) => {
+        const b = document.createElement("button");
+        b.className = "phase";
+        b.type = "button";
+        b.setAttribute("role", "tab");
+        b.innerHTML = "";
+        b.append(document.createTextNode(`${pi + 1} · ${ph.name}`));
+        const s = document.createElement("span");
+        s.textContent = ph.hint;
+        b.appendChild(s);
+        b.addEventListener("click", () => {
+          pause();
+          go(firstOf[pi]);
+        });
+        phasesEl.appendChild(b);
+        return b;
+      });
 
-  /* travelling packet */
-  const packet = el("g", { id: "packet" });
-  packet.appendChild(el("circle", { class: "halo", cx: 0, cy: 0, r: 13 }));
-  packet.appendChild(el("circle", { cx: 0, cy: 0, r: 5.5 }));
-  svg.appendChild(packet);
+      /* ── step index ─────────────────────────────────────────────── */
+      const indexEl = document.getElementById("index");
+      const idxBtns = [];
+      let lastPhase = -1;
+      let ol = null;
+      STEPS.forEach((s, i) => {
+        if (s.p !== lastPhase) {
+          const h = document.createElement("h3");
+          h.textContent = `${PHASES[s.p].name}`;
+          indexEl.appendChild(h);
+          ol = document.createElement("ol");
+          indexEl.appendChild(ol);
+          lastPhase = s.p;
+        }
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        const n = document.createElement("i");
+        n.textContent = String(i + 1).padStart(2, "0");
+        b.appendChild(n);
+        b.append(document.createTextNode(s.lbl));
+        b.addEventListener("click", () => {
+          pause();
+          go(i);
+        });
+        li.appendChild(b);
+        ol.appendChild(li);
+        idxBtns.push(b);
+      });
 
-  /* ── phase tabs ─────────────────────────────────────────────── */
-  const phasesEl = document.getElementById("phases");
-  const firstOf = PHASES.map((_, pi) => STEPS.findIndex((s) => s.p === pi));
-  const tabs = PHASES.map((ph, pi) => {
-    const b = document.createElement("button");
-    b.className = "phase";
-    b.type = "button";
-    b.setAttribute("role", "tab");
-    b.innerHTML = "";
-    b.append(document.createTextNode(`${pi + 1} · ${ph.name}`));
-    const s = document.createElement("span");
-    s.textContent = ph.hint;
-    b.appendChild(s);
-    b.addEventListener("click", () => { pause(); go(firstOf[pi]); });
-    phasesEl.appendChild(b);
-    return b;
-  });
+      /* ── wire highlighter (single pass, no re-matching) ─────────── */
+      const esc = (t) =>
+        t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  /* ── step index ─────────────────────────────────────────────── */
-  const indexEl = document.getElementById("index");
-  const idxBtns = [];
-  let lastPhase = -1;
-  let ol = null;
-  STEPS.forEach((s, i) => {
-    if (s.p !== lastPhase) {
-      const h = document.createElement("h3");
-      h.textContent = `${PHASES[s.p].name}`;
-      indexEl.appendChild(h);
-      ol = document.createElement("ol");
-      indexEl.appendChild(ol);
-      lastPhase = s.p;
-    }
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button";
-    const n = document.createElement("i");
-    n.textContent = String(i + 1).padStart(2, "0");
-    b.appendChild(n);
-    b.append(document.createTextNode(s.lbl));
-    b.addEventListener("click", () => { pause(); go(i); });
-    li.appendChild(b);
-    ol.appendChild(li);
-    idxBtns.push(b);
-  });
+      const RE = new RegExp(
+        "(&lt;--[^\\n]*)" + // 1 inline note
+          "|(^\\s*//[^\\n]*)" + // 2 comment line
+          "|^(GET|POST|HTTP/1\\.1)\\b" + // 3 verb
+          "|(\\b(?:200 OK|201 Created|302 Found|202 Accepted)\\b|\\bOK\\b|\\bhaan\\b|\\bpass\\b)" + // 4 good
+          "|(\\b(?:401 Unauthorized|400 Bad Request)\\b|\\breject\\b|\\bMILA\\b)" + // 5 bad
+          '|("[a-zA-Z0-9_.\\-]+"(?=\\s*:))' + // 6 key
+          '|("[^"\\n]*")' + // 7 string
+          "|\\b(SETEX|GETDEL|EXISTS|INSERT INTO|SELECT|DELETE FROM|ON CONFLICT|VALUES|ARRAY|PLANNED)\\b", // 8 sql/redis
+        "gm",
+      );
 
-  /* ── wire highlighter (single pass, no re-matching) ─────────── */
-  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const RE = new RegExp(
-    "(&lt;--[^\\n]*)" +                                   // 1 inline note
-    "|(^\\s*//[^\\n]*)" +                                 // 2 comment line
-    "|^(GET|POST|HTTP/1\\.1)\\b" +                        // 3 verb
-    "|(\\b(?:200 OK|201 Created|302 Found|202 Accepted)\\b|\\bOK\\b|\\bhaan\\b|\\bpass\\b)" + // 4 good
-    "|(\\b(?:401 Unauthorized|400 Bad Request)\\b|\\breject\\b|\\bMILA\\b)" + // 5 bad
-    '|("[a-zA-Z0-9_.\\-]+"(?=\\s*:))' +                    // 6 key
-    '|("[^"\\n]*")' +                                      // 7 string
-    "|\\b(SETEX|GETDEL|EXISTS|INSERT INTO|SELECT|DELETE FROM|ON CONFLICT|VALUES|ARRAY|PLANNED)\\b", // 8 sql/redis
-    "gm"
-  );
-
-  function paint(raw) {
-    return esc(raw).replace(RE, (m, note, cmt, verb, good, bad, key, str, sql) => {
-      if (note) return `<span class='w-note'>${note}</span>`;
-      if (cmt) return `<span class='w-note'>${cmt}</span>`;
-      if (verb) return `<span class='w-verb'>${verb}</span>`;
-      if (good) return `<span class='w-ok'>${good}</span>`;
-      if (bad) return `<span class='w-bad'>${bad}</span>`;
-      if (key) return `<span class='w-key'>${key}</span>`;
-      if (str) return `<span class='w-str'>${str}</span>`;
-      if (sql) return `<span class='w-key'>${sql}</span>`;
-      return m;
-    });
-  }
-
-  /* ── playback ───────────────────────────────────────────────── */
-  const stage = document.getElementById("stage");
-  const dNo = document.getElementById("d-no");
-  const dChip = document.getElementById("d-chip");
-  const dTitle = document.getElementById("d-title");
-  const dWhy = document.getElementById("d-why");
-  const dFiles = document.getElementById("d-files");
-  const dWire = document.getElementById("d-wire");
-  const detail = document.getElementById("detail");
-  const counter = document.getElementById("counter");
-  const bar = document.getElementById("bar");
-  const playBtn = document.getElementById("play");
-  const speedBtn = document.getElementById("speed");
-
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const SPEEDS = [1, 2, 0.5];
-  let speedIdx = 0;
-  let cur = -1;
-  let playing = false;
-  let timer = null;
-
-  function place(x, y, visible) {
-    packet.style.transform = `translate(${x}px, ${y}px)`;
-    packet.style.opacity = visible ? 1 : 0;
-  }
-
-  function go(i) {
-    if (i < 0 || i >= STEPS.length) return;
-    cur = i;
-    const s = STEPS[i];
-
-    /* svg states */
-    groups.forEach((g, k) => {
-      g.classList.toggle("done", k < i);
-      g.classList.toggle("live", k === i);
-      const st = STEPS[k];
-      if (st._kind === "arrow") {
-        st._line.style.strokeDashoffset = k <= i ? 0 : st._len;
+      function paint(raw) {
+        return esc(raw).replace(
+          RE,
+          (m, note, cmt, verb, good, bad, key, str, sql) => {
+            if (note) return `<span class='w-note'>${note}</span>`;
+            if (cmt) return `<span class='w-note'>${cmt}</span>`;
+            if (verb) return `<span class='w-verb'>${verb}</span>`;
+            if (good) return `<span class='w-ok'>${good}</span>`;
+            if (bad) return `<span class='w-bad'>${bad}</span>`;
+            if (key) return `<span class='w-key'>${key}</span>`;
+            if (str) return `<span class='w-str'>${str}</span>`;
+            if (sql) return `<span class='w-key'>${sql}</span>`;
+            return m;
+          },
+        );
       }
-    });
 
-    /* packet */
-    packet.style.setProperty("--hue", s._hue);
-    if (s._kind === "arrow" && !reduced) {
-      place(s._sx, s._y, false);
-      requestAnimationFrame(() => {
-        place(s._sx, s._y, true);
-        requestAnimationFrame(() => place(s._ex, s._y, true));
+      /* ── playback ───────────────────────────────────────────────── */
+      const stage = document.getElementById("stage");
+      const dNo = document.getElementById("d-no");
+      const dChip = document.getElementById("d-chip");
+      const dTitle = document.getElementById("d-title");
+      const dWhy = document.getElementById("d-why");
+      const dFiles = document.getElementById("d-files");
+      const dWire = document.getElementById("d-wire");
+      const detail = document.getElementById("detail");
+      const counter = document.getElementById("counter");
+      const bar = document.getElementById("bar");
+      const playBtn = document.getElementById("play");
+      const speedBtn = document.getElementById("speed");
+
+      const reduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      const SPEEDS = [1, 2, 0.5];
+      let speedIdx = 0;
+      let cur = -1;
+      let playing = false;
+      let timer = null;
+
+      function place(x, y, visible) {
+        packet.style.transform = `translate(${x}px, ${y}px)`;
+        packet.style.opacity = visible ? 1 : 0;
+      }
+
+      function go(i) {
+        if (i < 0 || i >= STEPS.length) return;
+        cur = i;
+        const s = STEPS[i];
+
+        /* svg states */
+        groups.forEach((g, k) => {
+          g.classList.toggle("done", k < i);
+          g.classList.toggle("live", k === i);
+          const st = STEPS[k];
+          if (st._kind === "arrow") {
+            st._line.style.strokeDashoffset = k <= i ? 0 : st._len;
+          }
+        });
+
+        /* packet */
+        packet.style.setProperty("--hue", s._hue);
+        if (s._kind === "arrow" && !reduced) {
+          place(s._sx, s._y, false);
+          requestAnimationFrame(() => {
+            place(s._sx, s._y, true);
+            requestAnimationFrame(() => place(s._ex, s._y, true));
+          });
+        } else {
+          /* self steps and reduced-motion: no travelling dot */
+          place(LANE_X[LI[s.to]], s._y, false);
+        }
+
+        /* lane chips */
+        chips.forEach((c, k) => {
+          c.classList.toggle("hot", k === LI[s.from] || k === LI[s.to]);
+        });
+
+        /* detail panel */
+        detail.style.setProperty("--hue", s._hue);
+        dNo.textContent = `STEP ${String(i + 1).padStart(2, "0")} — ${PHASES[s.p].name.toUpperCase()}`;
+        dChip.textContent = s.chip;
+        dTitle.textContent = s.title;
+        dWhy.innerHTML = esc(s.why).replace(
+          /\b(aud|iss|exp|resource|code_verifier|code_challenge|arguments|description|scope|sub)\b/g,
+          "<strong>$1</strong>",
+        );
+        /* which file runs this step — a call chain, outermost first */
+        dFiles.innerHTML =
+          s.file && s.file.length
+            ? `<span class="lbl">runs in</span>` +
+              s.file
+                .map((f) => `<code>${esc(f)}</code>`)
+                .join(`<span class="sep">›</span>`)
+            : `<span class="none">blue-node ka koi code nahi — ye Claude ya browser ke andar hota hai</span>`;
+        dFiles.style.setProperty("--hue", s._hue);
+
+        dWire.innerHTML = paint(s.wire);
+        dWire.style.setProperty("--hue", s._hue);
+
+        /* index + tabs + progress */
+        idxBtns.forEach((b, k) => {
+          b.classList.toggle("now", k === i);
+          b.classList.toggle("seen", k < i);
+        });
+        idxBtns[i].scrollIntoView({ block: "nearest" });
+        tabs.forEach((t, k) =>
+          t.setAttribute("aria-selected", String(k === s.p)),
+        );
+        counter.textContent = `${String(i + 1).padStart(2, "0")} / ${STEPS.length}`;
+        bar.style.width = `${((i + 1) / STEPS.length) * 100}%`;
+
+        /* keep the live row centred in the area below the sticky lane bar */
+        const w = svg.getBoundingClientRect().width;
+        if (w > 0) {
+          const scale = w / 1000;
+          const target = s._y * scale - (stage.clientHeight - 46) / 2;
+          stage.scrollTop = Math.max(0, target);
+        }
+
+        if (playing) {
+          clearTimeout(timer);
+          const ms = (reduced ? 700 : 1500) / SPEEDS[speedIdx];
+          timer = setTimeout(() => {
+            if (cur >= STEPS.length - 1) {
+              pause();
+              return;
+            }
+            go(cur + 1);
+          }, ms);
+        }
+      }
+
+      function pause() {
+        playing = false;
+        clearTimeout(timer);
+        playBtn.textContent = "Play";
+      }
+
+      playBtn.addEventListener("click", () => {
+        if (playing) {
+          pause();
+          return;
+        }
+        playing = true;
+        playBtn.textContent = "Pause";
+        go(cur >= STEPS.length - 1 ? 0 : cur + 1);
       });
-    } else {
-      /* self steps and reduced-motion: no travelling dot */
-      place(LANE_X[LI[s.to]], s._y, false);
-    }
 
-    /* lane chips */
-    chips.forEach((c, k) => {
-      c.classList.toggle("hot", k === LI[s.from] || k === LI[s.to]);
-    });
-
-    /* detail panel */
-    detail.style.setProperty("--hue", s._hue);
-    dNo.textContent = `STEP ${String(i + 1).padStart(2, "0")} — ${PHASES[s.p].name.toUpperCase()}`;
-    dChip.textContent = s.chip;
-    dTitle.textContent = s.title;
-    dWhy.innerHTML = esc(s.why).replace(
-      /\b(aud|iss|exp|resource|code_verifier|code_challenge|arguments|description|scope|sub)\b/g,
-      "<strong>$1</strong>"
-    );
-    /* which file runs this step — a call chain, outermost first */
-    dFiles.innerHTML = s.file && s.file.length
-      ? `<span class="lbl">runs in</span>` +
-        s.file.map((f) => `<code>${esc(f)}</code>`).join(`<span class="sep">›</span>`)
-      : `<span class="none">blue-node ka koi code nahi — ye Claude ya browser ke andar hota hai</span>`;
-    dFiles.style.setProperty("--hue", s._hue);
-
-    dWire.innerHTML = paint(s.wire);
-    dWire.style.setProperty("--hue", s._hue);
-
-    /* index + tabs + progress */
-    idxBtns.forEach((b, k) => {
-      b.classList.toggle("now", k === i);
-      b.classList.toggle("seen", k < i);
-    });
-    idxBtns[i].scrollIntoView({ block: "nearest" });
-    tabs.forEach((t, k) => t.setAttribute("aria-selected", String(k === s.p)));
-    counter.textContent = `${String(i + 1).padStart(2, "0")} / ${STEPS.length}`;
-    bar.style.width = `${((i + 1) / STEPS.length) * 100}%`;
-
-    /* keep the live row centred in the area below the sticky lane bar */
-    const w = svg.getBoundingClientRect().width;
-    if (w > 0) {
-      const scale = w / 1000;
-      const target = s._y * scale - (stage.clientHeight - 46) / 2;
-      stage.scrollTop = Math.max(0, target);
-    }
-
-    if (playing) {
-      clearTimeout(timer);
-      const ms = (reduced ? 700 : 1500) / SPEEDS[speedIdx];
-      timer = setTimeout(() => {
-        if (cur >= STEPS.length - 1) { pause(); return; }
+      document.getElementById("prev").addEventListener("click", () => {
+        pause();
+        go(cur - 1);
+      });
+      document.getElementById("next").addEventListener("click", () => {
+        pause();
         go(cur + 1);
-      }, ms);
-    }
-  }
+      });
+      document.getElementById("reset").addEventListener("click", () => {
+        pause();
+        go(0);
+      });
 
-  function pause() {
-    playing = false;
-    clearTimeout(timer);
-    playBtn.textContent = "Play";
-  }
+      speedBtn.addEventListener("click", () => {
+        speedIdx = (speedIdx + 1) % SPEEDS.length;
+        speedBtn.textContent = `${SPEEDS[speedIdx]}×`;
+      });
 
-  playBtn.addEventListener("click", () => {
-    if (playing) { pause(); return; }
-    playing = true;
-    playBtn.textContent = "Pause";
-    go(cur >= STEPS.length - 1 ? 0 : cur + 1);
-  });
+      document.addEventListener("keydown", (e) => {
+        const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+        if (typing) return;
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          pause();
+          go(cur + 1);
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          pause();
+          go(cur - 1);
+        } else if (e.key === " " && e.target.tagName !== "BUTTON") {
+          e.preventDefault();
+          playBtn.click();
+        }
+      });
 
-  document.getElementById("prev").addEventListener("click", () => { pause(); go(cur - 1); });
-  document.getElementById("next").addEventListener("click", () => { pause(); go(cur + 1); });
-  document.getElementById("reset").addEventListener("click", () => { pause(); go(0); });
+      window.addEventListener("resize", () => {
+        if (cur >= 0) go(cur);
+      });
 
-  speedBtn.addEventListener("click", () => {
-    speedIdx = (speedIdx + 1) % SPEEDS.length;
-    speedBtn.textContent = `${SPEEDS[speedIdx]}×`;
-  });
-
-  document.addEventListener("keydown", (e) => {
-    const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
-    if (typing) return;
-    if (e.key === "ArrowRight") { e.preventDefault(); pause(); go(cur + 1); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); pause(); go(cur - 1); }
-    else if (e.key === " " && e.target.tagName !== "BUTTON") {
-      e.preventDefault();
-      playBtn.click();
-    }
-  });
-
-  window.addEventListener("resize", () => { if (cur >= 0) go(cur); });
-
-  go(0);
-</script>
-
-</body>
+      go(0);
+    </script>
+  </body>
 </html>

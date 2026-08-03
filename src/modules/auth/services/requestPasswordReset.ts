@@ -1,6 +1,6 @@
 import { getEnvConfig } from "../../../config/env.js";
-import { findUserByEmail } from "../lib/userQueries.js";
-import { createPasswordResetCode } from "../lib/passwordReset.js";
+import { findUserByEmail } from "../infra/userQueries.js";
+import { createPasswordResetCode } from "../infra/tokenStore.js";
 import {
   enqueueEmail,
   EMAIL_PRIORITY,

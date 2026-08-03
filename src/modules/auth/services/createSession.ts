@@ -1,0 +1,84 @@
+import { getEnvConfig } from "../../../config/env.js";
+import { getDeviceLabel } from "../../../utils/getDeviceLabel.js";
+import { getScopes } from "../infra/permissionQueries.js";
+import { issueAccessToken, mintRefreshToken } from "../infra/tokenStore.js";
+import { insertSession } from "../infra/sessionQueries.js";
+
+/**
+ * Device-session credentials.
+ *
+ * The sibling of issueGrantTokens: that one credentials an OAuth grant, this one
+ * credentials a device. Both wrap infra/tokenStore and are called by other code
+ * rather than by a route.
+ *
+ * Both tokens here are opaque. Nothing on this path is a JWT: the only party that
+ * ever verifies these is this process, which is already making a Redis round trip,
+ * so a signature would buy nothing a lookup does not — and it would cost the
+ * ability to revoke by deleting.
+ */
+
+/**
+ * Just the two tokens — the only things that leave this layer.
+ *
+ * No session id: it is already inside the access token, so returning it would be
+ * a second copy of the same fact. No scopes: the caller computed them and passed
+ * them in. No expiries: cookie lifetimes come from config, and nothing reads a
+ * token's expiry from here.
+ */
+export interface SessionCredentials {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface CreateSessionParams {
+  userId: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+}
+
+/**
+ * Opens a new device session — the login and email-verification path.
+ *
+ * The session row is written before the access token is issued, because the token
+ * embeds the row's id. This is not a transaction and does not need to be: a
+ * failure after the insert leaves an unreachable session row, which the expiry
+ * sweep collects. That is the harmless direction to fail in — the reverse, a live
+ * token pointing at no session, would only fail closed by accident.
+ *
+ * The session tracks the REFRESH lifetime, not the access one: it is how long the
+ * device may stay signed in, not how long one credential lives.
+ */
+export async function createSession(
+  params: CreateSessionParams,
+): Promise<SessionCredentials> {
+  const { accessExpiry, refreshExpiry } = getEnvConfig().tokens;
+
+  // The id lives inside the refresh token, so it is generated with the token and
+  // reused as the row's primary key — the two cannot drift apart.
+  const refresh = mintRefreshToken();
+
+  const scopes = await getScopes(params.userId);
+
+  const session = await insertSession({
+    id: refresh.sessionId,
+    userId: params.userId,
+    tokenHash: refresh.tokenHash,
+    deviceLabel: getDeviceLabel(params.userAgent),
+    userAgent: params.userAgent,
+    ipAddress: params.ipAddress,
+    expiresAt: new Date(Date.now() + refreshExpiry * 1000),
+  });
+
+  const accessExpiresAtSec = Math.floor(
+    new Date(Date.now() + accessExpiry * 1000).getTime() / 1000,
+  );
+
+  const accessToken = await issueAccessToken({
+    userId: params.userId,
+    sessionId: session.id,
+    scopes: scopes,
+    exp: accessExpiresAtSec,
+  });
+
+  return { accessToken, refreshToken: refresh.token };
+}

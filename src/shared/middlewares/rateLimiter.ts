@@ -45,7 +45,7 @@ export function createRateLimiters() {
 
   /**
    * Per-authenticated-user rate limit. MUST be mounted AFTER authenticate()
-   * — req.user should be populated. Falls back to IP if missing (defensive,
+   * — req.session should be populated. Falls back to IP if missing (defensive,
    * degrades to per-IP semantics instead of crashing if misconfigured).
    */
   const userLimiter = rateLimit({
@@ -55,7 +55,7 @@ export function createRateLimiters() {
     legacyHeaders: false,
     store: redisStore(keys.rlUser),
     keyGenerator: (req: Request) =>
-      req.user?.id ?? ipKeyGenerator(getClientIp(req)),
+      req.session?.userId ?? ipKeyGenerator(getClientIp(req)),
     handler: rateLimitHandler,
   });
 
