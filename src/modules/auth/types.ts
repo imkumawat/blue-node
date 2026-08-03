@@ -10,9 +10,3 @@ export interface AuthSession {
   scopes: string[];
   exp: number;
 }
-
-export interface GrantTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresInSec: number;
-}

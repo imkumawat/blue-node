@@ -87,7 +87,7 @@ export class InvalidTokenError extends HttpError {
   }
 }
 
-export class InvalidateAuthSessionError extends HttpError {
+export class InvalidAuthSessionError extends HttpError {
   constructor() {
     super(
       "INVALID_AUTH_SESSION",
