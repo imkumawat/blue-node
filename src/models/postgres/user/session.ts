@@ -106,9 +106,8 @@ export const sessions = pgTable(
     // the sweep sequentially scans the whole table.
     index("sessions_expires_at_idx").on(table.expiresAt),
 
-    // The reuse check runs on every REJECTED refresh, which is exactly the path
-    // an attacker hammers. Without this index that path is a sequential scan.
-    index("sessions_previous_token_hash_idx").on(table.previousTokenHash),
+    // No index on previous_token_hash: the refresh token carries this row's id,
+    // so the reuse check is answered by the row already fetched by primary key.
   ],
 );
 
@@ -128,10 +127,13 @@ export type NewSession = typeof sessions.$inferInsert;
     expires_at          TIMESTAMPTZ NOT NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
-  CREATE INDEX sessions_user_id_idx             ON sessions(user_id);
-  CREATE INDEX sessions_expires_at_idx          ON sessions(expires_at);
-  CREATE INDEX sessions_previous_token_hash_idx ON sessions(previous_token_hash);
+  CREATE INDEX sessions_user_id_idx    ON sessions(user_id);
+  CREATE INDEX sessions_expires_at_idx ON sessions(expires_at);
 
+  -- existing DB:
+  --   -- The refresh token now embeds this row's id, so the reuse check reads the
+  --   -- row by primary key and this index has no reader left.
+  --   DROP INDEX IF EXISTS sessions_previous_token_hash_idx;
 
   -- The sweep.
   --   DELETE FROM sessions WHERE expires_at < NOW();

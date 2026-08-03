@@ -1,8 +1,7 @@
 import { getEnvConfig } from "../../../config/env.js";
 import { getDeviceLabel } from "../../../utils/getDeviceLabel.js";
-import { hmacSha256, randomToken } from "../../../shared/utils/crypto.js";
 import { getScopes } from "../infra/permissionQueries.js";
-import { issueAccessToken } from "../infra/tokenStore.js";
+import { issueAccessToken, mintRefreshToken } from "../infra/tokenStore.js";
 import { insertSession } from "../infra/sessionQueries.js";
 
 /**
@@ -40,11 +39,11 @@ export interface CreateSessionParams {
 /**
  * Opens a new device session — the login and email-verification path.
  *
- * The session row is written FIRST because the access token embeds its id. This
- * is not a transaction and does not need to be: a failure after the insert leaves
- * an unreachable session row, which the expiry sweep collects. That is the
- * harmless direction to fail in — the reverse, a live token pointing at no
- * session, would only fail closed by accident.
+ * The session row is written before the access token is issued, because the token
+ * embeds the row's id. This is not a transaction and does not need to be: a
+ * failure after the insert leaves an unreachable session row, which the expiry
+ * sweep collects. That is the harmless direction to fail in — the reverse, a live
+ * token pointing at no session, would only fail closed by accident.
  *
  * The session tracks the REFRESH lifetime, not the access one: it is how long the
  * device may stay signed in, not how long one credential lives.
@@ -52,15 +51,18 @@ export interface CreateSessionParams {
 export async function createSession(
   params: CreateSessionParams,
 ): Promise<SessionCredentials> {
-  const { accessExpiry, refreshExpiry, refreshPrefix, pepper } =
-    getEnvConfig().tokens;
-  const refreshToken = `${refreshPrefix}${randomToken(32)}`;
+  const { accessExpiry, refreshExpiry } = getEnvConfig().tokens;
+
+  // The id lives inside the refresh token, so it is generated with the token and
+  // reused as the row's primary key — the two cannot drift apart.
+  const refresh = mintRefreshToken();
 
   const scopes = await getScopes(params.userId);
 
   const session = await insertSession({
+    id: refresh.sessionId,
     userId: params.userId,
-    tokenHash: hmacSha256(pepper, refreshToken),
+    tokenHash: refresh.tokenHash,
     deviceLabel: getDeviceLabel(params.userAgent),
     userAgent: params.userAgent,
     ipAddress: params.ipAddress,
@@ -78,5 +80,5 @@ export async function createSession(
     exp: accessExpiresAtSec,
   });
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken: refresh.token };
 }

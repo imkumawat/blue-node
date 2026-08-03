@@ -12,6 +12,9 @@ import type { Session } from "../../../models/postgres/user/session.js";
  */
 
 export interface InsertSessionInput {
+  // Supplied rather than defaulted: the refresh token embeds this id, so it has
+  // to exist before the token can be minted, and both must carry the same value.
+  id: string;
   userId: string;
   tokenHash: string;
   deviceLabel: string | null;
@@ -64,13 +67,19 @@ export async function listSessionIds(userId: string): Promise<string[]> {
  * same token: the first wins, the rest match nothing because the hash has
  * already moved on.
  *
- * The old hash is not discarded, it is demoted. That demotion is what makes a
- * later presentation of the spent token recognisable instead of merely absent.
+ * Matched on the id AND the hash. The id comes from the token itself, so this is
+ * a primary-key lookup with the secret as the condition — rather than a scan on
+ * an index over hashes.
  *
- * Returns null for every failure — wrong token, expired session, or a token
- * already spent. Only findSessionByPreviousTokenHash can tell the last one apart.
+ * The old hash is not discarded, it is demoted. That demotion is what makes a
+ * later presentation of the spent token recognisable instead of merely absent,
+ * and the caller reads it off the row it already fetched by id.
+ *
+ * Returns null for every failure — wrong secret, expired session, or a token
+ * already spent.
  */
 export async function rotateSession(
+  id: string,
   presentedHash: string,
   nextHash: string,
   expiresAt: Date,
@@ -87,6 +96,7 @@ export async function rotateSession(
     })
     .where(
       and(
+        eq(sessions.id, id),
         eq(sessions.tokenHash, presentedHash),
         gt(sessions.expiresAt, new Date()),
       ),
@@ -94,25 +104,6 @@ export async function rotateSession(
     .returning();
 
   return rotated ?? null;
-}
-
-/**
- * Finds the session a spent refresh token used to belong to.
- *
- * Only called after rotateSession misses, to answer the one question that miss
- * cannot: was this a credential we issued and already retired, or just a string?
- * A hit means a token that was valid is being presented after it was spent.
- */
-export async function findSessionByPreviousTokenHash(
-  hash: string,
-): Promise<Session | null> {
-  const [row] = await getDb()
-    .select()
-    .from(sessions)
-    .where(eq(sessions.previousTokenHash, hash))
-    .limit(1);
-
-  return row ?? null;
 }
 
 export async function deleteSession(
