@@ -41,13 +41,17 @@ import type { Request, Response } from "express";
 import type { RegisterClientInput } from "../schemas.js";
 
 export function getAuthServerMetadata(_req: Request, res: Response): void {
-  const { oauth } = getEnvConfig();
+  const { oauth, jwt } = getEnvConfig();
 
   res.json({
     issuer: oauth.oauthServerUrl,
     authorization_endpoint: `${oauth.oauthServerUrl}${oauth.authorizePath}`,
     token_endpoint: `${oauth.oauthServerUrl}${oauth.tokenPath}`,
     registration_endpoint: `${oauth.oauthServerUrl}${oauth.registerPath}`,
+    // Only honest to advertise now that access tokens are actually RS256 and the
+    // public half is served. While they were HS256 this line would have sent a
+    // client to fetch a key that could not verify anything it was given.
+    jwks_uri: `${oauth.oauthServerUrl}${jwt.jwksPath}`,
     scopes_supported: Object.values(SCOPES),
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],

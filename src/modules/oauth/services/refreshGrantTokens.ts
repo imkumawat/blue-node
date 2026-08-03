@@ -3,11 +3,10 @@ import { getEnvConfig } from "../../../config/env.js";
 import { touchClientLastUsed } from "../infra/clientQueries.js";
 import { findGrantById, touchGrantLastUsed } from "../infra/grantQueries.js";
 import {
-  deleteGrantSessionsByGrant,
   findGrantSessionById,
   rotateGrantSession,
 } from "../infra/oauthGrantSessionQueries.js";
-import { denyAccessToken, denyGrant } from "../infra/oauthTokenStore.js";
+import { denyAccessToken } from "../infra/oauthTokenStore.js";
 import {
   hashRefreshToken,
   mintRotatedRefreshToken,
@@ -48,10 +47,10 @@ function reject(reason: string, context: Record<string, unknown>): never {
  * the whole token would need a second query against a second index to answer the
  * middle case.
  *
- * Ordering here is deliberate. The token is CLASSIFIED before the client is
- * checked, because a spent token being presented means it leaked, and that is
- * true whoever presents it. Everything else is checked before anything is
- * written.
+ * Nothing is written until every check has passed. The one exception is the
+ * denial of the retiring access token, which happens after the rotation has
+ * committed — deny it earlier and a rotation that then fails would have killed a
+ * credential the client is still legitimately using.
  */
 export async function refreshGrantTokens(
   params: RefreshGrantParams,
@@ -84,11 +83,25 @@ export async function refreshGrantTokens(
   const presentedHash = hashRefreshToken(params.refreshToken);
 
   if (presentedHash !== session.tokenHash) {
-    // A match on the PREVIOUS hash is not an ordinary failure. That token was
-    // ours and was already spent by a rotation, so either it leaked or the client
-    // is replaying — and unlike a browser with two tabs racing, an OAuth client
-    // keeps one token store and refreshes once. Treat it as a compromise: cut
-    // every connection under the grant and deny the access tokens already out.
+    // A match on the PREVIOUS hash means this token was ours and a rotation has
+    // already spent it. Recorded, not acted on — and the reasoning is worth
+    // keeping, because the obvious response is the wrong one.
+    //
+    // The overwhelmingly likely cause is a RETRY: the rotation committed, the
+    // response was lost, and the client re-sent the same token. Its first attempt
+    // succeeded, so it is already holding the new pair — letting this one fail
+    // costs nothing. But revoking here would deny the access token issued
+    // milliseconds ago and delete the row holding the brand-new refresh token, so
+    // one lost response would take a healthy connector down completely.
+    //
+    // Theft is the other explanation, and it is the weaker one: these tokens live
+    // in the client's own server-side store, never in a browser or on a device.
+    // Reaching them means compromising the client's infrastructure.
+    //
+    // Note this is the OPPOSITE call to the first-party path, which does end the
+    // session. There the client is ours, so single-flight refresh can be
+    // guaranteed and a benign race ruled out. A third-party client's retry
+    // behaviour is not ours to control — less control, less aggressive response.
     if (
       session.previousTokenHash !== null &&
       presentedHash === session.previousTokenHash
@@ -101,9 +114,6 @@ export async function refreshGrantTokens(
         },
         "OAuth refresh token reuse: a token already spent by rotation was presented again",
       );
-
-      await denyGrant(session.grantId);
-      await deleteGrantSessionsByGrant(session.grantId);
     }
 
     reject("refresh token secret does not match", {

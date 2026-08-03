@@ -127,16 +127,6 @@ export async function rotateGrantSession(
   return rotated ?? null;
 }
 
-/** Ends one connection. The app's other connections are untouched. */
-export async function deleteGrantSession(id: string): Promise<boolean> {
-  const deleted = await getDb()
-    .delete(oauthGrantSessions)
-    .where(eq(oauthGrantSessions.id, id))
-    .returning({ id: oauthGrantSessions.id });
-
-  return deleted.length > 0;
-}
-
 /**
  * Ends every connection under a grant.
  *
@@ -153,15 +143,6 @@ export async function deleteGrantSessionsByGrant(
     .returning({ id: oauthGrantSessions.id });
 
   return deleted.length;
-}
-
-export async function listGrantSessions(
-  grantId: string,
-): Promise<OauthGrantSession[]> {
-  return getDb()
-    .select()
-    .from(oauthGrantSessions)
-    .where(eq(oauthGrantSessions.grantId, grantId));
 }
 
 /** Either clock can retire a connection, so the sweep checks both. */

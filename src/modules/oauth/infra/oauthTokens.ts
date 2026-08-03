@@ -221,37 +221,56 @@ export async function verifyGrantAccessToken(
       clockToleranceSec: jwt.clockToleranceSec,
     });
 
-    return { ok: true, claims: readClaims(payload) };
+    const claims = readClaims(payload);
+
+    // Signature and registered claims were fine, but a custom claim is not the
+    // shape we sign. That is malformed, not merely unrecognised — and saying so
+    // matters: this function's whole contract is to hand the caller a usable
+    // reason, so one path collapsing into "unknown" would quietly undermine it
+    // the day someone branches on it.
+    if (!claims) return { ok: false, reason: "malformed" };
+
+    return { ok: true, claims };
   } catch (err) {
     return { ok: false, reason: classifyJwtError(err) };
   }
 }
 
 /**
- * `requiredClaims` proves a claim is PRESENT; it says nothing about its type. A
- * token whose client_id arrived as a number would otherwise flow on as one.
+ * Reads the claims we sign, or null if any of them is not the shape we sign.
+ *
+ * Returns rather than throws, so the one function callers rely on to never throw
+ * does not have control flow escaping through an exception it then has to catch
+ * and misclassify.
+ *
+ * `requiredClaims` on the verify call proves a claim is PRESENT; it says nothing
+ * about its type. A token whose client_id arrived as a number would otherwise
+ * flow on as one.
  */
-function readClaims(payload: JWTPayload): GrantAccessClaims {
-  const scope = requireString(payload, "scope");
+function readClaims(payload: JWTPayload): GrantAccessClaims | null {
+  const userId = readString(payload, "sub");
+  const clientId = readString(payload, "client_id");
+  const grantId = readString(payload, "gid");
+  const jti = readString(payload, "jti");
+  const scope = readString(payload, "scope");
+
+  if (!userId || !clientId || !grantId || !jti || !scope) return null;
+
+  // jwtVerify rejects a token without exp and it is in requiredClaims, so this
+  // holds in practice. The check is what narrows the type.
+  if (typeof payload.exp !== "number") return null;
 
   return {
-    userId: requireString(payload, "sub"),
-    clientId: requireString(payload, "client_id"),
-    grantId: requireString(payload, "gid"),
+    userId,
+    clientId,
+    grantId,
+    jti,
     scopes: scope.split(" ").filter(Boolean),
-    jti: requireString(payload, "jti"),
-    // Guaranteed present — jwtVerify rejects a token without exp and it is in
-    // requiredClaims. The check is here so the type narrows.
-    exp: typeof payload.exp === "number" ? payload.exp : 0,
+    exp: payload.exp,
   };
 }
 
-function requireString(payload: JWTPayload, name: string): string {
+function readString(payload: JWTPayload, name: string): string | null {
   const value = payload[name];
-
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`access token claim ${name} is not a non-empty string`);
-  }
-
-  return value;
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
