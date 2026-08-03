@@ -29,8 +29,8 @@ import { getEnvConfig } from "../config/env.js";
 
 /**
  * Attaches a WebSocket server to the existing httpServer. Auth happens during
- * the HTTP-to-WS upgrade handshake (before accept) — same JWT cookie/Bearer
- * flow as REST/GraphQL via `verifyToken` application use case.
+ * the HTTP-to-WS upgrade handshake (before accept) — the same opaque
+ * cookie/Bearer flow REST and GraphQL use, via `verifySessionToken`.
  *
  * Returns the WebSocketServer instance so server.ts can manage shutdown.
  */
