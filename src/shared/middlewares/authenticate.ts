@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import {
   verifySessionToken,
   InvalidTokenError,
-  InvalidateAuthSessionError,
+  InvalidAuthSessionError,
 } from "../../modules/auth/index.js";
 
 export function authenticate(): RequestHandler {
@@ -12,7 +12,7 @@ export function authenticate(): RequestHandler {
 
     const record = await verifySessionToken(token);
 
-    if (!record) return next(new InvalidateAuthSessionError());
+    if (!record) return next(new InvalidAuthSessionError());
 
     req.session = record;
     next();
