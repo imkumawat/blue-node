@@ -2,9 +2,7 @@ import { getRedis } from "../../../lib/cache/redis/client.js";
 import { getEnvConfig } from "../../../config/env.js";
 import { randomToken, sha256 } from "../../../shared/utils/crypto.js";
 
-import type { Scope } from "../../../shared/constants/scopes.js";
 import type { AuthSession } from "../../auth/types.js";
-import type { OauthClient } from "../../../models/postgres/oauth/oauthClient.js";
 import type { ValidatedAuthorizeRequest } from "../services/authorizeRequest.js";
 
 interface PendingAuthorizationRequest extends ValidatedAuthorizeRequest {

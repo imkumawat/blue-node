@@ -35,7 +35,7 @@ import { getEnvConfig } from "../config/env.js";
  * Returns the WebSocketServer instance so server.ts can manage shutdown.
  */
 export function attachWebSocketServer(httpServer: Server): WebSocketServer {
-  const { ws: wsConfig, jwt, cors } = getEnvConfig();
+  const { ws: wsConfig, cors } = getEnvConfig();
 
   // The WebSocketServer is created with `noServer: true` so it doesn't listen on its own port — it piggybacks on the existing HTTP server.
   // The `maxPayload` option is set to limit the size of incoming messages, preventing potential abuse or resource exhaustion.

@@ -49,15 +49,15 @@ export async function renewSession(
   );
 
   if (!rotated) {
-    await reportIfReuse(presentedHash);
+    await revokeOnReuse(presentedHash).catch((err: unknown) => {
+      logger.error({ err }, "reuse handling failed");
+    });
     throw new InvalidRefreshTokenError();
   }
 
   const { userId, id: sessionId } = rotated;
   await revokeAccessToken(sessionId); // revoke the previous access token before issuing a new one
 
-  // Read fresh rather than carrying the old token's scopes forward, so a
-  // permission revoked in the meantime stops being issued from this refresh on.
   const scopes = await getScopes(userId);
 
   const accessExpiresAtSec = Math.floor(
@@ -74,25 +74,13 @@ export async function renewSession(
   return { accessToken, refreshToken };
 }
 
-/**
- * Records a refresh token being presented after it was already spent.
- *
- * Deliberately observe-only. The session is NOT killed: a client without
- * single-flight refresh produces this same signal from two tabs racing, and
- * logging a legitimate user out for that is worse than the thing it prevents.
- * What this does is make the event visible, so the planned step-up (challenge a
- * refresh arriving from an unfamiliar IP or device) has something to trigger on.
- *
- * A miss here is the ordinary case — an expired or simply invalid string — and
- * is not worth a line in the log.
- */
-async function reportIfReuse(presentedHash: string): Promise<void> {
+async function revokeOnReuse(presentedHash: string): Promise<void> {
   const spent = await findSessionByPreviousTokenHash(presentedHash);
   if (!spent) return;
 
-  await disconnectSocketConnection(spent.userId, spent.id);
   await revokeAccessToken(spent.id);
   await deleteSession(spent.id, spent.userId);
+  await disconnectSocketConnection(spent.userId, spent.id).catch(() => {});
 
   logger.warn(
     {

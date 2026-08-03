@@ -56,8 +56,6 @@ export async function createSession(
     getEnvConfig().tokens;
   const refreshToken = `${refreshPrefix}${randomToken(32)}`;
 
-  // Read fresh rather than carrying the old token's scopes forward, so a
-  // permission revoked in the meantime stops being issued from this refresh on.
   const scopes = await getScopes(params.userId);
 
   const session = await insertSession({
