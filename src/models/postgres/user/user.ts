@@ -55,12 +55,5 @@ export type NewUser = typeof users.$inferInsert;
   );
   CREATE INDEX users_status_idx ON users(status);
 
-  -- existing DB: the columns are NOT NULL with no default, so a table that
-  -- already has rows needs a value for them before the constraint can hold.
-  --   ALTER TABLE users ADD COLUMN first_name VARCHAR(50) NOT NULL DEFAULT '',
-  --                     ADD COLUMN last_name  VARCHAR(50) NOT NULL DEFAULT '';
-  --   -- backfill real names here, then drop the default so an insert that
-  --   -- forgets the column fails loudly instead of silently storing ''
-  --   ALTER TABLE users ALTER COLUMN first_name DROP DEFAULT,
-  --                     ALTER COLUMN last_name  DROP DEFAULT;
+  
 */
