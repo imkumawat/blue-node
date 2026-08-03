@@ -1,11 +1,13 @@
 import type { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 
-import { verifyToken } from "../modules/auth/index.js";
+import {
+  isAccessTokenDenied,
+  verifyGrantAccessToken,
+} from "../modules/oauth/index.js";
 import { HttpError } from "../shared/errors/HttpError.js";
 import { ERROR_MESSAGES } from "../shared/constants/errors.js";
 import { getEnvConfig } from "../config/env.js";
-import { getRedis } from "../lib/cache/redis/client.js";
 
 /**
  * Bearer auth for the MCP endpoint.
@@ -29,11 +31,10 @@ export function authenticateMcp(): RequestHandler {
   // here is deliberate: without a resource id there is nothing to validate `aud`
   // against, and silently skipping that check is the bug this whole file exists
   // to prevent.
-  const { mcp, apiBaseUrl, redis } = getEnvConfig();
+  const { mcp, apiBaseUrl } = getEnvConfig();
 
   const resourceUri = mcp.resourceUri;
   const metadataUrl = `${apiBaseUrl}${mcp.wellKnownPath}`;
-  const grantRevokedKey = redis.keys.grantRevoked;
 
   return async (req, res, next) => {
     try {
@@ -54,41 +55,54 @@ export function authenticateMcp(): RequestHandler {
         );
       }
 
-      // Audience is the MCP resource id, NOT the portal audience. This is the
-      // RFC 8707 binding: a token minted for a different resource must be
-      // rejected here even when it is otherwise valid and unexpired.
-      req.session = await verifyToken(token, resourceUri);
+      // Audience is the MCP resource id, NOT a portal audience. This is the RFC
+      // 8707 binding: a token minted for a different resource must be rejected
+      // here even when it is otherwise valid and unexpired.
+      //
+      // A result rather than a throw, so the reasons a token can fail — expired,
+      // wrong signature, unknown key, wrong audience — all land in one branch.
+      // The answer is the same 401 for every one of them; telling them apart in
+      // the response would only help someone probing.
+      const verified = await verifyGrantAccessToken(token, resourceUri);
 
-      // A user who removes an app's access expects it to stop working now, not
-      // whenever the current access token happens to expire. Deleting the grant
-      // kills its refresh tokens immediately via the FK cascade, but an access
-      // token is a stateless JWT — this marker is what closes that window. Same
-      // single Redis lookup the jti blacklist already costs, and only for tokens
-      // that actually carry a grant.
-      // if (req.user.grantId) {
-      //   const revoked = await getRedis().exists(
-      //     `${grantRevokedKey}${req.user.grantId}`,
-      //   );
-      //   if (revoked) {
-      //     throw new HttpError(
-      //       "GRANT_REVOKED",
-      //       StatusCodes.UNAUTHORIZED,
-      //       "Access for this application has been revoked",
-      //     );
-      //   }
-      // }
+      if (!verified.ok) {
+        res.set("WWW-Authenticate", challenge(metadataUrl, true));
+        return next(
+          new HttpError(
+            "INVALID_TOKEN",
+            StatusCodes.UNAUTHORIZED,
+            ERROR_MESSAGES.INVALID_TOKEN,
+          ),
+        );
+      }
 
+      // A signature only proves the token was minted by us; it says nothing about
+      // whether it should still be honoured. Two things can retire one early —
+      // its pair rotated away, or the user disconnected the app — and both are
+      // answered in a single round trip here.
+      const denied = await isAccessTokenDenied(
+        verified.claims.jti,
+        verified.claims.grantId,
+      );
+
+      if (denied) {
+        res.set("WWW-Authenticate", challenge(metadataUrl, true));
+        return next(
+          new HttpError(
+            "TOKEN_REVOKED",
+            StatusCodes.UNAUTHORIZED,
+            ERROR_MESSAGES.TOKEN_REVOKED,
+          ),
+        );
+      }
+
+      req.grant = verified.claims;
       next();
     } catch (err) {
-      // Only an auth failure earns the challenge header. A 500 from, say, the
-      // Redis blacklist lookup is not an invitation to re-authenticate, and
-      // dressing it up as one sends the client into a pointless OAuth loop.
-      if (
-        err instanceof HttpError &&
-        err.statusCode === StatusCodes.UNAUTHORIZED
-      ) {
-        res.set("WWW-Authenticate", challenge(metadataUrl, true));
-      }
+      // Reached only by an infrastructure failure — the Redis lookup above, or a
+      // key store that cannot answer. Deliberately WITHOUT the challenge header:
+      // a 500 is not an invitation to re-authenticate, and dressing it up as one
+      // sends the client into a pointless OAuth loop.
       next(err);
     }
   };

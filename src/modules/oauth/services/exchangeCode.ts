@@ -3,7 +3,7 @@ import {
   sha256Base64Url,
 } from "../../../shared/utils/crypto.js";
 import logger from "../../../utils/logger.js";
-import { issueGrantTokens } from "../../auth/index.js";
+import { issueGrantSession } from "./issueGrantSession.js";
 import { consumeAuthorizationCode } from "../infra/oauthTokenStore.js";
 import { touchClientLastUsed } from "../infra/clientQueries.js";
 import { touchGrantLastUsed } from "../infra/grantQueries.js";
@@ -85,8 +85,9 @@ export async function exchangeCode(
     });
   }
 
-  const tokens = await issueGrantTokens({
+  const tokens = await issueGrantSession({
     userId: record.userId,
+    clientId: record.clientId,
     grantId: record.grantId,
     scopes: record.scopes,
     audience: record.resource,

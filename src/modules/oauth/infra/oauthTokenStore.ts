@@ -115,3 +115,80 @@ export async function consumeAuthorizationCode(
     return null;
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Denying access tokens that are still inside their lifetime
+
+   Access tokens are stateless, so the only way to stop one early is to remember
+   that it should be refused. Two things can make that true, at two different
+   granularities, and each gets its own key rather than one shared shape:
+
+     jti  ONE token was retired — the pair its refresh token belonged to has
+          rotated, so the client has already moved on from it
+     gid  the whole grant is gone — the user disconnected the app, and every
+          token issued under it has to stop at once
+
+   Both keys carry a TTL of at most one access-token lifetime. Past that no token
+   they could deny is still verifiable, so the entries expire on their own and
+   neither list grows with traffic.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Refuses one access token for whatever is left of its life.
+ *
+ * TTL comes from the token's own exp rather than a fixed window: an entry that
+ * outlives the token it denies is dead weight, and one that expires early would
+ * quietly let the token work again.
+ */
+export async function denyAccessToken(
+  jti: string,
+  expiresAt: Date,
+): Promise<void> {
+  const { redis } = getEnvConfig();
+  const ttlSec = Math.ceil((expiresAt.getTime() - Date.now()) / 1000);
+
+  // Already expired — the token cannot verify anyway, and SET with a
+  // non-positive EX is an error rather than a no-op.
+  if (ttlSec <= 0) return;
+
+  await getRedis().set(`${redis.keys.blacklist}${jti}`, "1", "EX", ttlSec);
+}
+
+/**
+ * Refuses every access token issued under a grant.
+ *
+ * Deleting the grant already kills its refresh tokens through the FK cascade;
+ * this is what closes the window on the access tokens already handed out.
+ */
+export async function denyGrant(grantId: string): Promise<void> {
+  const { redis, oauth } = getEnvConfig();
+
+  await getRedis().set(
+    `${redis.keys.grantRevoked}${grantId}`,
+    "1",
+    "EX",
+    oauth.accessTokenTtlSec,
+  );
+}
+
+/**
+ * Whether a verified access token is still usable.
+ *
+ * One round trip for both keys. Splitting this into two awaits would double the
+ * latency of every authenticated MCP call for no benefit, and hiding the fact
+ * that there are two keys is the point: the caller asks a question about a token,
+ * not about Redis.
+ */
+export async function isAccessTokenDenied(
+  jti: string,
+  grantId: string,
+): Promise<boolean> {
+  const { redis } = getEnvConfig();
+
+  const [tokenDenied, grantDenied] = await getRedis().mget(
+    `${redis.keys.blacklist}${jti}`,
+    `${redis.keys.grantRevoked}${grantId}`,
+  );
+
+  return tokenDenied !== null || grantDenied !== null;
+}
