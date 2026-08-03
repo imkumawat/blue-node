@@ -207,6 +207,25 @@ export const OAUTH = {
   // A user has to read the consent screen, and may have to log in first. Long
   // enough for that, short enough that an abandoned authorization disappears.
   pendingAuthTtlSec: 600,
+
+  // How long an access token issued to a client lives. Here rather than under
+  // JWT because it is a delegation decision — how long a third-party app may act
+  // for a user — while JWT holds the signing concerns (alg, kid, JWKS).
+  accessTokenTtlSec: 900, // 15 min — short window; the client refreshes
+
+  // Visible prefix for a grant's refresh token, kept DISTINCT from the
+  // first-party one. Two token families that look alike can be presented at the
+  // wrong endpoint and be rejected only by accident — a different prefix makes
+  // that a parse failure instead.
+  refreshPrefix: "nf_grt_",
+
+  // SLIDING lifetime: how long a connection may sit idle before the app has to
+  // be re-authorized.
+  refreshTokenTtlSec: 2_592_000, // 30d
+
+  // ABSOLUTE ceiling, fixed when the connection is created. Without it an app
+  // that refreshes on schedule never has to ask for consent again.
+  refreshTokenAbsoluteTtlSec: 15_552_000, // 180d
 } as const;
 
 export const MQTT = {
