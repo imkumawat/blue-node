@@ -11,7 +11,15 @@ import { SCOPES } from "../../../shared/constants/scopes.js";
 import { HttpError } from "../../../shared/errors/HttpError.js";
 import { getPublicJwks } from "../../../shared/utils/jose.js";
 import { getClientIp } from "../../../utils/getClientIp.js";
-import { loginWithPassword, verifySessionToken } from "../../auth/index.js";
+import {
+  getUserById,
+  loginWithPassword,
+  verifySessionToken,
+} from "../../auth/index.js";
+import { sendFormPage, sendPage } from "./sendPage.js";
+import { renderConsentPage } from "../views/consentPage.js";
+import { renderLoginPage } from "../views/loginPage.js";
+import { renderMessagePage } from "../views/messagePage.js";
 
 import { authorizeInput, refreshTokenInput, tokenInput } from "../schemas.js";
 import {
@@ -39,6 +47,102 @@ import { resolveSession } from "../services/resolveSession.js";
 
 import type { Request, Response } from "express";
 import type { RegisterClientInput } from "../schemas.js";
+import type { Scope } from "../../../shared/constants/scopes.js";
+import type { AuthSession } from "../../auth/index.js";
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Rendering the three screens
+
+   Each of these is reached from more than one branch, so they live here rather
+   than being inlined: the login page from three places, the consent page from
+   two, the message page from five.
+
+   The choice of sender is the load-bearing part. Login and consent carry a form
+   whose POST ends in a redirect to the client, so they MUST go out through
+   sendFormPage — sendPage's `form-action 'self'` would let the form submit and
+   then silently block the 302 that completes the flow. The message page carries
+   no form, so it takes the tighter policy.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+function sendLoginPage(
+  res: Response,
+  args: {
+    clientName: string;
+    /** Already matched against the client's registered list. */
+    redirectUri: string;
+    ticket: string;
+    error?: string;
+  },
+): void {
+  sendFormPage(res, {
+    page: renderLoginPage({
+      clientName: args.clientName,
+      ticket: args.ticket,
+      error: args.error,
+    }),
+    redirectUri: args.redirectUri,
+    // 401 for a failed attempt, 200 for the first sight of the form. A browser
+    // renders both; the status is for logs and for anything watching the flow.
+    status: args.error ? StatusCodes.UNAUTHORIZED : StatusCodes.OK,
+  });
+}
+
+/**
+ * The consent screen.
+ *
+ * Shows the FULL requested set, not `decision.requiredGrants`. The delta is what
+ * is new, but the full set is what the app ends up holding and what
+ * completeAuthorization records — and a screen that displays less than it grants
+ * is a user consenting to something they were never shown. Re-showing an
+ * already-granted line costs nothing; the alternative once cost this codebase a
+ * real bug.
+ *
+ * The email is fetched rather than read off the session: AuthSession carries only
+ * ids and scopes, and putting an address in a token to save a query here would be
+ * the wrong trade. One extra read per authorization is nothing.
+ */
+async function sendConsentPage(
+  res: Response,
+  args: {
+    userId: string;
+    clientName: string;
+    redirectUri: string;
+    scopes: Scope[];
+    ticket: string;
+  },
+): Promise<void> {
+  const user = await getUserById(args.userId);
+
+  sendFormPage(res, {
+    page: renderConsentPage({
+      clientName: args.clientName,
+      userEmail: user.email,
+      scopes: args.scopes,
+      ticket: args.ticket,
+    }),
+    redirectUri: args.redirectUri,
+  });
+}
+
+/** A dead end. No form, so nowhere for this page to submit or redirect to. */
+function sendMessage(
+  res: Response,
+  title: string,
+  message: string,
+  status: number = StatusCodes.BAD_REQUEST,
+): void {
+  sendPage(
+    res,
+    renderMessagePage({ title, message, status: statusLabel(status) }),
+    status,
+  );
+}
+
+function statusLabel(status: number): string {
+  return status === StatusCodes.UNAUTHORIZED
+    ? "401 UNAUTHORIZED"
+    : "400 BAD REQUEST";
+}
 
 export function getAuthServerMetadata(_req: Request, res: Response): void {
   const { oauth, jwt } = getEnvConfig();
@@ -90,13 +194,19 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
     const authSession = await resolveSession(req);
 
     if (!authSession) {
+      // Held server-side because the form cannot carry the request: nothing about
+      // the client, the scopes or the redirect URI travels through the browser,
+      // so nothing about it can be tampered with between here and the POST.
       const ticket = await createPendingAuthorizationRequest({
         ...oAuthRequest,
         authSession: null,
       });
-      res
-        .status(StatusCodes.UNAUTHORIZED)
-        .json({ ticket, oAuthRequest, message: "ShowLoginScreen" });
+
+      sendLoginPage(res, {
+        clientName: oAuthRequest.client.clientName,
+        redirectUri: oAuthRequest.redirectUri,
+        ticket,
+      });
       return;
     }
 
@@ -124,16 +234,17 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // storing in flight is the only way to get back here after login,
     const ticket = await createPendingAuthorizationRequest({
       ...oAuthRequest,
       authSession: authSession,
     });
-    res.status(StatusCodes.UNAUTHORIZED).json({
+
+    await sendConsentPage(res, {
+      userId: authSession.userId,
+      clientName: oAuthRequest.client.clientName,
+      redirectUri: oAuthRequest.redirectUri,
+      scopes: oAuthRequest.scopes,
       ticket,
-      oAuthRequest,
-      message: "ShowConsentScreen",
-      requiredGrants: decision.requiredGrants,
     });
     return;
   } catch (err) {
@@ -150,16 +261,14 @@ export async function getAuthorize(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // The two errors that must NOT redirect. The user is in a browser, so they
-    // get a readable page rather than the API's JSON envelope.
+    // The two errors that must NOT redirect. There is no URI here we have any
+    // business sending a user to — an unregistered client, or one claiming a
+    // callback it never registered — so the flow stops in a page a person reads.
     if (
       err instanceof UnknownClientError ||
       err instanceof InvalidRedirectUriError
     ) {
-      res.status(StatusCodes.BAD_REQUEST).json({
-        message: "Cannot continue",
-        error: err.message,
-      });
+      sendMessage(res, "Cannot continue", err.message);
       return;
     }
 
@@ -175,29 +284,42 @@ export async function postAuthorize(
   const { ticket, decision, email, password, captchaToken } =
     req.body as Record<string, string | undefined>;
 
+  // No ticket and no pending record means there is no verified redirect URI to
+  // hand back to, so both of these are dead ends by necessity rather than choice.
   if (!ticket) {
-    res.status(StatusCodes.BAD_REQUEST).json({
-      message: "Something went wrong",
-      error: "Missing form token. Start again from the app.",
-    });
+    sendMessage(
+      res,
+      "Something went wrong",
+      "The form was submitted without its token. Start again from the app.",
+    );
     return;
   }
 
   const pending = await readPendingAuthorizationRequest(ticket);
   if (!pending) {
-    res.status(StatusCodes.BAD_REQUEST).json({
-      message: "This request expired",
-      error:
-        "Authorization requests are short-lived. Start again from the app.",
-    });
+    sendMessage(
+      res,
+      "This request expired",
+      "Authorization requests are short-lived. Start again from the app.",
+    );
     return;
   }
 
   // ── login stage ───────────────────────────────────────────────────────────
   if (pending.authSession === null) {
+    // Held in a local rather than read back off `pending`: the property is typed
+    // nullable and stays that way, so every later use would need an assertion to
+    // silence it. Narrowing once here means the rest of the branch has a session
+    // the compiler can see — and definite-assignment analysis proves it is set
+    // before any read, since every path that fails to set it returns.
+    let authSession: AuthSession;
+
     if (!email || !password) {
-      res.status(StatusCodes.BAD_REQUEST).json({
-        message: "Enter your email and password.",
+      sendLoginPage(res, {
+        clientName: pending.client.clientName,
+        redirectUri: pending.redirectUri,
+        ticket,
+        error: "Enter your email and password.",
       });
       return;
     }
@@ -215,21 +337,40 @@ export async function postAuthorize(
       // the next app, or this one again, skips the login step entirely.
       setAuthCookies(res, credentials.accessToken, credentials.refreshToken);
 
-      pending.authSession = await verifySessionToken(credentials.accessToken);
-    } catch (err) {
-      // Wrong credentials, lockout and the CAPTCHA gate all land here. The
-      // message is whatever the auth module already decided is safe to show.
-      res.status(StatusCodes.UNAUTHORIZED).json({
-        oAuthRequest: pending,
-        ticket,
-        message: err instanceof HttpError ? err.message : "Sign in failed.",
-      });
+      const signedIn = await verifySessionToken(credentials.accessToken);
 
+      // The token was minted a moment ago by loginWithPassword, so null here is
+      // not a sign-in failure — it means the session store lost the record
+      // between issuing and reading it. Saying "sign in failed" would blame the
+      // user for our problem, so this gets its own message.
+      if (!signedIn) {
+        sendMessage(
+          res,
+          "Something went wrong",
+          "Your session could not be established. Start again from the app.",
+        );
+        return;
+      }
+
+      authSession = signedIn;
+      pending.authSession = signedIn;
+    } catch (err) {
+      // Wrong credentials, lockout, an unverified email and a suspended account
+      // all land here. The message is whatever the auth module already decided is
+      // safe to show — which of those may be revealed is its call, not this
+      // page's. Anything that is not an HttpError gets a generic line rather than
+      // an internal message.
+      sendLoginPage(res, {
+        clientName: pending.client.clientName,
+        redirectUri: pending.redirectUri,
+        ticket,
+        error: err instanceof HttpError ? err.message : "Sign in failed.",
+      });
       return;
     }
 
     const decision = await resolveGrant({
-      userId: pending.authSession!.userId,
+      userId: authSession.userId,
       clientId: pending.client.id,
       requestedScopes: pending.scopes,
     });
@@ -238,15 +379,12 @@ export async function postAuthorize(
       // An earlier grant already covers everything asked for — no second screen.
       const consumed = await consumePendingAuthorizationRequest(ticket);
       if (!consumed) {
-        res.status(StatusCodes.BAD_REQUEST).json({
-          message: "This request expired",
-          error: "Start again from the app.",
-        });
+        sendMessage(res, "This request expired", "Start again from the app.");
         return;
       }
 
       const code = await completeAuthorization({
-        userId: pending.authSession!.userId,
+        userId: authSession.userId,
         clientId: consumed.client.id,
         redirectUri: consumed.redirectUri,
         scopes: consumed.scopes,
@@ -261,37 +399,40 @@ export async function postAuthorize(
       return;
     }
 
-    await updatePendingAuthorizationRequest(ticket, {
-      ...pending,
-    });
-    res.status(StatusCodes.UNAUTHORIZED).json({
-      ticket,
-      oAuthRequest: pending,
-      message: "ShowConsentScreen",
-      requiredGrants: decision.requiredGrants,
-    });
+    // The session is written back so the consent POST knows who signed in — the
+    // ticket is the only thing that survives the round trip.
+    await updatePendingAuthorizationRequest(ticket, { ...pending });
 
+    await sendConsentPage(res, {
+      userId: authSession.userId,
+      clientName: pending.client.clientName,
+      redirectUri: pending.redirectUri,
+      scopes: pending.scopes,
+      ticket,
+    });
     return;
   }
 
   // ── consent stage ─────────────────────────────────────────────────────────
   const consumed = await consumePendingAuthorizationRequest(ticket);
   if (!consumed) {
-    res.status(StatusCodes.BAD_REQUEST).json({
-      message: "This request expired",
-      error: "Start again from the app.",
-    });
+    sendMessage(res, "This request expired", "Start again from the app.");
     return;
   }
 
+  // The browser signed in as somebody else between seeing the consent screen and
+  // submitting it — a second tab, or a shared machine. Granting on the strength of
+  // the ticket alone would attach the app to the wrong account, so the flow stops
+  // rather than guessing which of the two the user meant.
   if (
     currentAuthSession &&
     currentAuthSession.userId !== consumed.authSession!.userId
   ) {
-    res.status(StatusCodes.BAD_REQUEST).json({
-      message: "Account Mismatch",
-      error: "account_mismatch",
-    });
+    sendMessage(
+      res,
+      "Account mismatch",
+      "You signed in as a different account after this request began. Start again from the app.",
+    );
     return;
   }
 
