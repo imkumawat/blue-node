@@ -17,6 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint:check": "eslint .",
     "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
     "prepare": "husky"
