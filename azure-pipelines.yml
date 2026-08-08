@@ -171,7 +171,7 @@ steps:
     displayName: "Lint check"
 
   # --check only reports. Run `npm run format` locally to fix what it flags.
-  - script: npx prettier --check .
+  - script: npm run format:check .
     displayName: "Format check"
 
   - script: npm run build
