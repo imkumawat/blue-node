@@ -14,6 +14,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
+    "start:cron": "node dist/cron.js",
     "lint:fix": "eslint . --fix",
     "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
     "typecheck": "tsc --noEmit",

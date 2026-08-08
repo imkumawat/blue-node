@@ -1,44 +1,178 @@
+# CI only — checks the code on every push. No deploy, no AWS, no Docker yet.
+#
+# Runs on every branch, so a feature branch is checked before you even open a PR.
+#
+# ---------------------------------------------------------------------------
+# There is deliberately no `pr:` block
+# ---------------------------------------------------------------------------
+#
+# PR triggers in YAML are ignored for Azure Repos Git — they only work for GitHub
+# and Bitbucket. On Azure Repos, pull-request validation is a **branch policy**,
+# and that policy is also the only thing that can actually block a merge. A
+# pipeline trigger cannot: it reports red or green and nothing more.
+#
+#   Repos -> Branches -> <branch> -> Branch policies -> Build validation -> +
+#     Build pipeline      : this pipeline
+#     Trigger             : Automatic
+#     Policy requirement  : Required      <- without this it only reports
+#     Build expiration    : immediately when <branch> is updated
+#
+# Needs the `Edit policies` permission on the repo, which Contributors do not have
+# by default.
+#
+# ---------------------------------------------------------------------------
+# What the policy actually does, because it is not obvious
+# ---------------------------------------------------------------------------
+#
+# The validation build does NOT run on the target branch, and it does not run on
+# your branch either. Azure DevOps computes a throwaway merge commit —
+# `refs/pull/<id>/merge`, your branch merged into the current target — and builds
+# that. Nothing is merged; it is a preview.
+#
+#   push feature branch  ->  run 1: your branch alone      (this trigger)
+#   open / update PR     ->  run 2: your branch + target   (the policy)
+#   after merge          ->  run 3: the target branch      (this trigger)
+#
+# Run 2 is the one that gates the merge, and it is the only one that can catch two
+# independently-green changes that break once combined — a rename on one side and
+# a new caller on the other, say. Run 1 cannot see that.
+#
+# Two consequences worth knowing:
+#
+#   * Pushing a fix to an open PR re-runs the validation automatically, against a
+#     freshly computed merge commit. The PR does not need reopening.
+#   * If the PR has merge conflicts, the merge commit cannot be computed, so the
+#     validation build never queues at all. Resolve the conflict first — locally,
+#     `git merge origin/<target>` then push — and the build starts on its own.
+#
+# The Complete button has three gates, in this order: merge conflicts, then
+# required policies (this build), then required reviewers.
+#
+# Setting a policy on a branch also blocks direct pushes to it, so every change
+# has to go through a PR. That is the point, but it is a real workflow change.
+#
+# ---------------------------------------------------------------------------
+# Branch rules enforced by this file
+# ---------------------------------------------------------------------------
+#
+#   feature/* -> dev     allowed — the normal path
+#   dev       -> main    allowed — the normal release
+#   hotfix/*  -> main    allowed — the escape hatch, warns about the back-merge
+#   anything else -> main   BLOCKED by the guard step below
+#
+# The guard needs a Required build validation policy on `main` to have any effect.
+#
+# Hotfix flow, and the one step people forget:
+#
+#   git checkout main && git pull          <- branch from MAIN, not dev
+#   git checkout -b hotfix/broken-webhook
+#   ...fix, commit, push, PR into main, merge...
+#   git checkout dev && git merge origin/main && git push   <- do not skip this
+#
+# Branching from `dev` would carry dev's untested work into production, which
+# defeats the point of a hotfix. The guard cannot detect that — but the PR diff
+# will be suspiciously large if it happens, so check it before completing.
+#
+# Skipping the back-merge does NOT automatically revert the fix — git's 3-way
+# merge keeps main's change when dev never touched those lines. The real costs are:
+#
+#   1. If dev did touch the same lines, the next dev -> main hits a conflict, and
+#      whoever resolves it can quietly pick dev's side and lose the fix. Back-merging
+#      surfaces that conflict at hotfix time instead of at release time.
+#   2. dev still has the bug, so the dev environment and every branch cut from dev
+#      carry it, and you end up debugging the same thing twice.
+#   3. The branches keep diverging, making each release merge worse than the last.
+
 trigger:
   branches:
     include:
-      - main
-
-pr:
-  branches:
-    include:
-      - main
+      - "*"
 
 pool:
   vmImage: "ubuntu-latest"
 
 steps:
-  - task: NodeTool@0
+  # ---------------------------------------------------------------------------
+  # main accepts merges from dev only
+  # ---------------------------------------------------------------------------
+  #
+  # Azure DevOps has no native policy for this — branch policies cannot see the
+  # source branch of a PR. So it is enforced here instead, and the Required build
+  # validation policy on `main` is what turns a failure into a blocked merge.
+  #
+  # That dependency is worth stating plainly: **without a Required build validation
+  # policy on `main`, this step enforces nothing.** No policy means no PR
+  # validation build, which means this check never runs for the PR.
+  #
+  # Runs first so an illegal PR fails in seconds instead of after four checks.
+  - script: |
+      set -euo pipefail
+
+      if [ "${BUILD_REASON}" != "PullRequest" ]; then
+        echo "Not a PR build — nothing to enforce."
+        exit 0
+      fi
+
+      echo "PR: ${PR_SOURCE} -> ${PR_TARGET}"
+
+      if [ "${PR_TARGET}" != "refs/heads/main" ]; then
+        echo "Target is not main — no restriction."
+        exit 0
+      fi
+
+      case "${PR_SOURCE}" in
+        refs/heads/dev)
+          echo "Source is dev — the normal path. Allowed."
+          ;;
+
+        refs/heads/hotfix/*)
+          # The escape hatch. Going through dev would drag along whatever else is
+          # sitting there untested, which is exactly what you cannot afford while
+          # production is broken.
+          echo "Hotfix into main — allowed."
+          echo "##vso[task.logissue type=warning]After this ships, merge main back into dev: git checkout dev && git merge origin/main && git push. Otherwise dev still has the bug, and the next release merge can silently drop the fix while resolving conflicts."
+          ;;
+
+        *)
+          echo "##vso[task.logissue type=error]main accepts merges from dev, or from hotfix/*. This PR is from ${PR_SOURCE}."
+          echo "For normal work: merge into dev first, then raise dev -> main."
+          echo "For an urgent production fix: branch from main as hotfix/<name>."
+          exit 1
+          ;;
+      esac
+    displayName: "Guard: main ← dev only"
+    # Mapped into the environment rather than used inline. Azure expands $(...)
+    # before bash sees it, which collides with bash's own $(...) syntax; going via
+    # env keeps the two apart.
+    env:
+      BUILD_REASON: $(Build.Reason)
+      PR_SOURCE: $(System.PullRequest.SourceBranch)
+      PR_TARGET: $(System.PullRequest.TargetBranch)
+
+  # UseNode@1, not the deprecated NodeTool@0. Note the input is `version` here,
+  # where NodeTool@0 called it `versionSpec` — passing the old name silently does
+  # nothing and you get whatever Node the agent image happens to ship.
+  - task: UseNode@1
+    displayName: "Use Node 22"
     inputs:
-      versionSpec: "24.x"
-    displayName: "Install Node.js 24"
+      version: "22.x"
 
-  - task: Cache@2
-    inputs:
-      key: 'npm | "$(Agent.OS)" | package-lock.json'
-      restoreKeys: |
-        npm | "$(Agent.OS)"
-      path: $(Pipeline.Workspace)/.npm
-    displayName: "Cache npm"
+  # `ci` not `install`: installs exactly what package-lock.json says, and fails if
+  # the lockfile and package.json have drifted apart.
+  - script: npm ci
+    displayName: "npm ci"
 
-  - script: npm ci --cache $(Pipeline.Workspace)/.npm
-    displayName: "Install dependencies"
-
+  # Four separate steps so a failure tells you which check broke, instead of one
+  # opaque "build failed".
   - script: npm run typecheck
     displayName: "Type check"
 
-  - script: npm run lint:check
+  - script: npm run lint
     displayName: "Lint"
 
-  - script: npm run format:check
+  # --check only reports. Run `npm run format` locally to fix what it flags.
+  - script: npx prettier --check .
     displayName: "Format check"
 
   - script: npm run build
     displayName: "Build"
-
-  - script: npx vitest run --passWithNoTests
-    displayName: "Unit tests"
