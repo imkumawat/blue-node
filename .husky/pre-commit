@@ -1,1 +1,9 @@
-npx lint-staged && npm run typecheck
+# Runs before every commit.
+#
+# lint-staged only touches files that are actually staged, and it re-stages what
+# it fixes — so formatting and auto-fixable lint problems are corrected in place
+# rather than becoming a separate "fix lint" commit.
+#
+# Deliberately fast. Type checking and tests belong in pre-push, where a couple of
+# seconds is fine; here they would tax every single commit.
+npx lint-staged

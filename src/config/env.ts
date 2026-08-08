@@ -27,7 +27,7 @@ import { fetchSecrets } from "../lib/aws/secrets.js";
 
 export type AppConfig = {
   env: EnvConfig["NODE_ENV"];
-  server: { port: number; workerPort: number };
+  server: { port: number; workerPort: number; cronPort: number };
   apiBaseUrl: string;
   apiSecret: string;
   postgres: {
@@ -179,7 +179,11 @@ export default async function loadEnv(
 
   _config = {
     env: e.NODE_ENV,
-    server: { port: e.PORT, workerPort: e.WORKER_PORT },
+    server: {
+      port: e.PORT,
+      workerPort: e.WORKER_PORT,
+      cronPort: e.CRON_PORT,
+    },
     apiBaseUrl: e.API_BASE_URL,
     apiSecret: e.API_SECRET_KEY,
     postgres: {

@@ -1,0 +1,11 @@
+# Runs before every push — the last check before code leaves your machine.
+#
+# These cover the whole project, not just changed files: a rename in one file can
+# break a caller in another that lint-staged never looked at.
+#
+# Same checks CI runs, so a red pipeline should be rare — you find out here first,
+# in seconds, instead of waiting on an agent.
+#
+# In a genuine emergency: git push --no-verify
+npm run typecheck
+npm run test:verify

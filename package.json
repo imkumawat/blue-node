@@ -18,13 +18,22 @@
     "start:worker": "node dist/worker.js",
     "start:cron": "node dist/cron.js",
     "lint:fix": "eslint . --fix",
-    "format:fix": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:fix": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
     "typecheck": "tsc --noEmit",
     "test:verify": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "lint:check": "eslint .",
-    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
-    "prepare": "husky"
+    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "prepare": "husky || true"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",
@@ -98,14 +107,5 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.60.0",
     "vitest": "^4.1.7"
-  },
-  "lint-staged": {
-    "*.{ts,js}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md}": [
-      "prettier --write"
-    ]
   }
 }

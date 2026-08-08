@@ -4,10 +4,11 @@ import logger from "../utils/logger.js";
 
 /**
  * Minimal HTTP server exposing ONLY GET /health — for the Fargate/ECS container
- * health check (a worker has no Express / API surface). Reports the same
- * serviceState the worker's core connections keep updated. NOT a general API.
+ * health check of the non-web processes (worker, cron), which have no Express /
+ * API surface. Reports the same serviceState their core connections keep
+ * updated. NOT a general API. `label` only tags the startup log line.
  */
-export function startHealthServer(port: number): Server {
+export function startHealthServer(port: number, label = "Worker"): Server {
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/health") {
       const healthy =
@@ -27,7 +28,7 @@ export function startHealthServer(port: number): Server {
   });
 
   server.listen(port, () =>
-    logger.info({ port }, "Worker health server listening"),
+    logger.info({ port }, `${label} health server listening`),
   );
   return server;
 }
