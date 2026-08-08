@@ -24,7 +24,7 @@
     "test:watch": "vitest",
     "lint:check": "eslint .",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.{ts,js}": [
