@@ -167,8 +167,8 @@ steps:
   - script: npm run typecheck
     displayName: "Type check"
 
-  - script: npm run lint
-    displayName: "Lint"
+  - script: npm run lint:check
+    displayName: "Lint check"
 
   # --check only reports. Run `npm run format` locally to fix what it flags.
   - script: npx prettier --check .
@@ -176,3 +176,6 @@ steps:
 
   - script: npm run build
     displayName: "Build"
+
+  - script: npm run test:verify
+    displayName: "Unit tests"
