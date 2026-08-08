@@ -4,12 +4,26 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: ["**"]
+
+# Same branch pe naya push aaye to purana run cancel ho jaye.
+# Bina iske teen tez commits = chhe parallel runs, sab purane bekaar.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege. Default token ko zyada access milta hai; CI ko sirf
+# code padhna hai.
+permissions:
+  contents: read
 
 jobs:
   checks:
     name: Quality Gates
     runs-on: ubuntu-latest
+    # Hang hone par GitHub ka default 6 GHANTE hai — utne minutes jal jayenge.
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +34,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          # npm ci `prepare` chalata hai -> husky. CI me git hooks bekaar hain.
+          HUSKY: 0
 
       - name: Type check
         run: npm run typecheck
@@ -34,4 +51,4 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npx vitest run --passWithNoTests
+        run: npm run test:verify
