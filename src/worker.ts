@@ -1,4 +1,4 @@
-import { unexpectedErrorHandler } from "./utils/unexpectedErrorHandler.js";
+import { unexpectedErrorHandler } from "./runtime/unexpectedErrorHandler.js";
 
 process.on("uncaughtException", (err, origin) =>
   unexpectedErrorHandler(err, origin),
@@ -10,7 +10,7 @@ process.on("unhandledRejection", (reason) =>
 import { initCoreServices } from "./init.js";
 import { createBullWorker } from "./worker/bullmqWorker.js";
 import { createSqsPoller } from "./worker/sqsPoller.js";
-import { startHealthServer } from "./worker/healthServer.js";
+import { startHealthServer } from "./runtime/healthServer.js";
 import logger from "./utils/logger.js";
 
 const { config, teardown } = await initCoreServices();

@@ -1,4 +1,4 @@
-import { unexpectedErrorHandler } from "./utils/unexpectedErrorHandler.js";
+import { unexpectedErrorHandler } from "./runtime/unexpectedErrorHandler.js";
 
 process.on("uncaughtException", (err, origin) =>
   unexpectedErrorHandler(err, origin),

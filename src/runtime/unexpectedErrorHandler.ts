@@ -1,4 +1,4 @@
-import logger from "./logger.js";
+import logger from "../utils/logger.js";
 
 const SHUTDOWN_BACKSTOP_MS = 30_000;
 let alreadyTriggered = false;
